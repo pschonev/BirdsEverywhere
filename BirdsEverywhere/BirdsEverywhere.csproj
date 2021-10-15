@@ -49,12 +49,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BirdData.cs" />
-    <Compile Include="BirdFactory.cs" />
-    <Compile Include="Birds\Bird.cs" />
+    <Compile Include="Birds\BirdFactoryType.cs" />
+    <Compile Include="Birds\CustomBirdType.cs" />
     <Compile Include="Birds\LandBird.cs" />
     <Compile Include="ModEntry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SpawnPattern.cs" />
+    <Compile Include="Spawners\Condition.cs" />
+    <Compile Include="Spawners\SpawnerFactory.cs" />
+    <Compile Include="Spawners\Spawner.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\birdlist.json" />

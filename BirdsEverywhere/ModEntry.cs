@@ -7,6 +7,7 @@ using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
 using BirdsEverywhere.Birds;
+using BirdsEverywhere.Spawners;
 
 namespace BirdsEverywhere
 {
@@ -140,87 +141,6 @@ namespace BirdsEverywhere
             BirdData data = modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
 
             SpawnBirdsAroundLocation(location, data);
-
-            
         }
-
-
-        public static void SpawnInCluster(GameLocation location, int targetAmount)
-        {
-            Random r_ = new Random((int)Game1.uniqueIDForThisGame / 2 + (int)Game1.stats.DaysPlayed);
-            int attempts = 100;
-
-            for (int j = 0; j < attempts; j++)
-            {
-                int xCoord2 = r_.Next(location.map.DisplayWidth / 64);
-                int yCoord2 = r_.Next(location.map.DisplayHeight / 64);
-                Vector2 initialTile = new Vector2(xCoord2, yCoord2);
-
-                if (location.isTileOnMap(initialTile) &&
-                ((location.doesTileHaveProperty(xCoord2, yCoord2, "Spawnable", "Back") != null &&
-                !location.doesEitherTileOrTileIndexPropertyEqual(xCoord2, yCoord2, "Spawnable", "Back", "F") &&
-                location.isTileLocationTotallyClearAndPlaceable(xCoord2, yCoord2) &&
-                location.getTileIndexAt(xCoord2, yCoord2, "AlwaysFront") == -1 &&
-                location.getTileIndexAt(xCoord2, yCoord2, "Front") == -1 &&
-                !location.isBehindBush(initialTile) &&
-                (Game1.random.NextDouble() < 0.1 || !location.isBehindTree(initialTile))) ||
-                location.doesTileHaveProperty(xCoord2, yCoord2, "Water", "Back") != null))
-                {
-                    modInstance.Monitor.Log($" Seagulls added at {xCoord2} - {yCoord2}.", LogLevel.Debug);
-
-                    foreach (Vector2 tile in Utility.getPositionsInClusterAroundThisTile(initialTile, targetAmount))
-                    {
-                        if (location.isTileOnMap(tile) && (location.isTileLocationTotallyClearAndPlaceable(tile) || location.doesTileHaveProperty((int)tile.X, (int)tile.Y, "Water", "Back") != null))
-                        {
-                            int state = 3;
-                            if (location.doesTileHaveProperty((int)tile.X, (int)tile.Y, "Water", "Back") != null)
-                            {
-                                state = 2;
-                            }
-                            location.critters.Add(new Seagull(tile * 64f + new Vector2(32f, 32f), state));
-                        }
-                    }
-
-                    break;
-                }
-            }
-        }
-
-        public static void SpawnBirdsAroundLocation(GameLocation location, BirdData data, int attempts = 100)
-        {
-            int targetAmount = Game1.random.Next(data.count.First(), data.count.Last());
-            modInstance.Monitor.Log($" Attempting to spawn {targetAmount} {data.name}s.", LogLevel.Debug);
-
-            for (int k = 0; k < targetAmount; k++)
-            {
-                for (int j = 0; j < attempts; j++)
-                {
-                    int xCoord2 = Game1.random.Next(location.map.DisplayWidth / 64);
-                    int yCoord2 = Game1.random.Next(location.map.DisplayHeight / 64);
-                    Vector2 tile = new Vector2(xCoord2, yCoord2);
-
-                    if (IsValidGroundSpawnTile(location, tile, xCoord2, yCoord2))
-                    {
-                        location.critters.Add(BirdFactory.createBird(xCoord2, yCoord2, data.id, data.birdType));
-                        modInstance.Monitor.Log($"Added {data.name} at {xCoord2} - {yCoord2}.", LogLevel.Debug);
-                        break;
-                    }
-                }
-            }
-        }
-
-        public static bool IsValidGroundSpawnTile(GameLocation location, Vector2 tile, int xCoord2, int yCoord2)
-        {
-            return (location.isTileOnMap(tile) &&
-                        location.doesTileHaveProperty(xCoord2, yCoord2, "Water", "Back") == null &&
-                        location.doesTileHaveProperty(xCoord2, yCoord2, "Spawnable", "Back") != null &&
-                        !location.doesEitherTileOrTileIndexPropertyEqual(xCoord2, yCoord2, "Spawnable", "Back", "F") &&
-                        location.isTileLocationTotallyClearAndPlaceable(xCoord2, yCoord2) &&
-                        location.getTileIndexAt(xCoord2, yCoord2, "AlwaysFront") == -1 &&
-                        location.getTileIndexAt(xCoord2, yCoord2, "Front") == -1 &&
-                        !location.isBehindBush(tile) &&
-                        (Game1.random.NextDouble() < 0.1 || !location.isBehindTree(tile)));
-        }
-
     }
 }

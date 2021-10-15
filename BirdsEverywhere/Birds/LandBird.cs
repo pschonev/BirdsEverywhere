@@ -12,7 +12,7 @@ using StardewValley.BellsAndWhistles;
 
 namespace BirdsEverywhere.Birds
 {
-    class LandBird : Bird
+    class LandBird : CustomBirdType
     {
 		private float flightOffset;
 
@@ -30,6 +30,11 @@ namespace BirdsEverywhere.Birds
 			flightOffset = (float)Game1.random.NextDouble() - 0.5f;
 
 			this.state = state;
+        }
+
+		public new LandBird setState(BehaviorStatus state)
+        {
+			return (LandBird)base.setState(state);
         }
 
 		public void hop(Farmer who)

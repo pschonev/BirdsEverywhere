@@ -13,7 +13,7 @@ namespace BirdsEverywhere
         public string scName;
 
         public string template;
-        public List<string> seasons = ["spring", "summer", "fall", "winter"];
+        public List<string> seasons = new List<string>() { "spring", "summer", "fall", "winter" };
         public SpawnData defaultSpawn = new SpawnData();
         public Dictionary<string, SpawnData> advancedSpawn; // advanced spawn patters in the form season : SpawnData
     }

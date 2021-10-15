@@ -10,7 +10,7 @@ using StardewValley;
 
 namespace BirdsEverywhere.Birds
 {
-    abstract class Bird : Critter
+    abstract class CustomBirdType : Critter
     {
 		public enum BehaviorStatus
         {
@@ -28,7 +28,7 @@ namespace BirdsEverywhere.Birds
 
 		protected string birdName;
 
-		protected Bird(int baseFrame, int tileX, int tileY, string birdName)
+		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName)
 			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
         {
 			this.birdName = birdName;
@@ -38,6 +38,11 @@ namespace BirdsEverywhere.Birds
 			this.sprite = new AnimatedSprite(birdTexture, baseFrame, 32, 32);
 		}
 
+		public CustomBirdType setState(BehaviorStatus state)
+        {
+			this.state = state;
+			return this;
+        }
 
 	}
 }
