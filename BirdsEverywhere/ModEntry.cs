@@ -15,7 +15,9 @@ namespace BirdsEverywhere
     {
         public static Mod modInstance;
 
-        private static List<string> spawnLocations = new List<string>() {"Backwoods", "Forest"};
+        private static List<string> availableSpawnLocatiions = new List<string>() {"Backwoods", "Forest"};
+        private static List<string> islandLocations = new List<string>() {"ISLANDWEST" };
+        private static List<string> expandedLocations = new List<string>() { "VINEYARD" };
 
         private static List<string> unseenBirds;
         public static HashSet<string> seenBirds;
