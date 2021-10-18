@@ -22,9 +22,10 @@ namespace BirdsEverywhere.Spawners
             {"SpawnableGroundSpawner", () => new SpawnableGroundSpawner()}
         };
 
-        public static Spawner createSpawner(GameLocation location, SpawnData data, string id, string spawner)
+        public static Spawner createSpawner(GameLocation location, BirdData data)
         {
-            return spawnerTypes[spawner]();
+            ModEntry.modInstance.Monitor.Log($"For location {location} {data.name}s will be created with {data.spawnData.spawnPattern}", LogLevel.Debug);
+            return spawnerTypes[data.spawnData.spawnPattern]();
         }
     }
 }

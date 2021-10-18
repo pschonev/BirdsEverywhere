@@ -2,10 +2,8 @@
   "id": "blue_tit",
   "name": "Blue Tit",
   "scName": "Cyanistes caeruleus",
-  "seasons": [ "spring", "summer", "fall" ],
-  "locations": [ "Backwoods", "Forest" ],
-  "spawns": [ "inCluster" ],
-  "birdType": "LandBird",
-  "chance": 0.95,
-  "count": [ 15, 30 ]
+
+  "spawnData": {
+    "locations": [ "Backwoods" ] 
+  }
 }

@@ -20,7 +20,11 @@ namespace BirdsEverywhere.Spawners
         /// <summary>
         /// Checks for valid ground tile (doesn't have to be accessible to player).
         /// </summary>
-        protected new SpawnCondition condition = (location, tile, xCoord2, yCoord2) => isValidGroundTile(location, tile, xCoord2, yCoord2);
+
+        public GroundSpawner()
+        {
+            condition = (location, tile, xCoord2, yCoord2) => isValidGroundTile(location, tile, xCoord2, yCoord2);
+        }
     }
 
     public class WaterSpawner : Spawner
@@ -64,15 +68,15 @@ namespace BirdsEverywhere.Spawners
     {
         protected SpawnCondition condition;
 
-        protected void spawnBirds(GameLocation location, SpawnData data, string id, int attempts = 100, int inner_attempts = 10)
+        public void spawnBirds(GameLocation location, BirdData data, int attempts = 100)
         {
-            int groupCount = Game1.random.Next(1, data.maxGroupCount);
+            int groupCount = Game1.random.Next(1, data.spawnData.maxGroupCount);
 
-            ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} groups of {id}.", LogLevel.Debug);
+            ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} groups with max {data.spawnData.maxGroupCount} {data.name}s.", LogLevel.Debug);
 
             for (int k = 0; k < groupCount; k++)
             {
-                int groupSize = Game1.random.Next(1, data.maxGroupCount);
+                int groupSize = Game1.random.Next(1, data.spawnData.maxGroupCount);
 
                 for (int j = 0; j < attempts; j++)
                 {
@@ -85,8 +89,9 @@ namespace BirdsEverywhere.Spawners
 
                         foreach (Vector2 tile in Utility.getPositionsInClusterAroundThisTile(initialTile, groupSize))
                         {
-                            spawnSingleBird(location, tile, xCoord2, yCoord2, data, id);
+                            spawnSingleBird(location, tile, xCoord2, yCoord2, data.spawnData, data.id);
                         }
+                        break;
                     }
                 }
             }

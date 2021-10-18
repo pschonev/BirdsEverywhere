@@ -12,17 +12,22 @@ namespace BirdsEverywhere
         public string name;
         public string scName;
 
-        public string template;
+        public string egg = "";
+        public string feather = "";
+        public bool dimorphism = false;
+
+        public string template = "";
         public List<string> seasons = new List<string>() { "spring", "summer", "fall", "winter" };
-        public SpawnData defaultSpawn = new SpawnData();
-        public Dictionary<string, SpawnData> advancedSpawn; // advanced spawn patters in the form season : SpawnData
+
+        public SpawnData spawnData = new SpawnData();
+        public Dictionary<string, List<SpawnData>> advancedSpawn = new Dictionary<string, List<SpawnData>>(); // advanced spawn patters in the form season : SpawnData
     }
 
     public class SpawnData
     {
-        public List<string> locations; // possible spawn locations
-        public List<string> spawnPatterns; // how to spawn the bird at location
-        public string birdType; // Bird class derivative that determines behavior
+        public List<string> locations = new List<string>() { "Backwoods" }; // possible spawn locations
+        public string spawnPattern = "GroundSpawner"; // how to spawn the bird at location
+        public string birdType = "LandBird"; // Bird class derivative that determines behavior
         public double chance = 0.95; //chance that the bird will be added to today's birds
         public int maxGroupCount = 20; //maximum amount of groups that are created
         public int maxGroupSize = 6; //maximum amount of birds in a group
@@ -35,10 +40,7 @@ namespace BirdsEverywhere
         public int minTime = 600;
         public int maxTime = 1800;
 
-        public timeRange()
-        {
-
-        }
+        public timeRange(){}
 
         public timeRange(int minTime, int maxTime)
         {
