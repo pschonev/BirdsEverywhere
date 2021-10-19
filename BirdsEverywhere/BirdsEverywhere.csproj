@@ -57,6 +57,7 @@
     <Compile Include="Spawners\Condition.cs" />
     <Compile Include="Spawners\SpawnerFactory.cs" />
     <Compile Include="Spawners\Spawner.cs" />
+    <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\birdlist.json" />

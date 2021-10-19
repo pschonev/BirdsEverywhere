@@ -11,8 +11,10 @@ namespace BirdsEverywhere
         public string id;
         public string name;
         public string scName;
+        public string description = "";
 
         public string egg = "";
+        public string breedingSeason = "spring";
         public string feather = "";
         public bool dimorphism = false;
 

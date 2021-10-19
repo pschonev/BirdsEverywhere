@@ -33,7 +33,7 @@ namespace BirdsEverywhere
             helper.Events.GameLoop.DayStarted += GameLoop_DayStarted;
             helper.Events.Player.Warped += Player_Warped;
 
-            unseenBirds = new List<string>(helper.Content.Load<Dictionary<string, string>>("assets/birdlist.json", ContentSource.ModFolder).Values);
+            unseenBirds = getFullBirdList(helper.Content.Load<Dictionary<string, List<string>>>("assets/birdlist.json", ContentSource.ModFolder));
             seenBirds = new HashSet<string>();
                 
         }
@@ -65,6 +65,14 @@ namespace BirdsEverywhere
 
             // print button presses to the console window
             modInstance.Monitor.Log($"{Game1.player.Name} pressed {e.Button}.", LogLevel.Debug);
+        }
+
+        private static List<string> getFullBirdList(Dictionary<string, List<string>> birdLists)
+        {
+            // this should create a combined list of all birds that gets shuffled with weights based on log of the lists index
+            // when new areas are discovered, the individual birds lists should be added to the eligible birds list
+            // then eligibleBirds.Contains can be used before choosing a new bird from the shuffle master list
+            return birdLists["valleyBirds"];
         }
 
         private static void sampleTodaysBirds(string currentSeason)
