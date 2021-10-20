@@ -72,11 +72,11 @@ namespace BirdsEverywhere.Spawners
         {
             int groupCount = Game1.random.Next(1, data.spawnData.maxGroupCount);
 
-            ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} groups with max {data.spawnData.maxGroupCount} {data.name}s.", LogLevel.Debug);
+            ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} groups with max {data.spawnData.maxGroupSize} {data.name}s.", LogLevel.Debug);
 
             for (int k = 0; k < groupCount; k++)
             {
-                int groupSize = Game1.random.Next(1, data.spawnData.maxGroupCount);
+                int groupSize = Game1.random.Next(1, data.spawnData.maxGroupSize);
 
                 for (int j = 0; j < attempts; j++)
                 {
@@ -86,10 +86,10 @@ namespace BirdsEverywhere.Spawners
 
                     if (condition(location, initialTile, xCoord2, yCoord2))
                     {
-
-                        foreach (Vector2 tile in Utility.getPositionsInClusterAroundThisTile(initialTile, groupSize))
+                        spawnSingleBird(location, initialTile, (int)initialTile.X, (int)initialTile.Y, data.spawnData, data.id);
+                        foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(initialTile, groupSize-1))
                         {
-                            spawnSingleBird(location, tile, xCoord2, yCoord2, data.spawnData, data.id);
+                            spawnSingleBird(location, tile, (int)tile.X, (int)tile.Y, data.spawnData, data.id);
                         }
                         break;
                     }

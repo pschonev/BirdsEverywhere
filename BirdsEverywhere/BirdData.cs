@@ -31,8 +31,10 @@ namespace BirdsEverywhere
         public string spawnPattern = "GroundSpawner"; // how to spawn the bird at location
         public string birdType = "LandBird"; // Bird class derivative that determines behavior
         public double chance = 0.95; //chance that the bird will be added to today's birds
-        public int maxGroupCount = 20; //maximum amount of groups that are created
-        public int maxGroupSize = 6; //maximum amount of birds in a group
+        public int minGroupCount = 1; //minimum amount of groups that are created
+        public int GroupCount = 2;
+        public int minGroupSize = 3; //minimum amount of birds in a group
+        public int maxGroupSize = 5; 
         public List<timeRange> timeOfDayRanges = new List<timeRange>() { new timeRange(), new timeRange() }; // during which time of the day they can spawn
         public List<timeRange> daysRanges = new List<timeRange>() { new timeRange(1, 30) }; // when in the season they can spawn
     }

@@ -4,6 +4,8 @@
   "scName": "Cyanistes caeruleus",
 
   "spawnData": {
-    "locations": [ "Backwoods" ] 
+    "locations": [ "BusStop" ],
+    "maxGroupCount": 2,
+    "maxGroupSize":  12
   }
 }
