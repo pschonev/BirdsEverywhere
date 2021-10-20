@@ -15,35 +15,43 @@ namespace BirdsEverywhere
     public class ModEntry : Mod
     {
         public static Mod modInstance;
+        public static SaveData saveData;
+        const string saveKey = "bird-save";
 
-        private static List<string> availableSpawnLocatiions = new List<string>() {"Backwoods", "Forest"};
-        private static List<string> islandLocations = new List<string>() {"ISLANDWEST" };
-        private static List<string> expandedLocations = new List<string>() { "VINEYARD" };
-
-        private static List<string> unseenBirds;
-        public static HashSet<string> seenBirds;
-        private static Dictionary<string, BirdData> birdsToday;
-
+        public static Dictionary<string, BirdData> birdsToday;
 
         public override void Entry(IModHelper helper)
         {
-            ModEntry.modInstance = this;
+            modInstance = this;
 
             helper.Events.Input.ButtonPressed += OnButtonPressed;
             helper.Events.GameLoop.DayStarted += GameLoop_DayStarted;
             helper.Events.Player.Warped += Player_Warped;
+            helper.Events.GameLoop.Saving += OnSaving;
+            helper.Events.GameLoop.SaveLoaded += OnLoaded;
+        }
 
-            unseenBirds = getFullBirdList(helper.Content.Load<Dictionary<string, List<string>>>("assets/birdlist.json", ContentSource.ModFolder));
-            seenBirds = new HashSet<string>();
-                
+
+        private void OnSaving(object sender, SavingEventArgs e)
+        {
+            if (Context.IsMainPlayer)
+                Helper.Data.WriteSaveData(saveKey, saveData);
+
+        }
+
+        private void OnLoaded(object sender, SaveLoadedEventArgs e)
+        {
+            saveData = Helper.Data.ReadSaveData<SaveData>(saveKey) ?? new SaveData{
+                unseenBirds = getFullBirdList(modInstance.Helper.Content.Load<Dictionary<string, List<string>>>("assets/birdlist.json", ContentSource.ModFolder))
+            };
         }
 
         private static void GameLoop_DayStarted(object sender, DayStartedEventArgs e)
         {
-            // ADD ISLAND AND DESERT LOCATIONS TO VALID LOCATIONS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
+            // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
             sampleTodaysBirds(Game1.currentSeason);
-            modInstance.Monitor.Log($" Unseen birds: {String.Join(" - ", unseenBirds)}.", LogLevel.Debug);
-            modInstance.Monitor.Log($" Seen birds: {String.Join(" - ", seenBirds)}.", LogLevel.Debug);
+            modInstance.Monitor.Log($" Unseen birds: {String.Join(" - ", saveData.unseenBirds)}.", LogLevel.Debug);
+            modInstance.Monitor.Log($" Seen birds: {String.Join(" - ", saveData.seenBirds)}.", LogLevel.Debug);
             modInstance.Monitor.Log($" Birds today: ", LogLevel.Debug);
             foreach (KeyValuePair<string, BirdData> kvp in birdsToday)
             {
@@ -81,7 +89,7 @@ namespace BirdsEverywhere
 
             getUnseenBird(currentSeason);
 
-            if (seenBirds.Count == 0)
+            if (saveData.seenBirds.Count == 0)
                 return;
 
             getSeenBirds(currentSeason);
@@ -92,17 +100,17 @@ namespace BirdsEverywhere
         private static void getUnseenBird(string currentSeason)
         {
             // RANDOMNESS!
-            if (Game1.random.NextDouble() < 1.0 && unseenBirds.Count > 0)
+            if (Game1.random.NextDouble() < 1.0 && saveData.unseenBirds.Count > 0)
             {
-                for (int i = 0; i < unseenBirds.Count; i++)
+                for (int i = 0; i < saveData.unseenBirds.Count; i++)
                 {
-                    string birdName = unseenBirds[i];
+                    string birdName = saveData.unseenBirds[i];
                     BirdData data = modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
                     if (data.seasons.Contains(currentSeason) || data.advancedSpawn.Keys.Contains(Game1.currentSeason))
                     {
                         data.spawnData = getSpawnData(data);
                         // HAVE TO IMPLEMENT CHANCE VALUE WITH IF HERE
-                        birdsToday.Add(getRandomElementFromList(data.spawnData.locations), data);
+                        birdsToday.Add(Utils.getRandomElementFromList(data.spawnData.locations), data);
                         return;
                     }
 
@@ -114,7 +122,7 @@ namespace BirdsEverywhere
         {
             int maxLocationsWithBirds = 5;
 
-            foreach (string birdName in seenBirds)
+            foreach (string birdName in saveData.seenBirds)
             {
                 BirdData data = modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
 
@@ -154,14 +162,8 @@ namespace BirdsEverywhere
             List<SpawnData> possibleSpawns = data.advancedSpawn[season];
 
             // THIS IS RANDOM AND WILL BE BASED ON CHANCE LATER
-            return getRandomElementFromList(possibleSpawns);
+            return Utils.getRandomElementFromList(possibleSpawns);
 
-        }
-
-        private static T getRandomElementFromList<T>(List<T> listToPickFrom)
-            {
-            int index = Game1.random.Next(0, Math.Max(listToPickFrom.Count-1, 0));
-            return listToPickFrom[index];
         }
 
         private static void Populate(GameLocation location)

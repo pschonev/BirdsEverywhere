@@ -70,13 +70,13 @@ namespace BirdsEverywhere.Spawners
 
         public void spawnBirds(GameLocation location, BirdData data, int attempts = 100)
         {
-            int groupCount = Game1.random.Next(1, data.spawnData.maxGroupCount);
+            int groupCount = Game1.random.Next(data.spawnData.minGroupCount, data.spawnData.maxGroupCount);
 
             ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} groups with max {data.spawnData.maxGroupSize} {data.name}s.", LogLevel.Debug);
 
             for (int k = 0; k < groupCount; k++)
             {
-                int groupSize = Game1.random.Next(1, data.spawnData.maxGroupSize);
+                int groupSize = Game1.random.Next(data.spawnData.minGroupSize, data.spawnData.maxGroupSize);
 
                 for (int j = 0; j < attempts; j++)
                 {
