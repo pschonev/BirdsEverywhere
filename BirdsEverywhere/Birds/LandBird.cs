@@ -104,12 +104,12 @@ namespace BirdsEverywhere.Birds
 						Game1.playSound("SpringBirds");
 					}
 					state = BehaviorStatus.FlyingAway;
-					if (ModEntry.seenBirds.Add(this.birdName))
+					if (ModEntry.saveData.seenBirds.Add(this.birdName))
                     {
 						ModEntry.modInstance.Monitor.Log($"New bird was added to seen set: {this.birdName}", LogLevel.Debug);
 					}
 					
-					ModEntry.modInstance.Monitor.Log($"Birds seen: {String.Join("\n", ModEntry.seenBirds)}", LogLevel.Debug);
+					ModEntry.modInstance.Monitor.Log($"Birds seen: {String.Join("\n", ModEntry.saveData.seenBirds)}", LogLevel.Debug);
 
 					if (f.Position.X > position.X)
 					{
