@@ -24,11 +24,11 @@ namespace BirdsEverywhere
         {
             modInstance = this;
 
-            helper.Events.Input.ButtonPressed += OnButtonPressed;
             helper.Events.GameLoop.DayStarted += GameLoop_DayStarted;
             helper.Events.Player.Warped += Player_Warped;
             helper.Events.GameLoop.Saving += OnSaving;
             helper.Events.GameLoop.SaveLoaded += OnLoaded;
+            helper.Events.GameLoop.TimeChanged += TimeChanged;
         }
 
 
@@ -50,6 +50,7 @@ namespace BirdsEverywhere
         {
             // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
             sampleTodaysBirds(Game1.currentSeason);
+
             modInstance.Monitor.Log($" Unseen birds: {String.Join(" - ", saveData.unseenBirds)}.", LogLevel.Debug);
             modInstance.Monitor.Log($" Seen birds: {String.Join(" - ", saveData.seenBirds)}.", LogLevel.Debug);
             modInstance.Monitor.Log($" Birds today: ", LogLevel.Debug);
@@ -59,23 +60,47 @@ namespace BirdsEverywhere
             }
         }
 
+        private static bool isVanillaBird(Critter critter)
+        {
+            if (critter is Birdie)
+                return true;
+            if (critter is Seagull)
+                return true;
+            if (critter is Owl)
+                return true;
+            if (critter is Woodpecker)
+                return true;
+            return false;
+        }
+
+        private static void removeVanillaBirds(GameLocation location)
+        {
+            foreach (var x in location.critters)
+            {
+                modInstance.Monitor.Log($"Spawn {x} at {x.position}", LogLevel.Debug);
+            }
+            location.critters.RemoveAll(c => isVanillaBird(c));
+            
+        }
+
+
+
         private static void Player_Warped(object sender, WarpedEventArgs e)
         {
             modInstance.Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
+            removeVanillaBirds(e.NewLocation);
             Populate(e.NewLocation);
+            modInstance.Monitor.Log($" Critters after: {String.Join(" - ", e.NewLocation.critters)}.", LogLevel.Debug);
         }
 
-        private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
+        private void TimeChanged(object sender, TimeChangedEventArgs e)
         {
-            // ignore if player hasn't loaded a save yet
-            if (!Context.IsWorldReady)
-                return;
-
-            // print button presses to the console window
-            modInstance.Monitor.Log($"{Game1.player.Name} pressed {e.Button}.", LogLevel.Debug);
+            removeVanillaBirds(Game1.currentLocation);
+            modInstance.Monitor.Log($" Critters after: {String.Join(" - ", Game1.currentLocation.critters)}.", LogLevel.Debug);
         }
 
-        private static List<string> getFullBirdList(Dictionary<string, List<string>> birdLists)
+
+            private static List<string> getFullBirdList(Dictionary<string, List<string>> birdLists)
         {
             // this should create a combined list of all birds that gets shuffled with weights based on log of the lists index
             // when new areas are discovered, the individual birds lists should be added to the eligible birds list
