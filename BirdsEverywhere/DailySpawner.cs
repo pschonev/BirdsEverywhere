@@ -7,35 +7,33 @@ using StardewValley;
 using StardewValley.BellsAndWhistles;
 using StardewModdingAPI;
 using BirdsEverywhere.Spawners;
-using static BirdsEverywhere.ModEntry;
 
 namespace BirdsEverywhere
 {
-    public class SpawnManagement
+    public class DailySpawner
     {
-        public static List<string> getFullBirdList(Dictionary<string, List<string>> birdLists)
+        public Dictionary<string, BirdData> birdsToday;
+
+        public DailySpawner(string currentSeason, SaveData saveData)
         {
-            // this should create a combined list of all birds that gets shuffled with weights based on log of the lists index
-            // when new areas are discovered, the individual birds lists should be added to the eligible birds list
-            // then eligibleBirds.Contains can be used before choosing a new bird from the shuffle master list
-            return birdLists["valleyBirds"];
+            sampleTodaysBirds(currentSeason,  saveData);
         }
 
-        public static void sampleTodaysBirds(string currentSeason)
+        public void sampleTodaysBirds(string currentSeason, SaveData saveData)
         {
             birdsToday = new Dictionary<string, BirdData>();
 
-            getUnseenBird(currentSeason);
+            getUnseenBird(currentSeason, saveData);
 
             if (saveData.seenBirds.Count == 0)
                 return;
 
-            getSeenBirds(currentSeason);
+            getSeenBirds(currentSeason, saveData);
 
 
         }
 
-        public static void getUnseenBird(string currentSeason)
+        private void getUnseenBird(string currentSeason, SaveData saveData)
         {
             // RANDOMNESS!
             if (Game1.random.NextDouble() < 1.0 && saveData.unseenBirds.Count > 0)
@@ -43,7 +41,7 @@ namespace BirdsEverywhere
                 for (int i = 0; i < saveData.unseenBirds.Count; i++)
                 {
                     string birdName = saveData.unseenBirds[i];
-                    BirdData data = modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+                    BirdData data = ModEntry.modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
                     if (data.seasons.Contains(currentSeason) || data.advancedSpawn.Keys.Contains(Game1.currentSeason))
                     {
                         data.spawnData = getSpawnData(data);
@@ -56,13 +54,13 @@ namespace BirdsEverywhere
             }
         }
 
-        public static void getSeenBirds(string currentSeason)
+        private void getSeenBirds(string currentSeason, SaveData saveData)
         {
             int maxLocationsWithBirds = 5;
 
             foreach (string birdName in saveData.seenBirds)
             {
-                BirdData data = modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+                BirdData data = ModEntry.modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
 
                 // look at next bird if this bird doesn't spawn in this season
                 if (!data.seasons.Contains(currentSeason) && !data.advancedSpawn.Keys.Contains(currentSeason))
@@ -85,7 +83,7 @@ namespace BirdsEverywhere
         }
 
 
-        private static SpawnData getSpawnData(BirdData data)
+        private SpawnData getSpawnData(BirdData data)
         {
             if (data.advancedSpawn.Count == 0 || !data.advancedSpawn.Keys.Contains(Game1.currentSeason))
                 return data.spawnData;
@@ -94,7 +92,7 @@ namespace BirdsEverywhere
         }
 
 
-        private static SpawnData sampleAdvancedSpawnData(BirdData data)
+        private SpawnData sampleAdvancedSpawnData(BirdData data)
         {
             string season = Game1.currentSeason;
             List<SpawnData> possibleSpawns = data.advancedSpawn[season];
@@ -104,29 +102,8 @@ namespace BirdsEverywhere
 
         }
 
-        private static bool isVanillaBird(Critter critter)
-        {
-            if (critter is Birdie)
-                return true;
-            if (critter is Seagull)
-                return true;
-            if (critter is Owl)
-                return true;
-            if (critter is Woodpecker)
-                return true;
-            return false;
-        }
 
-        public static void removeVanillaBirds(GameLocation location)
-        {
-            foreach (var x in location.critters)
-            {
-                modInstance.Monitor.Log($"Spawn {x} at {x.position}", LogLevel.Debug);
-            }
-            location.critters.RemoveAll(c => isVanillaBird(c));
-        }
-
-        public static void Populate(GameLocation location)
+        public void Populate(GameLocation location)
         {
             if (location == null)
                 return;
@@ -136,12 +113,12 @@ namespace BirdsEverywhere
             if (!birdsToday.ContainsKey(locationName))
                 return;
 
-            modInstance.Monitor.Log($"{locationName} is in birdsToday and should spawn {birdsToday[locationName]}", LogLevel.Debug);
+            ModEntry.modInstance.Monitor.Log($"{locationName} is in birdsToday and should spawn {birdsToday[locationName]}", LogLevel.Debug);
 
             location.instantiateCrittersList(); //make sure the critter list isn't null
 
             string birdName = birdsToday[locationName].id;
-            BirdData data = modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+            BirdData data = ModEntry.modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
 
             SpawnerFactory.createSpawner(location, data).spawnBirds(location, data);
         }

@@ -1,0 +1,19 @@
+{
+  "birds": {
+    "valleyBirds": [
+      "blue_tit"
+
+    ],
+    "desertBirds": [
+
+    ],
+    "islandBirds": [
+
+    ]
+  },
+  "locations": {
+    "valley": [ "" ],
+    "desert": [ "" ],
+    "island": [ "" ]
+  }
+}
