@@ -4,6 +4,7 @@ using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
+using BirdsEverywhere.Spawners;
 
 namespace BirdsEverywhere
 {
@@ -17,10 +18,11 @@ namespace BirdsEverywhere
         public static SaveData saveData;
         private DailySpawner dailySpawner;
 
+        public static HashSet<string> eligibleLocations;
+
         public override void Entry(IModHelper helper)
         {
             modInstance = this;
-            environmentData = modInstance.Helper.Content.Load<EnvironmentData>("assets/environmentData.json", ContentSource.ModFolder);
 
             helper.Events.GameLoop.DayStarted += GameLoop_DayStarted;
             helper.Events.Player.Warped += Player_Warped;
@@ -39,12 +41,18 @@ namespace BirdsEverywhere
 
         private void OnLoaded(object sender, SaveLoadedEventArgs e)
         {
+            environmentData = modInstance.Helper.Content.Load<EnvironmentData>("assets/environmentData.json", ContentSource.ModFolder);
             saveData = Helper.Data.ReadSaveData<SaveData>(saveKey) ?? new SaveData {
-                unseenBirds = getFullBirdList(environmentData.birds.valleyBirds)
+                unseenBirds = getInitialBirdList(environmentData.birds.valleyBirds)
             };
+
+            setEligibleLocations();
+
+            logList(saveData.unseenBirds, "Unseen Birds");
+            logList(saveData.seenBirds, "Seen Birds");
         }
 
-        private List<string> getFullBirdList(List<string> birdList)
+        private List<string> getInitialBirdList(List<string> birdList)
         {
             // this should create a combined list of all birds that gets shuffled with weights based on log of the lists index
             // when new areas are discovered, the individual birds lists should be added to the eligible birds list
@@ -52,13 +60,28 @@ namespace BirdsEverywhere
             return birdList;
         }
 
+        private void setEligibleLocations()
+        {
+            eligibleLocations = new HashSet<string>();
+            eligibleLocations.UnionWith(environmentData.locations.valley);
+            if (true)
+                eligibleLocations.UnionWith(environmentData.locations.desert);
+            if (true)
+                eligibleLocations.UnionWith(environmentData.locations.island);
+        }
+
+        private bool isEligibleLocation(GameLocation location)
+        {
+            return eligibleLocations.Contains(location.Name);
+        }
+
         private void GameLoop_DayStarted(object sender, DayStartedEventArgs e)
         {
             // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
             dailySpawner = new DailySpawner(Game1.currentSeason, saveData);
 
-            modInstance.Monitor.Log($" Unseen birds: {String.Join(" - ", saveData.unseenBirds)}.", LogLevel.Debug);
-            modInstance.Monitor.Log($" Seen birds: {String.Join(" - ", saveData.seenBirds)}.", LogLevel.Debug);
+            logList(saveData.unseenBirds, "Unseen Birds");
+            logList(saveData.seenBirds, "Seen Birds");
             modInstance.Monitor.Log($" Birds today: ", LogLevel.Debug);
             foreach (KeyValuePair<string, BirdData> kvp in dailySpawner.birdsToday)
             {
@@ -76,6 +99,8 @@ namespace BirdsEverywhere
 
         private void TimeChanged(object sender, TimeChangedEventArgs e)
         {
+            if (!isEligibleLocation(Game1.currentLocation))
+                return;
             removeVanillaBirds(Game1.currentLocation);
             modInstance.Monitor.Log($" Critters after: {String.Join(" - ", Game1.currentLocation.critters)}.", LogLevel.Debug);
         }
@@ -95,11 +120,19 @@ namespace BirdsEverywhere
 
         private void removeVanillaBirds(GameLocation location)
         {
+            if (!isEligibleLocation(location))
+                return;
+
             foreach (var x in location.critters)
             {
                 modInstance.Monitor.Log($"Spawn {x} at {x.position}", LogLevel.Debug);
             }
             location.critters.RemoveAll(c => isVanillaBird(c));
+        }
+
+        private void logList(IEnumerable<string> list, string description = "-")
+        {
+            modInstance.Monitor.Log($" {description}: {String.Join(" - ", list)}.", LogLevel.Debug);
         }
     }
 }

@@ -12,8 +12,8 @@
     ]
   },
   "locations": {
-    "valley": [ "" ],
-    "desert": [ "" ],
-    "island": [ "" ]
+    "valley": [ "Forest" ],
+    "desert": [ "Desert" ],
+    "island": [ "IslandSouth" ]
   }
 }

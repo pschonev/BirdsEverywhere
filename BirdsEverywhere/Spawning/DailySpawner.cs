@@ -4,11 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using StardewValley;
-using StardewValley.BellsAndWhistles;
 using StardewModdingAPI;
-using BirdsEverywhere.Spawners;
 
-namespace BirdsEverywhere
+namespace BirdsEverywhere.Spawners
 {
     public class DailySpawner
     {

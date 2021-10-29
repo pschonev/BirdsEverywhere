@@ -48,18 +48,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BirdData.cs" />
-    <Compile Include="Birds\BirdFactoryType.cs" />
-    <Compile Include="Birds\CustomBirdType.cs" />
-    <Compile Include="Birds\LandBird.cs" />
-    <Compile Include="DailySpawner.cs" />
-    <Compile Include="EnvironmentData.cs" />
+    <Compile Include="Data\BirdData.cs" />
+    <Compile Include="BirdTypes\BirdFactoryType.cs" />
+    <Compile Include="BirdTypes\CustomBirdType.cs" />
+    <Compile Include="BirdTypes\LandBird.cs" />
+    <Compile Include="Spawning\DailySpawner.cs" />
+    <Compile Include="Data\EnvironmentData.cs" />
     <Compile Include="ModEntry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SaveData.cs" />
-    <Compile Include="Spawners\Condition.cs" />
-    <Compile Include="Spawners\SpawnerFactory.cs" />
-    <Compile Include="Spawners\Spawner.cs" />
+    <Compile Include="Data\SaveData.cs" />
+    <Compile Include="Spawning\Spawners\Condition.cs" />
+    <Compile Include="Spawning\Spawners\SpawnerFactory.cs" />
+    <Compile Include="Spawning\Spawners\Spawner.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
