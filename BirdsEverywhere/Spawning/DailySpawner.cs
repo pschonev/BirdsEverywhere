@@ -103,7 +103,7 @@ namespace BirdsEverywhere.Spawners
 
         public void Populate(GameLocation location)
         {
-            if (location == null)
+            if (location == null || !ModEntry.isEligibleLocation(location))
                 return;
 
             string locationName = location.Name ?? ""; //get the location's name (blank if null)

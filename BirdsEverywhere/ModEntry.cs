@@ -70,7 +70,7 @@ namespace BirdsEverywhere
                 eligibleLocations.UnionWith(environmentData.locations.island);
         }
 
-        private bool isEligibleLocation(GameLocation location)
+        public static bool isEligibleLocation(GameLocation location)
         {
             return eligibleLocations.Contains(location.Name);
         }
@@ -93,8 +93,10 @@ namespace BirdsEverywhere
         {
             modInstance.Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
             removeVanillaBirds(e.NewLocation);
+
+            if (!isEligibleLocation(Game1.currentLocation))
+                return;
             dailySpawner.Populate(e.NewLocation);
-            modInstance.Monitor.Log($" Critters after: {String.Join(" - ", e.NewLocation.critters)}.", LogLevel.Debug);
         }
 
         private void TimeChanged(object sender, TimeChangedEventArgs e)
@@ -102,7 +104,6 @@ namespace BirdsEverywhere
             if (!isEligibleLocation(Game1.currentLocation))
                 return;
             removeVanillaBirds(Game1.currentLocation);
-            modInstance.Monitor.Log($" Critters after: {String.Join(" - ", Game1.currentLocation.critters)}.", LogLevel.Debug);
         }
 
         private bool isVanillaBird(Critter critter)
