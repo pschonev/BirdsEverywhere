@@ -25,6 +25,13 @@ namespace BirdsEverywhere
             return indexes.Select(x => items[x]).ToList();
         }
 
+        public static List<T> shuffleListByOrder<T>(List<T> items, int rareFrequencyLevel = 0)
+        {
+            List<int> birdWeights = Enumerable.Range(rareFrequencyLevel, items.Count).ToList();
+            birdWeights.Reverse();
+            return shuffleByWeights(items, birdWeights);
+        }
+
 
         public static T getRandomElementFromList<T>(List<T> listToPickFrom)
         {
