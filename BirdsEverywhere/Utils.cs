@@ -22,7 +22,7 @@ namespace BirdsEverywhere
             return indexes.Select(x => items[x]).ToList();
         }
 
-        public static List<T> shuffleListByOrder<T>(List<T> items, double luckLevel = 0.55)
+        public static List<T> shuffleListByOrder<T>(List<T> items, double luckLevel = 2.0)
         {
             luckLevel = Clamp(luckLevel, 0.0, 10.0);
             List<double> birdWeights = Enumerable.Range(1, items.Count).Select(x => (double)x).ToList();
