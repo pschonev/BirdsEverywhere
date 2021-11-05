@@ -6,32 +6,36 @@ using StardewValley;
 
 namespace BirdsEverywhere
 {
-    class Utils
+    public static class Utils
     {
-        private static double transform(double w)
+        private static double transform(double p)
         {
-            return (w / 2) + (Game1.random.NextDouble() / 2);
+            return Math.Pow(Game1.random.NextDouble(), 1.0 / p);
         }
 
-        public static List<T> shuffleByWeights<T>(List<T> items, List<int> weights)
+        public static List<T> shuffleByWeights<T>(List<T> items, List<double> weights)
         {
             List<int> indexes = Enumerable.Range(0, items.Count).ToList();
-            int maxWeight = weights.Max();
-            List<double> zeroToOneWeights = weights.Select(x => (double)x / maxWeight).ToList();
-
             indexes.Sort((x, y) =>
                 transform(weights[x]).CompareTo(transform(weights[y]))
             );
             return indexes.Select(x => items[x]).ToList();
         }
 
-        public static List<T> shuffleListByOrder<T>(List<T> items, int rareFrequencyLevel = 0)
+        public static List<T> shuffleListByOrder<T>(List<T> items, double luckLevel = 0.55)
         {
-            List<int> birdWeights = Enumerable.Range(rareFrequencyLevel, items.Count).ToList();
-            birdWeights.Reverse();
+            luckLevel = Clamp(luckLevel, 0.0, 10.0);
+            List<double> birdWeights = Enumerable.Range(1, items.Count).Select(x => (double)x).ToList();
+            birdWeights = birdWeights.Select(x => Math.Pow(x, luckLevel) / Math.Log(items.Count, 2)).ToList();
             return shuffleByWeights(items, birdWeights);
         }
 
+        public static T Clamp<T>(this T val, T min, T max) where T : IComparable<T>
+        {
+            if (val.CompareTo(min) < 0) return min;
+            else if (val.CompareTo(max) > 0) return max;
+            else return val;
+        }
 
         public static T getRandomElementFromList<T>(List<T> listToPickFrom)
         {
