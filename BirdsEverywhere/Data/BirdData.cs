@@ -30,7 +30,6 @@ namespace BirdsEverywhere
         public List<string> locations = new List<string>() { "Backwoods" }; // possible spawn locations
         public string spawnPattern = "GroundSpawner"; // how to spawn the bird at location
         public string birdType = "LandBird"; // Bird class derivative that determines behavior
-        public double chance = 0.95; //chance that the bird will be added to today's birds
         public int minGroupCount = 1; //minimum amount of groups that are created
         public int maxGroupCount = 2;
         public int minGroupSize = 3; //minimum amount of birds in a group
