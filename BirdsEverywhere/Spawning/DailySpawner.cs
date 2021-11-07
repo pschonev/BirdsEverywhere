@@ -14,55 +14,57 @@ namespace BirdsEverywhere.Spawners
 
         public DailySpawner(string currentSeason, SaveData saveData)
         {
-            sampleTodaysBirds(currentSeason,  saveData);
+            sampleTodaysBirds(currentSeason, saveData.seenBirds, ModEntry.environmentData.biomes);
         }
 
-        public void sampleTodaysBirds(string currentSeason, SaveData saveData)
+        public void sampleTodaysBirds(string currentSeason, HashSet<string> seenBirds, List<Biome> biomes)
         {
             birdsToday = new Dictionary<string, BirdData>();
+            // this should be between 0 (completely random) and 10 (keep strict order of bird rarity) in the future
+            double todaysLuckFactor = 2.0;
 
-            getUnseenBird(currentSeason, saveData);
-
-            if (saveData.seenBirds.Count == 0)
-                return;
-
-            getSeenBirds(currentSeason, saveData);
-
-
-        }
-
-        private void getUnseenBird(string currentSeason, SaveData saveData)
-        {
-            // RANDOMNESS!
-            if (Game1.random.NextDouble() < 1.0 && saveData.unseenBirds.Count > 0)
+            foreach (Biome biome in biomes)
             {
-                for (int i = 0; i < saveData.unseenBirds.Count; i++)
-                {
-                    string birdName = saveData.unseenBirds[i];
-                    BirdData data = ModEntry.modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
-                    if (data.seasons.Contains(currentSeason) || data.advancedSpawn.Keys.Contains(Game1.currentSeason))
-                    {
-                        data.spawnData = getSpawnData(data);
-                        // HAVE TO IMPLEMENT CHANCE VALUE WITH IF HERE
-                        birdsToday.Add(Utils.getRandomElementFromList(data.spawnData.locations), data);
-                        return;
-                    }
-
-                }
+                List<string> birdListToday = Utils.shuffleListByOrder(biome.birds, todaysLuckFactor);
+                addUnseenBirdForToday(currentSeason, seenBirds, birdListToday);
+                if (seenBirds.Count > 0)
+                    addSeenBirdsForToday(currentSeason, seenBirds, birdListToday, biome.locations.Count);
             }
         }
 
-        private void getSeenBirds(string currentSeason, SaveData saveData)
+        private void addUnseenBirdForToday(string currentSeason, HashSet<string> seenBirds, List<string> birdListToday)
         {
-            int maxLocationsWithBirds = 5;
+            List<string> unseenBirdsInTodaysOrder = birdListToday.Where(x => !seenBirds.Contains(x)).ToList();
 
-            foreach (string birdName in saveData.seenBirds)
+            if (unseenBirdsInTodaysOrder.Count == 0)
+                return;
+
+            foreach(string birdName in unseenBirdsInTodaysOrder)
+            {
+                BirdData data = ModEntry.modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+                if (data.seasons.Contains(currentSeason) || data.advancedSpawn.Keys.Contains(Game1.currentSeason))
+                {
+                    data.spawnData = getSpawnData(data);
+                    birdsToday.Add(Utils.getRandomElementFromList(data.spawnData.locations), data);
+                    return;
+                }
+
+            }
+        }
+
+        private void addSeenBirdsForToday(string currentSeason, HashSet<string> seenBirds, List<string> birdListToday, int locationCount)
+        {
+            int maxLocationsWithBirds = Math.Max(1, locationCount / 2);
+            List<string> seenBirdsInTodaysOrder = birdListToday.Where(x => seenBirds.Contains(x)).ToList();
+
+            foreach (string birdName in seenBirdsInTodaysOrder)
             {
                 BirdData data = ModEntry.modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
 
                 // look at next bird if this bird doesn't spawn in this season
                 if (!data.seasons.Contains(currentSeason) && !data.advancedSpawn.Keys.Contains(currentSeason))
                     continue;
+
                 // get default or advanced spawn data
                 data.spawnData = getSpawnData(data);
 
@@ -71,7 +73,6 @@ namespace BirdsEverywhere.Spawners
                     // only add bird if current location doesn't have birds yet
                     if (!birdsToday.ContainsKey(spawnLocation))
                     {
-                        // HAVE TO IMPLEMENT CHANCE VALUE WITH IF HERE
                         birdsToday.Add(spawnLocation, data);
                         if (birdsToday.Count >= maxLocationsWithBirds)
                             return;
