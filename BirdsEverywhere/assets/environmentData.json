@@ -1,19 +1,19 @@
 {
-  "birds": {
-    "valleyBirds": [
-      "blue_tit"
-
-    ],
-    "desertBirds": [
-
-    ],
-    "islandBirds": [
-
-    ]
-  },
-  "locations": {
-    "valley": [ "Forest" ],
-    "desert": [ "Desert" ],
-    "island": [ "IslandSouth" ]
-  }
+  "biomes": [
+    {
+      "name": "valley",
+      "birds": [ "blue_tit" ],
+      "locations": [ "Forest" ]
+    },
+    {
+      "name": "desert",
+      "birds": [ ],
+      "locations": [ "Desert" ]
+    },
+    {
+      "name": "island",
+      "birds": [ ],
+      "locations": [ "IslandSouth" ]
+    }
+  ]
 }
