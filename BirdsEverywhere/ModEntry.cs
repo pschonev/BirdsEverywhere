@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
 using BirdsEverywhere.Spawners;
+
 
 namespace BirdsEverywhere
 {
@@ -42,32 +44,18 @@ namespace BirdsEverywhere
         private void OnLoaded(object sender, SaveLoadedEventArgs e)
         {
             environmentData = modInstance.Helper.Content.Load<EnvironmentData>("assets/environmentData.json", ContentSource.ModFolder);
-            saveData = Helper.Data.ReadSaveData<SaveData>(saveKey) ?? new SaveData {
-                unseenBirds = getInitialBirdList(environmentData.birds.valleyBirds)
-            };
+            saveData = Helper.Data.ReadSaveData<SaveData>(saveKey) ?? new SaveData();
 
             setEligibleLocations();
-
-            logList(saveData.unseenBirds, "Unseen Birds");
-            logList(saveData.seenBirds, "Seen Birds");
+            LogBirdSeenStatus();
         }
 
-        private List<string> getInitialBirdList(List<string> birdList)
-        {
-            // this should create a combined list of all birds that gets shuffled with weights based on log of the lists index
-            // when new areas are discovered, the individual birds lists should be added to the eligible birds list
-            // then eligibleBirds.Contains can be used before choosing a new bird from the shuffle master list
-            return birdList;
-        }
 
         private void setEligibleLocations()
         {
             eligibleLocations = new HashSet<string>();
-            eligibleLocations.UnionWith(environmentData.locations.valley);
-            if (true)
-                eligibleLocations.UnionWith(environmentData.locations.desert);
-            if (true)
-                eligibleLocations.UnionWith(environmentData.locations.island);
+            foreach (Biome biome in environmentData.biomes) 
+                eligibleLocations.UnionWith(biome.locations);
         }
 
         public static bool isEligibleLocation(GameLocation location)
@@ -80,8 +68,8 @@ namespace BirdsEverywhere
             // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
             dailySpawner = new DailySpawner(Game1.currentSeason, saveData);
 
-            logList(saveData.unseenBirds, "Unseen Birds");
-            logList(saveData.seenBirds, "Seen Birds");
+            LogBirdSeenStatus();
+
             modInstance.Monitor.Log($" Birds today: ", LogLevel.Debug);
             foreach (KeyValuePair<string, BirdData> kvp in dailySpawner.birdsToday)
             {
@@ -94,14 +82,14 @@ namespace BirdsEverywhere
             modInstance.Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
             removeVanillaBirds(e.NewLocation);
 
-            if (!isEligibleLocation(Game1.currentLocation))
+            if (e.NewLocation == null || !isEligibleLocation(e.NewLocation))
                 return;
             dailySpawner.Populate(e.NewLocation);
         }
 
         private void TimeChanged(object sender, TimeChangedEventArgs e)
         {
-            if (!isEligibleLocation(Game1.currentLocation))
+            if (Game1.currentLocation == null || !isEligibleLocation(Game1.currentLocation))
                 return;
             removeVanillaBirds(Game1.currentLocation);
         }
@@ -121,9 +109,6 @@ namespace BirdsEverywhere
 
         private void removeVanillaBirds(GameLocation location)
         {
-            if (!isEligibleLocation(location))
-                return;
-
             foreach (var x in location.critters)
             {
                 modInstance.Monitor.Log($"Spawn {x} at {x.position}", LogLevel.Debug);
@@ -131,9 +116,16 @@ namespace BirdsEverywhere
             location.critters.RemoveAll(c => isVanillaBird(c));
         }
 
-        private void logList(IEnumerable<string> list, string description = "-")
+        private void LogBirdSeenStatus()
         {
-            modInstance.Monitor.Log($" {description}: {String.Join(" - ", list)}.", LogLevel.Debug);
+            foreach (Biome biome in environmentData.biomes)
+            {
+                modInstance.Monitor.Log($"{biome.name} unseen birds:", LogLevel.Debug);
+                Utils.logList(biome.birds.Where(x => !saveData.seenBirds.Contains(x)).ToList(), "Unseen Birds");
+
+                modInstance.Monitor.Log($"{biome.name} seen birds:", LogLevel.Debug);
+                Utils.logList(biome.birds.Where(x => saveData.seenBirds.Contains(x)).ToList(), "Unseen Birds");
+            }
         }
     }
 }
