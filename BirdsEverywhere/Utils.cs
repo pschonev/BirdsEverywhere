@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using StardewValley;
+using StardewModdingAPI;
 
 namespace BirdsEverywhere
 {
@@ -74,5 +75,10 @@ namespace BirdsEverywhere
 			}
 			return tiles;
 		}
-	}
+
+        public static void logList(IEnumerable<string> list, string description = "-")
+        {
+            ModEntry.modInstance.Monitor.Log($" {description}: {String.Join(" - ", list)}.", LogLevel.Debug);
+        }
+    }
 }
