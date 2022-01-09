@@ -117,6 +117,9 @@ namespace BirdsEverywhere
 
         private void removeVanillaBirds(GameLocation location)
         {
+            if (location.critters == null)
+                return;
+
             foreach (var x in location.critters)
             {
                 modInstance.Monitor.Log($"Spawn {x} at {x.position}", LogLevel.Debug);
