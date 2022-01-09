@@ -54,7 +54,6 @@ namespace BirdsEverywhere
             saveData = Helper.Data.ReadSaveData<SaveData>(saveKey) ?? new SaveData();
 
             setEligibleLocations();
-            LogBirdSeenStatus();
         }
 
 
@@ -129,11 +128,10 @@ namespace BirdsEverywhere
         {
             foreach (Biome biome in environmentData.biomes)
             {
-                modInstance.Monitor.Log($"{biome.name} unseen birds:", LogLevel.Debug);
+                modInstance.Monitor.Log($"{biome.name}:", LogLevel.Debug);
                 Utils.logList(biome.birds.Where(x => !saveData.seenBirds.Contains(x)).ToList(), "Unseen Birds");
 
-                modInstance.Monitor.Log($"{biome.name} seen birds:", LogLevel.Debug);
-                Utils.logList(biome.birds.Where(x => saveData.seenBirds.Contains(x)).ToList(), "Unseen Birds");
+                Utils.logList(biome.birds.Where(x => saveData.seenBirds.Contains(x)).ToList(), "Seen Birds");
             }
         }
     }
