@@ -89,14 +89,16 @@ namespace BirdsEverywhere
             modInstance.Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
             if (e.NewLocation == null || !isEligibleLocation(e.NewLocation))
                 return;
+            removeVanillaBirds(e.NewLocation);
 
-            removeVanillaBirds(e.NewLocation);           
+            if (!isEligibleLocation(e.NewLocation))
+                return;
             dailySpawner.Populate(e.NewLocation);
         }
 
         private void TimeChanged(object sender, TimeChangedEventArgs e)
         {
-            if (Game1.currentLocation == null || !isEligibleLocation(Game1.currentLocation))
+            if (Game1.currentLocation == null)
                 return;
             removeVanillaBirds(Game1.currentLocation);
         }
