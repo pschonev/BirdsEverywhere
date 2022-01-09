@@ -10,6 +10,7 @@ namespace BirdsEverywhere.Spawners
 {
     public class DailySpawner
     {
+        // stores birds to spawn as { string locationName : BirdData }
         public Dictionary<string, BirdData> birdsToday;
 
         public DailySpawner(string currentSeason, SaveData saveData)
@@ -34,6 +35,7 @@ namespace BirdsEverywhere.Spawners
 
         private void addUnseenBirdForToday(string currentSeason, HashSet<string> seenBirds, List<string> birdListToday)
         {
+            // filter out birds that were already seen
             List<string> unseenBirdsInTodaysOrder = birdListToday.Where(x => !seenBirds.Contains(x)).ToList();
 
             if (unseenBirdsInTodaysOrder.Count == 0)

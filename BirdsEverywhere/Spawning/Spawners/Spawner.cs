@@ -84,6 +84,7 @@ namespace BirdsEverywhere.Spawners
                     int yCoord2 = Game1.random.Next(location.map.DisplayHeight / 64);
                     Vector2 initialTile = new Vector2(xCoord2, yCoord2);
 
+                    // if tile meets condition this will spawn one bird there and up to a MAXIMUM of groupSize-1 additional birds
                     if (condition(location, initialTile, xCoord2, yCoord2))
                     {
                         spawnSingleBird(location, initialTile, (int)initialTile.X, (int)initialTile.Y, data.spawnData, data.id);
@@ -91,7 +92,7 @@ namespace BirdsEverywhere.Spawners
                         {
                             spawnSingleBird(location, tile, (int)tile.X, (int)tile.Y, data.spawnData, data.id);
                         }
-                        break;
+                        break; // this will break the for loop and stop spawning any more birds in this group
                     }
                 }
             }

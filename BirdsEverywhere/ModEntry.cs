@@ -31,8 +31,15 @@ namespace BirdsEverywhere
             helper.Events.GameLoop.Saving += OnSaving;
             helper.Events.GameLoop.SaveLoaded += OnLoaded;
             helper.Events.GameLoop.TimeChanged += TimeChanged;
+
+            helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", PrintSeenBirds);
         }
 
+
+        private void PrintSeenBirds(string command, string[] args)
+        {
+            LogBirdSeenStatus();
+        }
 
         private void OnSaving(object sender, SavingEventArgs e)
         {
@@ -80,10 +87,10 @@ namespace BirdsEverywhere
         private void Player_Warped(object sender, WarpedEventArgs e)
         {
             modInstance.Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
-            removeVanillaBirds(e.NewLocation);
-
             if (e.NewLocation == null || !isEligibleLocation(e.NewLocation))
                 return;
+
+            removeVanillaBirds(e.NewLocation);           
             dailySpawner.Populate(e.NewLocation);
         }
 
