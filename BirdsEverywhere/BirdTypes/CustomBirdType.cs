@@ -47,6 +47,7 @@ namespace BirdsEverywhere.BirdTypes
 			{
 				ObservationData observation = new ObservationData(location, new SDate(Game1.dayOfMonth, Game1.currentSeason), Game1.timeOfDay, Game1.player.Name);
 				ModEntry.saveData.birdObservations[birdName] = observation;
+				ModEntry.modInstance.Monitor.Log($"New bird was added to seen birds:", LogLevel.Debug);
 				Utils.logObservation(birdName);
 				
 			}
