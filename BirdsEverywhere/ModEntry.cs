@@ -10,6 +10,7 @@ using StardewValley.Menus;
 using StardewValley.BellsAndWhistles;
 using BirdsEverywhere.Spawners;
 using BirdsEverywhere.BirdList;
+using System;
 
 
 namespace BirdsEverywhere
@@ -156,9 +157,9 @@ namespace BirdsEverywhere
             foreach (Biome biome in environmentData.biomes)
             {
                 modInstance.Monitor.Log($"{biome.name}:", LogLevel.Debug);
-                Utils.logList(biome.birds.Where(x => !saveData.seenBirds.Contains(x)).ToList(), "Unseen Birds");
-
-                //Utils.logList(biome.birds.Where(x => saveData.seenBirds.Contains(x)).ToList(), "Seen Birds");
+                List<string> unseenBirds = biome.birds.Where(x => !saveData.seenBirds.Contains(x)).ToList();
+                //unseenBirds = unseenBirds.Select(x => birdDataCollection[x].name).ToList();
+                ModEntry.modInstance.Monitor.Log($" Unseen Birds: {String.Join(", ", unseenBirds)}.", LogLevel.Debug);
             }
 
             foreach (var kvp in saveData.birdObservations)
