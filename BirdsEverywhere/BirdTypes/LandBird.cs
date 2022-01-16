@@ -10,7 +10,7 @@ using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
 
-namespace BirdsEverywhere.Birds
+namespace BirdsEverywhere.BirdTypes
 {
     class LandBird : CustomBirdType
     {

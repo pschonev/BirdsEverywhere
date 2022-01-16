@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using StardewValley.BellsAndWhistles;
-using BirdsEverywhere.Birds;
+using BirdsEverywhere.BirdTypes;
 
-namespace BirdsEverywhere
+namespace BirdsEverywhere.BirdTypes
 {
     class BirdFactory
     {

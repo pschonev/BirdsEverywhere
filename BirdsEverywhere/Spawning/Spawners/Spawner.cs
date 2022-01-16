@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 using StardewValley;
 using StardewModdingAPI;
 using Microsoft.Xna.Framework;
-using BirdsEverywhere.Birds;
-using static BirdsEverywhere.Birds.CustomBirdType;
+using BirdsEverywhere.BirdTypes;
 using static BirdsEverywhere.Spawners.Condition;
+using static BirdsEverywhere.BirdTypes.CustomBirdType;
 
 namespace BirdsEverywhere.Spawners
 {   /// <summary>

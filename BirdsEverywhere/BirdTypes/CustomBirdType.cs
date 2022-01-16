@@ -8,7 +8,7 @@ using Microsoft.Xna.Framework.Graphics;
 using StardewValley.BellsAndWhistles;
 using StardewValley;
 
-namespace BirdsEverywhere.Birds
+namespace BirdsEverywhere.BirdTypes
 {
     abstract class CustomBirdType : Critter
     {
@@ -33,7 +33,7 @@ namespace BirdsEverywhere.Birds
         {
 			this.birdName = birdName;
 			string assetPath = $"assets/{birdName}/{birdName}.png";
-			Texture2D _texture = ModEntry.modInstance.Helper.Content.Load<Texture2D>(assetPath);
+			Texture2D texture = ModEntry.modInstance.Helper.Content.Load<Texture2D>(assetPath);
 			this.birdTexture = ModEntry.modInstance.Helper.Content.GetActualAssetKey(assetPath);
 			this.sprite = new AnimatedSprite(birdTexture, baseFrame, 32, 32);
 		}
