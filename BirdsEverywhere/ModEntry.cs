@@ -51,7 +51,8 @@ namespace BirdsEverywhere
         private void OnLoaded(object sender, SaveLoadedEventArgs e)
         {
             environmentData = modInstance.Helper.Content.Load<EnvironmentData>("assets/environmentData.json", ContentSource.ModFolder);
-            saveData = Helper.Data.ReadSaveData<SaveData>(saveKey) ?? new SaveData();
+            if (Context.IsMainPlayer)
+                saveData = Helper.Data.ReadSaveData<SaveData>(saveKey) ?? new SaveData();
 
             setEligibleLocations();
         }
