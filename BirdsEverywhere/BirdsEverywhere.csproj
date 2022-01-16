@@ -7,6 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis" Version="4.0.1" />
+    <PackageReference Include="Microsoft.CodeDom.Providers.DotNetCompilerPlatform" Version="3.6.0" />
     <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="SpaceCore">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\SpaceCore\SpaceCore.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>
