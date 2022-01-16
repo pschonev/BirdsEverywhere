@@ -43,7 +43,7 @@ namespace BirdsEverywhere.Spawners
 
             foreach(string birdName in unseenBirdsInTodaysOrder)
             {
-                BirdData data = ModEntry.modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+                BirdData data = ModEntry.birdDataCollection[birdName];
                 if (data.seasons.Contains(currentSeason) || data.advancedSpawn.Keys.Contains(Game1.currentSeason))
                 {
                     data.spawnData = getSpawnData(data);
@@ -61,7 +61,7 @@ namespace BirdsEverywhere.Spawners
 
             foreach (string birdName in seenBirdsInTodaysOrder)
             {
-                BirdData data = ModEntry.modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+                BirdData data = ModEntry.birdDataCollection[birdName];
 
                 // look at next bird if this bird doesn't spawn in this season
                 if (!data.seasons.Contains(currentSeason) && !data.advancedSpawn.Keys.Contains(currentSeason))
@@ -116,7 +116,7 @@ namespace BirdsEverywhere.Spawners
             location.instantiateCrittersList(); //make sure the critter list isn't null
 
             string birdName = birdsToday[locationName].id;
-            BirdData data = ModEntry.modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+            BirdData data = ModEntry.birdDataCollection[birdName];
 
             SpawnerFactory.createSpawner(location, data).spawnBirds(location, data);
         }

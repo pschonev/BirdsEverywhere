@@ -24,18 +24,18 @@ namespace BirdsEverywhere.BirdList
         private readonly Dictionary<string, ObservationData> Observations = new();
         private bool Scrolling;
 
-        public BirdListPage(int x, int y, int width, int height, SaveData saveData)
+        public BirdListPage(int x, int y, int width, int height)
             : base(x, y, width, height)
         {
             this.Names = new List<string>();
             this.Sprites = new List<ClickableTextureComponent>();
-            this.Observations = saveData.birdObservations;
+            this.Observations = ModEntry.saveData.birdObservations;
 
             foreach (var kvp in Observations.OrderBy(p => p.Value.observationTime))
             {
                 string birdName = kvp.Key;
                 this.Names.Add(birdName);
-                this.Birds[birdName] = ModEntry.modInstance.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+                this.Birds[birdName] = ModEntry.birdDataCollection[birdName];
 
                 Texture2D texture = ModEntry.modInstance.Helper.Content.Load<Texture2D>($"assets/{birdName}/{birdName}.png");
                 this.Sprites.Add(new ClickableTextureComponent("", new Rectangle(x + IClickableMenu.borderWidth + 4 + 32, 0, width, 64), null, "", texture, new Rectangle(0, 0, 32, 32), 2));

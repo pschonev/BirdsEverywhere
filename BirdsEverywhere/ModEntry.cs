@@ -26,6 +26,7 @@ namespace BirdsEverywhere
         private DailySpawner dailySpawner;
 
         public static HashSet<string> eligibleLocations;
+        public static Dictionary<string, BirdData> birdDataCollection;
 
         public override void Entry(IModHelper helper)
         {
@@ -63,6 +64,7 @@ namespace BirdsEverywhere
                 saveData = Helper.Data.ReadSaveData<SaveData>(saveKey) ?? new SaveData();
 
             setEligibleLocations();
+            loadAllBirdData();
         }
 
 
@@ -71,6 +73,19 @@ namespace BirdsEverywhere
             eligibleLocations = new HashSet<string>();
             foreach (Biome biome in environmentData.biomes) 
                 eligibleLocations.UnionWith(biome.locations);
+        }
+
+        private void loadAllBirdData()
+        {
+            birdDataCollection = new Dictionary<string, BirdData> ();
+            foreach (Biome biome in environmentData.biomes)
+            {
+                foreach(string birdName in biome.birds)
+                {
+                    birdDataCollection[birdName] = this.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+                }
+            }
+
         }
 
         public static bool isEligibleLocation(GameLocation location)
@@ -175,7 +190,7 @@ namespace BirdsEverywhere
                     fullyImmutable = true
                 });
                 tabs[1].upNeighborID = 912342;
-                pages.Add(new BirdListPage(gm.xPositionOnScreen, gm.yPositionOnScreen, gm.width, gm.height, saveData));
+                pages.Add(new BirdListPage(gm.xPositionOnScreen, gm.yPositionOnScreen, gm.width, gm.height));
 
                 this.Helper.Events.Display.RenderedActiveMenu += this.DrawSocialIcon;
             }
