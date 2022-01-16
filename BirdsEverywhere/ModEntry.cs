@@ -143,7 +143,13 @@ namespace BirdsEverywhere
                 modInstance.Monitor.Log($"{biome.name}:", LogLevel.Debug);
                 Utils.logList(biome.birds.Where(x => !saveData.seenBirds.Contains(x)).ToList(), "Unseen Birds");
 
-                Utils.logList(biome.birds.Where(x => saveData.seenBirds.Contains(x)).ToList(), "Seen Birds");
+                //Utils.logList(biome.birds.Where(x => saveData.seenBirds.Contains(x)).ToList(), "Seen Birds");
+
+                foreach(var kvp in saveData.birdObservations)
+                {
+                    modInstance.Monitor.Log($"Seen Birds:", LogLevel.Debug);
+                    Utils.logObservation(kvp.Key);
+                }
             }
         }
 

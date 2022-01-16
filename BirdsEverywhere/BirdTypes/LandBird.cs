@@ -1,14 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
-using StardewModdingAPI.Events;
 using StardewValley;
-using StardewValley.BellsAndWhistles;
 
 namespace BirdsEverywhere.BirdTypes
 {
@@ -104,10 +99,7 @@ namespace BirdsEverywhere.BirdTypes
 						Game1.playSound("SpringBirds");
 					}
 					state = BehaviorStatus.FlyingAway;
-					if (ModEntry.saveData.seenBirds.Add(this.birdName))
-                    {
-						ModEntry.modInstance.Monitor.Log($"New bird was added to seen set: {this.birdName}", LogLevel.Debug);
-					}
+					addBirdObservation(this.birdName, environment.Name);
 					
 					ModEntry.modInstance.Monitor.Log($"Birds seen: {String.Join("\n", ModEntry.saveData.seenBirds)}", LogLevel.Debug);
 

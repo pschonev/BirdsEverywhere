@@ -80,5 +80,11 @@ namespace BirdsEverywhere
         {
             ModEntry.modInstance.Monitor.Log($" {description}: {String.Join(" - ", list)}.", LogLevel.Debug);
         }
+
+        public static void logObservation(string birdName)
+        {
+            ObservationData obs = ModEntry.saveData.birdObservations[birdName];
+            ModEntry.modInstance.Monitor.Log($"New bird was added to seen set: {birdName}\nSeen by {obs.playerName} at {obs.observationLocation} at {Game1.getTimeOfDayString(obs.observationTime)} on {obs.observationDate.ToLocaleString()}", LogLevel.Debug);
+        }
     }
 }

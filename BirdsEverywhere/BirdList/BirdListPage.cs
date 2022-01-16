@@ -57,7 +57,7 @@ namespace BirdsEverywhere.BirdList
                 {
                     int num2 = this.yPositionOnScreen + IClickableMenu.borderWidth + 32 + 112 * num1 + 32;
                     //if (this.Animals[(long)this.Names[slotPosition]].Sprite.SourceRect.Height == 16)
-                    num2 += 16;
+                    num2 += 32;
                     this.Sprites[slotPosition].bounds.Y = num2;
                 }
                 ++num1;
@@ -87,7 +87,7 @@ namespace BirdsEverywhere.BirdList
                 return;
             int y1 = this.ScrollBar.bounds.Y;
             this.ScrollBar.bounds.Y = Math.Min(this.yPositionOnScreen + this.height - 64 - 12 - this.ScrollBar.bounds.Height, Math.Max(y, this.yPositionOnScreen + this.UpButton.bounds.Height + 20));
-            this.SlotPosition = Math.Min(this.Sprites.Count - 5, Math.Max(0, (int)(this.Sprites.Count * (double)((y - this.ScrollBarRunner.Y) / (float)this.ScrollBarRunner.Height))));
+            this.SlotPosition = Math.Min(Math.Max(0, this.Sprites.Count - 5), Math.Max(0, (int)(this.Sprites.Count * (double)((y - this.ScrollBarRunner.Y) / (float)this.ScrollBarRunner.Height))));
             this.SetScrollBarToCurrentIndex();
             int y2 = this.ScrollBar.bounds.Y;
             if (y1 == y2)

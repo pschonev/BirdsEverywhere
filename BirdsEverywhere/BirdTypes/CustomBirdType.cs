@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley.BellsAndWhistles;
 using StardewValley;
+using StardewModdingAPI;
+using StardewModdingAPI.Utilities;
 
 namespace BirdsEverywhere.BirdTypes
 {
@@ -44,5 +41,15 @@ namespace BirdsEverywhere.BirdTypes
 			return this;
         }
 
+		public void addBirdObservation(string birdName, string location)
+		{
+			if (ModEntry.saveData.seenBirds.Add(birdName))
+			{
+				ObservationData observation = new ObservationData(location, new SDate(Game1.dayOfMonth, Game1.currentSeason), Game1.timeOfDay, Game1.player.Name);
+				ModEntry.saveData.birdObservations[birdName] = observation;
+				Utils.logObservation(birdName);
+				
+			}
+		}
 	}
 }
