@@ -100,8 +100,6 @@ namespace BirdsEverywhere.BirdTypes
 					}
 					state = BehaviorStatus.FlyingAway;
 					addBirdObservation(this.birdName, environment.Name);
-					
-					ModEntry.modInstance.Monitor.Log($"Birds seen: {String.Join("\n", ModEntry.saveData.seenBirds)}", LogLevel.Debug);
 
 					if (f.Position.X > position.X)
 					{
