@@ -2,7 +2,10 @@
   "biomes": [
     {
       "name": "valley",
-      "birds": [ "blue_tit" ],
+      "birds": [
+        "blue_tit",
+        "coal_tit"
+      ],
       "locations": [ "Forest", "BusStop" ]
     },
     {

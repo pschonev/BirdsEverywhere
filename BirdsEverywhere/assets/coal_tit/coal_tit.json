@@ -1,0 +1,11 @@
+{
+  "id": "coal_tit",
+  "name": "Coal Tit",
+  "scName": "Parus major",
+
+  "spawnData": {
+    "locations": [ "BusStop", "Forest" ],
+    "maxGroupCount": 2,
+    "maxGroupSize":  12
+  }
+}
