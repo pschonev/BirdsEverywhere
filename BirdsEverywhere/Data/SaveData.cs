@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using StardewModdingAPI;
+using StardewModdingAPI.Utilities;
 
 namespace BirdsEverywhere
 {
@@ -13,7 +13,7 @@ namespace BirdsEverywhere
     public class ObservationData
     {
         public string observationLocation;
-        public string observationTime;
+        public SDate observationTime;
         public string playerName;
         public bool feather = false;
         public bool egg = false;
