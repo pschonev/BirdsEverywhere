@@ -162,9 +162,9 @@ namespace BirdsEverywhere
                 ModEntry.modInstance.Monitor.Log($" Unseen Birds: {String.Join(", ", unseenBirds)}.", LogLevel.Debug);
             }
 
+            modInstance.Monitor.Log($"Seen Birds:", LogLevel.Debug);
             foreach (var kvp in saveData.birdObservations)
             {
-                modInstance.Monitor.Log($"Seen Birds:", LogLevel.Debug);
                 Utils.logObservation(kvp.Key);
             }
         }
