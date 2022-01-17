@@ -183,14 +183,14 @@ namespace BirdsEverywhere
                 this.MyTabIndex = tabs.Count;
                 tabs.Add(new ClickableComponent(new Rectangle(gm.xPositionOnScreen + 192, gm.yPositionOnScreen + IClickableMenu.tabYPositionRelativeToMenuY + 64 - 64, 64, 64), "birds", "Birds")
                 {
-                    myID = 912342,
+                    myID = 812342,
                     downNeighborID = 12342,
                     rightNeighborID = 12343,
                     leftNeighborID = 12341,
                     tryDefaultIfNoDownNeighborExists = true,
                     fullyImmutable = true
                 });
-                tabs[1].upNeighborID = 912342;
+                tabs[1].upNeighborID = 812342;
                 pages.Add(new BirdListPage(gm.xPositionOnScreen, gm.yPositionOnScreen, gm.width, gm.height));
 
                 this.Helper.Events.Display.RenderedActiveMenu += this.DrawSocialIcon;

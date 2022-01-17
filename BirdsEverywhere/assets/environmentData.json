@@ -4,7 +4,7 @@
       "name": "valley",
       "birds": [
         "blue_tit",
-        "coal_tit"
+        "great_tit"
       ],
       "locations": [ "Forest", "BusStop" ]
     },
