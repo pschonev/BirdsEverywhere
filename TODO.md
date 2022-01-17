@@ -1,7 +1,7 @@
 # TODO
 
-- save information on when, where and by whom bird was seeen in save file (requires refactoring at other locations cos it's no longer a HashSet)
 - multiplayer: let host handle exact spawn locations of birds and then send it to others. each time bird is seen send it to host so he can save it.
+- change layerdepth of drawing birds that are not flying
 
 ## Spawners
 
