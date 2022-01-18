@@ -102,6 +102,8 @@ namespace BirdsEverywhere.Spawners
         {
             if (condition(location, tile, xCoord2, yCoord2))
             {
+                if (!ModEntry.LocationBirdPosition.ContainsKey(location.Name))
+                    ModEntry.LocationBirdPosition[location.Name] = new List<SingleBirdSpawnParameters>();
                 ModEntry.LocationBirdPosition[location.Name].Add(new SingleBirdSpawnParameters(tile, id, data.birdType));
                 ModEntry.modInstance.Monitor.Log($"Added {id} at {(int)tile.X} - {(int)tile.Y} to LocationBirdPosition.", LogLevel.Debug);
             }
