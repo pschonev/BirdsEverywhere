@@ -45,11 +45,14 @@ namespace BirdsEverywhere.BirdTypes
 		{
 			if (ModEntry.saveData.seenBirds.Add(birdName))
 			{
+				// create observation and add to save file
 				ObservationData observation = new ObservationData(location, new SDate(Game1.dayOfMonth, Game1.currentSeason), Game1.timeOfDay, Game1.player.Name);
 				ModEntry.saveData.birdObservations[birdName] = observation;
+				// log observation
 				ModEntry.modInstance.Monitor.Log($"New bird was added to seen birds:", LogLevel.Debug);
 				Utils.logObservation(birdName);
-				
+				// send observation
+				ModEntry.modInstance.Helper.Multiplayer.SendMessage(ModEntry.saveData, "SaveNewObservation", modIDs: new[] { ModEntry.modInstance.ModManifest.UniqueID });
 			}
 		}
 	}
