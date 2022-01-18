@@ -96,7 +96,7 @@ namespace BirdsEverywhere
             LocationBirdPosition = new Dictionary<string, List<SingleBirdSpawnParameters>>();
 
             // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
-            DailySpawner.sampleTodaysBirds(Game1.currentSeason, saveData.seenBirds, ModEntry.environmentData.biomes);
+            DailySpawner.sampleTodaysBirds(Game1.currentSeason, saveData.seenBirds, environmentData.biomes);
 
             Logging.LogBirdSeenStatus();
         }

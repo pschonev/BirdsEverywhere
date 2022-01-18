@@ -22,6 +22,7 @@ namespace BirdsEverywhere.Spawners
         public static void sampleTodaysBirds(string currentSeason, HashSet<string> seenBirds, List<Biome> biomes)
         {
             LocationSpecies = new Dictionary<string, BirdData>();
+
             // this should be between 0 (completely random) and 10 (keep strict order of bird rarity) in the future
             double todaysLuckFactor = 2.0;
 
@@ -32,12 +33,16 @@ namespace BirdsEverywhere.Spawners
                 if (seenBirds.Count > 0)
                     addSeenBirdsForToday(currentSeason, seenBirds, birdListToday, biome.locations.Count);
             }
-
+            
+            // logging
             ModEntry.modInstance.Monitor.Log($" Birds today: ", LogLevel.Debug);
             foreach (KeyValuePair<string, BirdData> kvp in LocationSpecies)
             {
                 ModEntry.modInstance.Monitor.Log($"A {kvp.Value.name} will spawn at {kvp.Key} today!", LogLevel.Debug);
             }
+
+            // get concrete spawn tiles
+            GetBirdPositions();
         }
 
         private static void addUnseenBirdForToday(string currentSeason, HashSet<string> seenBirds, List<string> birdListToday)
@@ -111,7 +116,7 @@ namespace BirdsEverywhere.Spawners
         }
 
         // get concrete spawn tiles for each bird
-        public static void GetBirdPositions()
+        private static void GetBirdPositions()
         {
             foreach (KeyValuePair<string, BirdData> kvp in LocationSpecies)
             {
