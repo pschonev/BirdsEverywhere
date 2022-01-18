@@ -102,8 +102,8 @@ namespace BirdsEverywhere.Spawners
         {
             if (condition(location, tile, xCoord2, yCoord2))
             {
-                location.critters.Add(BirdFactory.createBird(xCoord2, yCoord2, id, data.birdType));
-                ModEntry.modInstance.Monitor.Log($"Added {id} at {(int)tile.X} - {(int)tile.Y}.", LogLevel.Debug);
+                ModEntry.LocationBirdPosition[location.Name].Add(new SingleBirdSpawnParameters(tile, id, data.birdType));
+                ModEntry.modInstance.Monitor.Log($"Added {id} at {(int)tile.X} - {(int)tile.Y} to LocationBirdPosition.", LogLevel.Debug);
             }
         }
     }

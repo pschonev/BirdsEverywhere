@@ -22,7 +22,7 @@ namespace BirdsEverywhere
 
         public static EnvironmentData environmentData;
         public static SaveData saveData;
-        private DailySpawner dailySpawner;
+        public static Dictionary<string, List<SingleBirdSpawnParameters>> LocationBirdPosition;
 
         public static HashSet<string> eligibleLocations;
         public static Dictionary<string, BirdData> birdDataCollection;
@@ -92,16 +92,13 @@ namespace BirdsEverywhere
 
         private void GameLoop_DayStarted(object sender, DayStartedEventArgs e)
         {
+            // empty the lists of birds' spawn positions
+            LocationBirdPosition = new Dictionary<string, List<SingleBirdSpawnParameters>>();
+
             // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
-            dailySpawner = new DailySpawner(Game1.currentSeason, saveData);
+            DailySpawner.sampleTodaysBirds(Game1.currentSeason, saveData.seenBirds, ModEntry.environmentData.biomes);
 
             Logging.LogBirdSeenStatus();
-
-            modInstance.Monitor.Log($" Birds today: ", LogLevel.Debug);
-            foreach (KeyValuePair<string, BirdData> kvp in dailySpawner.birdsToday)
-            {
-                modInstance.Monitor.Log($"A {kvp.Value.name} will spawn at {kvp.Key} today!", LogLevel.Debug);
-            }
         }
 
         // ###############
@@ -129,6 +126,9 @@ namespace BirdsEverywhere
         {
             // host sends SaveData to newly connected farmhand
             this.Helper.Multiplayer.SendMessage(saveData, "UpdateFarmhandSave", modIDs: new[] { this.ModManifest.UniqueID });
+
+            // host sends birdsToday to newly connected farmhand
+
         }
 
         // #############################
@@ -144,7 +144,7 @@ namespace BirdsEverywhere
 
             if (!Utils.isEligibleLocation(e.NewLocation))
                 return;
-            dailySpawner.Populate(e.NewLocation);
+            DailySpawner.Populate(e.NewLocation);
         }
 
         private void TimeChanged(object sender, TimeChangedEventArgs e)
