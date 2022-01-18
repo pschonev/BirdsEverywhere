@@ -87,5 +87,10 @@ namespace BirdsEverywhere
             ObservationData obs = ModEntry.saveData.birdObservations[birdName];
             ModEntry.modInstance.Monitor.Log($"{data.name} - {data.scName} (ID: {birdName}) was seen by {obs.playerName} at {obs.observationLocation} at {Game1.getTimeOfDayString(obs.observationTime)} on {obs.observationDate.ToLocaleString()}", LogLevel.Debug);
         }
+
+        public static bool isEligibleLocation(GameLocation location)
+        {
+            return ModEntry.eligibleLocations.Contains(location.Name);
+        }
     }
 }

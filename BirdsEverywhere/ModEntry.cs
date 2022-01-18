@@ -4,13 +4,11 @@ using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using SpaceShared;
 using StardewValley;
 using StardewValley.Menus;
 using StardewValley.BellsAndWhistles;
 using BirdsEverywhere.Spawners;
 using BirdsEverywhere.BirdList;
-using System;
 
 
 namespace BirdsEverywhere
@@ -38,25 +36,18 @@ namespace BirdsEverywhere
             helper.Events.GameLoop.Saving += OnSaving;
             helper.Events.GameLoop.SaveLoaded += OnLoaded;
             helper.Events.GameLoop.TimeChanged += TimeChanged;
-            helper.Events.Display.MenuChanged += this.OnMenuChanged;
+            helper.Events.Display.MenuChanged += OnMenuChanged;
+            helper.Events.Multiplayer.ModMessageReceived += OnModMessageReceived;
+            helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
 
-            helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", PrintSeenBirds);
+            helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", Logging.PrintSeenBirds);
 
             ModEntry.MyTabId = SpaceCore.Menus.ReserveGameMenuTab("birds");
         }
 
-
-        private void PrintSeenBirds(string command, string[] args)
-        {
-            LogBirdSeenStatus();
-        }
-
-        private void OnSaving(object sender, SavingEventArgs e)
-        {
-            if (Context.IsMainPlayer)
-                Helper.Data.WriteSaveData(saveKey, saveData);
-
-        }
+        // ##################
+        // # Game Load/Save #
+        // ##################
 
         private void OnLoaded(object sender, SaveLoadedEventArgs e)
         {
@@ -68,6 +59,12 @@ namespace BirdsEverywhere
             loadAllBirdData();
         }
 
+        private void OnSaving(object sender, SavingEventArgs e)
+        {
+            if (Context.IsMainPlayer)
+                Helper.Data.WriteSaveData(saveKey, saveData);
+
+        }
 
         private void setEligibleLocations()
         {
@@ -89,10 +86,9 @@ namespace BirdsEverywhere
 
         }
 
-        public static bool isEligibleLocation(GameLocation location)
-        {
-            return eligibleLocations.Contains(location.Name);
-        }
+        // #############
+        // # Day Start #
+        // #############
 
         private void GameLoop_DayStarted(object sender, DayStartedEventArgs e)
         {
@@ -108,14 +104,32 @@ namespace BirdsEverywhere
             }
         }
 
+        // ###############
+        // # Multiplayer #
+        // ###############
+
+        private void OnModMessageReceived(object sender, ModMessageReceivedEventArgs e)
+        { 
+            
+        }
+
+        private void OnPeerConnected(object sender, PeerConnectedEventArgs e)
+        {
+
+        }
+
+        // #############################
+        // # Spawning / Removing Birds #
+        // #############################
+
         private void Player_Warped(object sender, WarpedEventArgs e)
         {
             modInstance.Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
-            if (e.NewLocation == null || !isEligibleLocation(e.NewLocation))
+            if (e.NewLocation == null || !Utils.isEligibleLocation(e.NewLocation))
                 return;
             removeVanillaBirds(e.NewLocation);
 
-            if (!isEligibleLocation(e.NewLocation))
+            if (!Utils.isEligibleLocation(e.NewLocation))
                 return;
             dailySpawner.Populate(e.NewLocation);
         }
@@ -152,25 +166,9 @@ namespace BirdsEverywhere
             location.critters.RemoveAll(c => isVanillaBird(c));
         }
 
-        private void LogBirdSeenStatus()
-        {
-            foreach (Biome biome in environmentData.biomes)
-            {
-                modInstance.Monitor.Log($"{biome.name}:", LogLevel.Debug);
-                List<string> unseenBirds = biome.birds.Where(x => !saveData.seenBirds.Contains(x)).ToList();
-                //unseenBirds = unseenBirds.Select(x => birdDataCollection[x].name).ToList();
-                ModEntry.modInstance.Monitor.Log($" Unseen Birds: {String.Join(", ", unseenBirds)}.", LogLevel.Debug);
-            }
-
-            modInstance.Monitor.Log($"Seen Birds:", LogLevel.Debug);
-            foreach (var kvp in saveData.birdObservations)
-            {
-                Utils.logObservation(kvp.Key);
-            }
-        }
-
-
-        // add bird list menu
+        // ##################
+        // # Bird List Menu #
+        // ##################
 
         private int MyTabIndex = -1;
         private void OnMenuChanged(object sender, MenuChangedEventArgs args)
