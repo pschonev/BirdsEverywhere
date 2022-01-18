@@ -51,7 +51,7 @@ namespace BirdsEverywhere.BirdTypes
 				// log observation
 				ModEntry.modInstance.Monitor.Log($"New bird was added to seen birds:", LogLevel.Debug);
 				Utils.logObservation(birdName);
-				// send observation
+				// send observation multiplayer
 				ModEntry.modInstance.Helper.Multiplayer.SendMessage(ModEntry.saveData, "SaveNewObservation", modIDs: new[] { ModEntry.modInstance.ModManifest.UniqueID });
 			}
 		}

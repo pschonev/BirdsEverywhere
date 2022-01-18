@@ -95,7 +95,7 @@ namespace BirdsEverywhere
             // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
             dailySpawner = new DailySpawner(Game1.currentSeason, saveData);
 
-            LogBirdSeenStatus();
+            Logging.LogBirdSeenStatus();
 
             modInstance.Monitor.Log($" Birds today: ", LogLevel.Debug);
             foreach (KeyValuePair<string, BirdData> kvp in dailySpawner.birdsToday)
@@ -109,13 +109,26 @@ namespace BirdsEverywhere
         // ###############
 
         private void OnModMessageReceived(object sender, ModMessageReceivedEventArgs e)
-        { 
-            
+        {
+            // any player receives updated observation data (SaveData)
+            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "SaveNewObservation")
+                saveData = e.ReadAs<SaveData>();
+
+            // farmhand
+            if (!Context.IsMainPlayer)
+            {
+                // farmhand receives SaveData on connect
+                if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateFarmhandSave")
+                    saveData = e.ReadAs<SaveData>();
+
+                // farmhand receives birds today
+            }
         }
 
         private void OnPeerConnected(object sender, PeerConnectedEventArgs e)
         {
-
+            // host sends SaveData to newly connected farmhand
+            this.Helper.Multiplayer.SendMessage(saveData, "UpdateFarmhandSave", modIDs: new[] { this.ModManifest.UniqueID });
         }
 
         // #############################
