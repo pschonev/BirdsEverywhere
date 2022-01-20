@@ -41,7 +41,7 @@ namespace BirdsEverywhere.Spawners
       /// </summary>
         protected new SpawnCondition condition = (location, tile, xCoord2, yCoord2) => isValidWaterOrGroundTile(location, tile, xCoord2, yCoord2);
 
-        protected override void spawnSingleBird(GameLocation location, Vector2 tile, int xCoord2, int yCoord2, SpawnData data, string id)
+        protected override List<SingleBirdSpawnParameters> spawnSingleBird(GameLocation location, Vector2 tile, int xCoord2, int yCoord2, SpawnData data, string id, List<SingleBirdSpawnParameters> spawnList)
         {
             if (isValidWaterOrGroundTile(location, tile, xCoord2, yCoord2))
             {
@@ -50,8 +50,10 @@ namespace BirdsEverywhere.Spawners
                 {
                     state = BehaviorStatus.Swimming;
                 }
-                AddToLocationBirdPosition(location, tile, id, data);
+                spawnList.Add(new SingleBirdSpawnParameters(tile, id, data.birdType));
             }
+
+            return spawnList;
         }
     }
 
@@ -67,8 +69,10 @@ namespace BirdsEverywhere.Spawners
     {
         protected SpawnCondition condition;
 
-        public void spawnBirds(GameLocation location, BirdData data, int attempts = 100)
+        public List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100)
         {
+            List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
+
             int groupCount = Game1.random.Next(data.spawnData.minGroupCount, data.spawnData.maxGroupCount);
 
             ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} groups with max {data.spawnData.maxGroupSize} {data.name}s.", LogLevel.Debug);
@@ -86,31 +90,27 @@ namespace BirdsEverywhere.Spawners
                     // if tile meets condition this will spawn one bird there and up to a MAXIMUM of groupSize-1 additional birds
                     if (condition(location, initialTile, xCoord2, yCoord2))
                     {
-                        spawnSingleBird(location, initialTile, (int)initialTile.X, (int)initialTile.Y, data.spawnData, data.id);
+                        spawnList = spawnSingleBird(location, initialTile, (int)initialTile.X, (int)initialTile.Y, data.spawnData, data.id, spawnList);
                         foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(initialTile, groupSize-1))
                         {
-                            spawnSingleBird(location, tile, (int)tile.X, (int)tile.Y, data.spawnData, data.id);
+                            spawnList = spawnSingleBird(location, tile, (int)tile.X, (int)tile.Y, data.spawnData, data.id, spawnList);
                         }
                         break; // this will break the for loop and stop spawning any more birds in this group
                     }
                 }
             }
+
+            return spawnList;
         }
 
-        protected virtual void spawnSingleBird(GameLocation location, Vector2 tile, int xCoord2, int yCoord2, SpawnData data, string id)
+        protected virtual List<SingleBirdSpawnParameters> spawnSingleBird(GameLocation location, Vector2 tile, int xCoord2, int yCoord2, SpawnData data, string id, List<SingleBirdSpawnParameters> spawnList)
         {
             if (condition(location, tile, xCoord2, yCoord2))
             {
-                AddToLocationBirdPosition(location, tile, id, data);
+                spawnList.Add(new SingleBirdSpawnParameters(tile, id, data.birdType));
+                ModEntry.modInstance.Monitor.Log($"Added {id} at {(int)tile.X} - {(int)tile.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
             }
-        }
-
-        protected virtual void AddToLocationBirdPosition(GameLocation location, Vector2 tile, string id, SpawnData data)
-        {
-            if (!ModEntry.LocationBirdPosition.ContainsKey(location.Name))
-                ModEntry.LocationBirdPosition[location.Name] = new List<SingleBirdSpawnParameters>();
-            ModEntry.LocationBirdPosition[location.Name].Add(new SingleBirdSpawnParameters(tile, id, data.birdType));
-            ModEntry.modInstance.Monitor.Log($"Added {id} at {(int)tile.X} - {(int)tile.Y} to LocationBirdPosition.", LogLevel.Debug);
+            return spawnList;
         }
     }
 }

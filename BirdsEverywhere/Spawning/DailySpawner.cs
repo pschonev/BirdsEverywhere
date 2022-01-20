@@ -13,25 +13,36 @@ namespace BirdsEverywhere.Spawners
     public class DailySpawner
     {
         // stores birds to spawn as { string locationName : BirdData }
-        private static Dictionary<string, BirdData> LocationSpecies;
+        private Dictionary<string, BirdData> LocationSpecies;
+        private Dictionary<string, List<SingleBirdSpawnParameters>> LocationBirdPosition;
+
+        public DailySpawner(HashSet<string> seenBirds, List<Biome> biomes)
+        {
+            // samples which bird species spawn today at what location
+            // also samples which spawner to use for the species
+            LocationSpecies = new Dictionary<string, BirdData>();
+            sampleTodaysBirds(seenBirds, biomes);
+
+            // get exact spawn positions of each bird to be spawned
+            LocationBirdPosition = new Dictionary<string, List<SingleBirdSpawnParameters>>();
+            GetBirdPositions();
+        }
 
         // ########################
         // # Sample Today's Birds #
         // ########################
 
-        public static void sampleTodaysBirds(string currentSeason, HashSet<string> seenBirds, List<Biome> biomes)
+        private void sampleTodaysBirds(HashSet<string> seenBirds, List<Biome> biomes)
         {
-            LocationSpecies = new Dictionary<string, BirdData>();
-
             // this should be between 0 (completely random) and 10 (keep strict order of bird rarity) in the future
             double todaysLuckFactor = 2.0;
 
             foreach (Biome biome in biomes)
             {
                 List<string> birdListToday = Utils.shuffleListByOrder(biome.birds, todaysLuckFactor);
-                addUnseenBirdForToday(currentSeason, seenBirds, birdListToday);
+                addUnseenBirdForToday(seenBirds, birdListToday);
                 if (seenBirds.Count > 0)
-                    addSeenBirdsForToday(currentSeason, seenBirds, birdListToday, biome.locations.Count);
+                    addSeenBirdsForToday(seenBirds, birdListToday, biome.locations.Count);
             }
             
             // logging
@@ -40,12 +51,9 @@ namespace BirdsEverywhere.Spawners
             {
                 ModEntry.modInstance.Monitor.Log($"A {kvp.Value.name} will spawn at {kvp.Key} today!", LogLevel.Debug);
             }
-
-            // get concrete spawn tiles
-            GetBirdPositions();
         }
 
-        private static void addUnseenBirdForToday(string currentSeason, HashSet<string> seenBirds, List<string> birdListToday)
+        private void addUnseenBirdForToday(HashSet<string> seenBirds, List<string> birdListToday)
         {
             // filter out birds that were already seen
             List<string> unseenBirdsInTodaysOrder = birdListToday.Where(x => !seenBirds.Contains(x)).ToList();
@@ -56,7 +64,7 @@ namespace BirdsEverywhere.Spawners
             foreach (string birdName in unseenBirdsInTodaysOrder)
             {
                 BirdData data = ModEntry.birdDataCollection[birdName];
-                if (data.seasons.Contains(currentSeason) || data.advancedSpawn.Keys.Contains(Game1.currentSeason))
+                if (data.seasons.Contains(Game1.currentSeason) || data.advancedSpawn.Keys.Contains(Game1.currentSeason))
                 {
                     data.spawnData = getSpawnData(data);
                     LocationSpecies.Add(Utils.getRandomElementFromList(data.spawnData.locations), data);
@@ -66,7 +74,7 @@ namespace BirdsEverywhere.Spawners
             }
         }
 
-        private static void addSeenBirdsForToday(string currentSeason, HashSet<string> seenBirds, List<string> birdListToday, int locationCount)
+        private void addSeenBirdsForToday(HashSet<string> seenBirds, List<string> birdListToday, int locationCount)
         {
             int maxLocationsWithBirds = Math.Max(1, locationCount / 2);
             List<string> seenBirdsInTodaysOrder = birdListToday.Where(x => seenBirds.Contains(x)).ToList();
@@ -76,7 +84,7 @@ namespace BirdsEverywhere.Spawners
                 BirdData data = ModEntry.birdDataCollection[birdName];
 
                 // look at next bird if this bird doesn't spawn in this season
-                if (!data.seasons.Contains(currentSeason) && !data.advancedSpawn.Keys.Contains(currentSeason))
+                if (!data.seasons.Contains(Game1.currentSeason) && !data.advancedSpawn.Keys.Contains(Game1.currentSeason))
                     continue;
 
                 // get default or advanced spawn data
@@ -96,7 +104,7 @@ namespace BirdsEverywhere.Spawners
         }
 
 
-        private static SpawnData getSpawnData(BirdData data)
+        private SpawnData getSpawnData(BirdData data)
         {
             if (data.advancedSpawn.Count == 0 || !data.advancedSpawn.Keys.Contains(Game1.currentSeason))
                 return data.spawnData;
@@ -105,7 +113,7 @@ namespace BirdsEverywhere.Spawners
         }
 
 
-        private static SpawnData sampleAdvancedSpawnData(BirdData data)
+        private SpawnData sampleAdvancedSpawnData(BirdData data)
         {
             string season = Game1.currentSeason;
             List<SpawnData> possibleSpawns = data.advancedSpawn[season];
@@ -115,8 +123,11 @@ namespace BirdsEverywhere.Spawners
 
         }
 
-        // get concrete spawn tiles for each bird
-        private static void GetBirdPositions()
+        // #############################
+        // # Get Exact Spawn Locations #
+        // #############################
+
+        private void GetBirdPositions()
         {
             foreach (KeyValuePair<string, BirdData> kvp in LocationSpecies)
             {
@@ -124,24 +135,26 @@ namespace BirdsEverywhere.Spawners
                 GameLocation location = Game1.getLocationFromName(locationName);
                 BirdData data = kvp.Value;
 
-                SpawnerFactory.createSpawner(location, data).spawnBirds(location, data);
+                LocationBirdPosition[locationName] = SpawnerFactory.createSpawner(location, data).spawnBirds(location, data);
             }
+
+
         }
 
         // #####################
         // # Populate Location #
         // #####################
 
-        public static void Populate(GameLocation location)
+        public void Populate(GameLocation location)
         {
             string locationName = location.Name ?? ""; //get the location's name (blank if null)
 
-            if (!ModEntry.LocationBirdPosition.ContainsKey(locationName))
+            if (!LocationBirdPosition.ContainsKey(locationName))
                 return;
 
             location.instantiateCrittersList(); //make sure the critter list isn't null
 
-            foreach (SingleBirdSpawnParameters sParams in ModEntry.LocationBirdPosition[locationName])
+            foreach (SingleBirdSpawnParameters sParams in LocationBirdPosition[locationName])
             {
                 location.critters.Add(BirdFactory.createBird((int)sParams.Position.X, (int)sParams.Position.Y, sParams.ID, sParams.BirdType));
                 ModEntry.modInstance.Monitor.Log($"Added {sParams.ID} at {(int)sParams.Position.X} - {(int)sParams.Position.Y}.", LogLevel.Debug);

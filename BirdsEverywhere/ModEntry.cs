@@ -22,7 +22,7 @@ namespace BirdsEverywhere
 
         public static EnvironmentData environmentData;
         public static SaveData saveData;
-        public static Dictionary<string, List<SingleBirdSpawnParameters>> LocationBirdPosition;
+        public static DailySpawner dailySpawner;
 
         public static HashSet<string> eligibleLocations;
         public static Dictionary<string, BirdData> birdDataCollection;
@@ -92,13 +92,15 @@ namespace BirdsEverywhere
 
         private void GameLoop_DayStarted(object sender, DayStartedEventArgs e)
         {
-            // empty the lists of birds' spawn positions
-            LocationBirdPosition = new Dictionary<string, List<SingleBirdSpawnParameters>>();
+            
 
             // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
-            DailySpawner.sampleTodaysBirds(Game1.currentSeason, saveData.seenBirds, environmentData.biomes);
+            dailySpawner = new DailySpawner(saveData.seenBirds, environmentData.biomes);
 
             Logging.LogBirdSeenStatus();
+
+            // host sends birds today after day starts
+            // IMPLEMENT!!
         }
 
         // ###############
@@ -118,7 +120,11 @@ namespace BirdsEverywhere
                 if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateFarmhandSave")
                     saveData = e.ReadAs<SaveData>();
 
-                // farmhand receives birds today
+                // farmhand receives birds today after connecting
+                // IMPLEMENT!!
+
+                // farmhand receives birds today after day starts
+                // IMPLEMENT!!
             }
         }
 
@@ -128,7 +134,7 @@ namespace BirdsEverywhere
             this.Helper.Multiplayer.SendMessage(saveData, "UpdateFarmhandSave", modIDs: new[] { this.ModManifest.UniqueID });
 
             // host sends birdsToday to newly connected farmhand
-
+            // IMPLEMENT!!
         }
 
         // #############################
@@ -144,7 +150,7 @@ namespace BirdsEverywhere
 
             if (!Utils.isEligibleLocation(e.NewLocation))
                 return;
-            DailySpawner.Populate(e.NewLocation);
+            dailySpawner.Populate(e.NewLocation);
         }
 
         private void TimeChanged(object sender, TimeChangedEventArgs e)
