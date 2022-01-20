@@ -92,15 +92,14 @@ namespace BirdsEverywhere
 
         private void GameLoop_DayStarted(object sender, DayStartedEventArgs e)
         {
-            
-
             // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
             dailySpawner = new DailySpawner(saveData.seenBirds, environmentData.biomes);
 
-            Logging.LogBirdSeenStatus();
+            // send bird locations for today to any farmhands
+            if (Context.IsMainPlayer)
+                this.Helper.Multiplayer.SendMessage(dailySpawner, "BirdLocationsForFarmhandsNewDay", modIDs: new[] { this.ModManifest.UniqueID });
 
-            // host sends birds today after day starts
-            // IMPLEMENT!!
+            Logging.LogBirdSeenStatus();
         }
 
         // ###############
@@ -121,20 +120,25 @@ namespace BirdsEverywhere
                     saveData = e.ReadAs<SaveData>();
 
                 // farmhand receives birds today after connecting
-                // IMPLEMENT!!
+                if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsOnConnect")
+                    dailySpawner = e.ReadAs<DailySpawner>();
 
                 // farmhand receives birds today after day starts
-                // IMPLEMENT!!
+                if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsNewDay")
+                    dailySpawner = e.ReadAs<DailySpawner>();
             }
         }
 
         private void OnPeerConnected(object sender, PeerConnectedEventArgs e)
         {
-            // host sends SaveData to newly connected farmhand
-            this.Helper.Multiplayer.SendMessage(saveData, "UpdateFarmhandSave", modIDs: new[] { this.ModManifest.UniqueID });
+            if (Context.IsMainPlayer)
+            {
+                // host sends SaveData to newly connected farmhand
+                this.Helper.Multiplayer.SendMessage(saveData, "UpdateFarmhandSave", modIDs: new[] { this.ModManifest.UniqueID });
 
-            // host sends birdsToday to newly connected farmhand
-            // IMPLEMENT!!
+                // host sends bird locations (DailySapwner) to connected farmhand
+                this.Helper.Multiplayer.SendMessage(dailySpawner, "BirdLocationsForFarmhandsOnConnect", modIDs: new[] { this.ModManifest.UniqueID });
+            }
         }
 
         // #############################
