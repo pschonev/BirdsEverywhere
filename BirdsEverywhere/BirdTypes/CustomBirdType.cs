@@ -53,6 +53,10 @@ namespace BirdsEverywhere.BirdTypes
 				Utils.logObservation(birdName);
 				// send observation multiplayer
 				ModEntry.modInstance.Helper.Multiplayer.SendMessage(ModEntry.saveData, "SaveNewObservation", modIDs: new[] { ModEntry.modInstance.ModManifest.UniqueID });
+				// show global message
+				string ObservationMessage = $"{Game1.player.Name} discovered a new bird: {ModEntry.birdDataCollection[birdName].name}!";
+				Game1.showGlobalMessage(ObservationMessage);
+				ModEntry.modInstance.Helper.Multiplayer.SendMessage(ObservationMessage, "GlobalObservationMessage", modIDs: new[] { ModEntry.modInstance.ModManifest.UniqueID });
 			}
 		}
 	}

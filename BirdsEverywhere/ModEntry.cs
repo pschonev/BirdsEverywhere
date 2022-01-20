@@ -115,19 +115,26 @@ namespace BirdsEverywhere
             if (e.FromModID == this.ModManifest.UniqueID && e.Type == "SaveNewObservation")
                 saveData = e.ReadAs<SaveData>();
 
+            // any player receives global message of bird observation to show
+            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "GlobalObservationMessage")
+            {
+                string ObservationMessage = e.ReadAs<string>();
+                Game1.showGlobalMessage(ObservationMessage);
+            }
+
             // farmhand
             if (!Context.IsMainPlayer)
             {
+                // farmhand receives birds today after day starts
+                if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsNewDay")
+                    dailySpawner = e.ReadAs<DailySpawner>();
+
                 // farmhand receives SaveData on connect
                 if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateFarmhandSave")
                     saveData = e.ReadAs<SaveData>();
 
                 // farmhand receives birds today after connecting
                 if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsOnConnect")
-                    dailySpawner = e.ReadAs<DailySpawner>();
-
-                // farmhand receives birds today after day starts
-                if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsNewDay")
                     dailySpawner = e.ReadAs<DailySpawner>();
             }
         }
