@@ -13,18 +13,16 @@ namespace BirdsEverywhere.Spawners
     public class DailySpawner
     {
         // stores birds to spawn as { string locationName : BirdData }
-        private Dictionary<string, BirdData> LocationSpecies;
-        private Dictionary<string, List<SingleBirdSpawnParameters>> LocationBirdPosition;
+        public Dictionary<string, BirdData> LocationSpecies { get; set; } = new Dictionary<string, BirdData>();
+        public Dictionary<string, List<SingleBirdSpawnParameters>> LocationBirdPosition { get; set; } = new Dictionary<string, List<SingleBirdSpawnParameters>>();
 
-        public DailySpawner(HashSet<string> seenBirds, List<Biome> biomes)
+        public void initializeBirdLocations(HashSet<string> seenBirds, List<Biome> biomes)
         {
             // samples which bird species spawn today at what location
             // also samples which spawner to use for the species
-            LocationSpecies = new Dictionary<string, BirdData>();
             sampleTodaysBirds(seenBirds, biomes);
 
             // get exact spawn positions of each bird to be spawned
-            LocationBirdPosition = new Dictionary<string, List<SingleBirdSpawnParameters>>();
             GetBirdPositions();
         }
 

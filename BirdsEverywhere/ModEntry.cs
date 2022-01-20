@@ -92,12 +92,15 @@ namespace BirdsEverywhere
 
         private void GameLoop_DayStarted(object sender, DayStartedEventArgs e)
         {
-            // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
-            dailySpawner = new DailySpawner(saveData.seenBirds, environmentData.biomes);
-
-            // send bird locations for today to any farmhands
             if (Context.IsMainPlayer)
+            {
+                // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
+                dailySpawner = new DailySpawner();
+                dailySpawner.initializeBirdLocations(saveData.seenBirds, environmentData.biomes);
+
+                // send bird locations for today to any farmhands
                 this.Helper.Multiplayer.SendMessage(dailySpawner, "BirdLocationsForFarmhandsNewDay", modIDs: new[] { this.ModManifest.UniqueID });
+            }
 
             Logging.LogBirdSeenStatus();
         }
