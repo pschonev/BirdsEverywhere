@@ -32,7 +32,7 @@ namespace BirdsEverywhere
         public string birdType = "LandBird"; // Bird class derivative that determines behavior
         public int minGroupCount = 1; //minimum amount of groups that are created
         public int maxGroupCount = 2;
-        public int minGroupSize = 3; //minimum amount of birds in a group
+        public int minGroupSize = 1; //minimum amount of birds in a group
         public int maxGroupSize = 5; 
         public List<timeRange> timeOfDayRanges = new List<timeRange>() { new timeRange(), new timeRange() }; // during which time of the day they can spawn
         public List<timeRange> daysRanges = new List<timeRange>() { new timeRange(1, 30) }; // when in the season they can spawn

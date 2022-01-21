@@ -3,10 +3,11 @@
     {
       "name": "valley",
       "birds": [
+        "herring_gull",
         "blue_tit",
         "great_tit"
       ],
-      "locations": [ "Forest", "BusStop" ]
+      "locations": [ "Forest", "BusStop", "Beach" ]
     },
     {
       "name": "desert",
