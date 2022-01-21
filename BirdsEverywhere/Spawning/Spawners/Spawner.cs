@@ -32,14 +32,18 @@ namespace BirdsEverywhere.Spawners
         /// <summary>
         /// Checks for valid water tile.
         /// </summary>
-        protected new SpawnCondition condition = (location, tile, xCoord2, yCoord2) => isValidGroundTile(location, tile, xCoord2, yCoord2);
+        protected new SpawnCondition condition = (location, tile, xCoord2, yCoord2) => isValidWaterTile(location, tile, xCoord2, yCoord2);
     }
 
     public class WaterOrGroundSpawner : Spawner
     { /// <summary>
       /// Checks if tile is either water or ground and handles the resulting state.
       /// </summary>
-        protected new SpawnCondition condition = (location, tile, xCoord2, yCoord2) => isValidWaterOrGroundTile(location, tile, xCoord2, yCoord2);
+      /// 
+      public WaterOrGroundSpawner()
+        {
+            condition = (location, tile, xCoord2, yCoord2) => isValidWaterOrGroundTile(location, tile, xCoord2, yCoord2);
+        }
 
         protected override List<SingleBirdSpawnParameters> spawnSingleBird(GameLocation location, Vector2 tile, int xCoord2, int yCoord2, SpawnData data, string id, List<SingleBirdSpawnParameters> spawnList)
         {
@@ -75,7 +79,7 @@ namespace BirdsEverywhere.Spawners
 
             int groupCount = Game1.random.Next(data.spawnData.minGroupCount, data.spawnData.maxGroupCount);
 
-            ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} groups with max {data.spawnData.maxGroupSize} {data.name}s.", LogLevel.Debug);
+            ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} group(s) with max {data.spawnData.maxGroupSize} {data.name}s.", LogLevel.Debug);
 
             for (int k = 0; k < groupCount; k++)
             {

@@ -1,9 +1,14 @@
 # TODO
 
-- multiplayer: let host handle exact spawn locations of birds and then send it to others. each time bird is seen send it to host so he can save it.
+- implement possibilities to have dimorphism (gender), different plumage (breeding season), babies (e.g. ducks) in season with advanced, young birds (gulls, swans)
 - change layerdepth of drawing birds that are not flying
-- birdsToday should have fixed positions for each spawning bird calculated at start of day and then synched
+- spawner direction
+- implement stuff from Bird and PerchingBird like birds flying to a new spot
+- PerchingBird keeps track of all bird locations. syncing position and state of every bird in multiplayer possible after al??
 
+- validate every config when loading (locations, files etc)
+- config specify specific days to spawn (days of the week)
+- 
 ## Spawners
 
 - add directional spawners to

@@ -1,0 +1,15 @@
+{
+  "id": "herring_gull",
+  "name": "Herring Gull",
+  "scName": "Larus argentatus",
+
+  "spawnData": {
+    "locations": [ "Beach" ],
+    "spawnPattern": "WaterOrGroundSpawner",
+    "birdType": "WaterLandBird",
+    "minGroupCount": 19,
+    "maxGroupCount": 20,
+    "minGroupSize": 1,
+    "maxGroupSize": 1
+  }
+}
