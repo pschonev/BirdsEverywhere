@@ -33,7 +33,8 @@ namespace BirdsEverywhere
         public int minGroupCount = 1; //minimum amount of groups that are created
         public int maxGroupCount = 2;
         public int minGroupSize = 1; //minimum amount of birds in a group
-        public int maxGroupSize = 5; 
+        public int maxGroupSize = 5;
+        public bool requireRain = false;
         public List<timeRange> timeOfDayRanges = new List<timeRange>() { new timeRange(), new timeRange() }; // during which time of the day they can spawn
         public List<timeRange> daysRanges = new List<timeRange>() { new timeRange(1, 30) }; // when in the season they can spawn
     }

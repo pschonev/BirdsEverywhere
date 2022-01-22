@@ -38,6 +38,7 @@ namespace BirdsEverywhere.BirdTypes
 						Game1.playSound("seagulls");
 					}
 					state = BehaviorStatus.FlyingAway;
+					addBirdObservation(this.birdName, environment.Name);
 					if (f.Position.X > position.X)
 					{
 						flip = false;
@@ -105,13 +106,11 @@ namespace BirdsEverywhere.BirdTypes
 					yOffset -= 2f;
 					break;
 				case BehaviorStatus.Stopped:
-					if (environment.doesTileHaveProperty((int)position.X, (int)position.Y, "Water", "Back") != null)
-                    {
-						ModEntry.modInstance.Monitor.Log($"Gull on {position.X} - {position.Y} is in water and should have set behavior to swimming now.");
+					if (environment.doesTileHaveProperty((int)(position.X / 64), (int)(position.Y / 64), "Water", "Back") != null)
+					{
 						state = BehaviorStatus.Swimming;
-						break;
 					}
-						
+
 					if (Game1.random.NextDouble() < 0.003 && sprite.CurrentAnimation == null)
 					{
 						sprite.loop = false;

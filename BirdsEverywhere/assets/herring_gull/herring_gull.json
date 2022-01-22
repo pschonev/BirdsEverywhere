@@ -4,7 +4,7 @@
   "scName": "Larus argentatus",
 
   "spawnData": {
-    "locations": [ "Beach" ],
+    "locations": [ "Farm" ],
     "spawnPattern": "WaterOrGroundSpawner",
     "birdType": "WaterLandBird",
     "minGroupCount": 19,
