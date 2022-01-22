@@ -7,7 +7,7 @@
         "blue_tit",
         "great_tit"
       ],
-      "locations": [ "Forest", "BusStop", "Beach" ]
+      "locations": [ "Farm", "Forest", "BusStop", "Beach" ]
     },
     {
       "name": "desert",
