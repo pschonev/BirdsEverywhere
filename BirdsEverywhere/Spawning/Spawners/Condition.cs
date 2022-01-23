@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using StardewValley;
+using StardewValley.TerrainFeatures;
 using Microsoft.Xna.Framework;
 
 namespace BirdsEverywhere.Spawners
@@ -42,6 +43,15 @@ namespace BirdsEverywhere.Spawners
                             location.getTileIndexAt(xCoord2, yCoord2, "Front") == -1 &&
                             !location.isBehindBush(tile) &&
                             (Game1.random.NextDouble() < 0.1 || !location.isBehindTree(tile)));
+        }
+
+        public static bool isEligibleTree(GameLocation location, int index)
+        {
+            TerrainFeature treeCandidate = location.terrainFeatures.Pairs.ElementAt(index).Value;
+
+            return treeCandidate is Tree &&
+                (int)(treeCandidate as Tree).treeType != 2 &&
+                (int)(treeCandidate as Tree).growthStage >= 5;
         }
     }
 }

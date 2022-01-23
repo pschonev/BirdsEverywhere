@@ -25,14 +25,16 @@ namespace BirdsEverywhere.BirdTypes
 
 		protected string birdName;
 
-		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName)
+		protected int characterCheckTimer = 200;
+
+		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, int spriteWidth=32, int spriteHeight=32)
 			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
         {
 			this.birdName = birdName;
 			string assetPath = $"assets/{birdName}/{birdName}.png";
 			Texture2D texture = ModEntry.modInstance.Helper.Content.Load<Texture2D>(assetPath);
 			this.birdTexture = ModEntry.modInstance.Helper.Content.GetActualAssetKey(assetPath);
-			this.sprite = new AnimatedSprite(birdTexture, baseFrame, 32, 32);
+			this.sprite = new AnimatedSprite(birdTexture, baseFrame, spriteWidth, spriteHeight);
 		}
 
 		public CustomBirdType setState(BehaviorStatus state)

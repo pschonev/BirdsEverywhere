@@ -5,6 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 using StardewValley.BellsAndWhistles;
 using BirdsEverywhere.BirdTypes;
+using StardewValley.TerrainFeatures;
+using BirdsEverywhere.Spawners;
+using StardewValley;
 
 namespace BirdsEverywhere.BirdTypes
 {
@@ -17,9 +20,17 @@ namespace BirdsEverywhere.BirdTypes
             {"WaterLandBird", (tileX, tileY, birdName) => new WaterLandBird(tileX, tileY, birdName)}
         };
 
-        public static CustomBirdType createBird(int tileX, int tileY, string birdName, string birdType)
+        public static CustomBirdType createBird(SingleBirdSpawnParameters sParams, GameLocation location)
         {
-            return birdTypes[birdType](tileX, tileY, birdName);
+            if (sParams is SingleBirdSpawnParamsTile)
+                return birdTypes[sParams.BirdType]((int)sParams.Position.X, (int)sParams.Position.Y, sParams.ID);
+
+            else if(sParams is SingleBirdSpawnParamsTree)
+            {
+                TreeTrunkBird treeBirdType = new TreeTrunkBird((int)sParams.Position.X, (int)sParams.Position.Y, sParams.ID);
+                return treeBirdType.setTree((sParams as SingleBirdSpawnParamsTree).treeIndex, location);
+            }
+            return null;
         }
     }
 }

@@ -9,8 +9,6 @@ namespace BirdsEverywhere.BirdTypes
 {
 	class WaterLandBird : CustomBirdType
 	{
-		private int characterCheckTimer = 200;
-
 		public WaterLandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Stopped)
 			: base(0, tileX, tileY, birdName)
 		{

@@ -154,21 +154,11 @@ namespace BirdsEverywhere.Spawners
 
             foreach (SingleBirdSpawnParameters sParams in LocationBirdPosition[locationName])
             {
-                location.critters.Add(BirdFactory.createBird((int)sParams.Position.X, (int)sParams.Position.Y, sParams.ID, sParams.BirdType));
+                if (!sParams.stillValidSpawnPosition(location))
+                    continue;
+                location.critters.Add(BirdFactory.createBird(sParams, location));
                 ModEntry.modInstance.Monitor.Log($"Added {sParams.ID} at {(int)sParams.Position.X} - {(int)sParams.Position.Y}.", LogLevel.Debug);
             }
-        }
-    }
-
-    public class SingleBirdSpawnParameters{
-        public Vector2 Position;
-        public string ID;
-        public string BirdType;
-        public SingleBirdSpawnParameters(Vector2 position, string id, string birdType)
-        {
-            this.Position = position;
-            this.ID = id;
-            this.BirdType = birdType;
         }
     }
 }
