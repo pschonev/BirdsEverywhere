@@ -135,8 +135,6 @@ namespace BirdsEverywhere.Spawners
 
                 LocationBirdPosition[locationName] = SpawnerFactory.createSpawner(location, data).spawnBirds(location, data);
             }
-
-
         }
 
         // #####################
