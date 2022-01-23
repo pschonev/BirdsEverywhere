@@ -1,0 +1,11 @@
+{
+  "id": "black_woodpecker",
+  "name": "Black Woodpecker",
+  "scName": "Dryocopus martius",
+
+  "spawnData": {
+    "locations": [ "BusStop" ],
+    "maxGroupCount": 4,
+    "spawnPattern": "TreeTrunkSpawner"
+  }
+}
