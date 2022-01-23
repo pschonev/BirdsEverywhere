@@ -47,11 +47,18 @@ namespace BirdsEverywhere.Spawners
 
         public static bool isEligibleTree(GameLocation location, int index)
         {
-            TerrainFeature treeCandidate = location.terrainFeatures.Pairs.ElementAt(index).Value;
+            try
+            {
+                TerrainFeature treeCandidate = location.terrainFeatures.Pairs.ElementAt(index).Value;
 
-            return treeCandidate is Tree &&
+                return treeCandidate is Tree &&
                 (int)(treeCandidate as Tree).treeType != 2 &&
                 (int)(treeCandidate as Tree).growthStage >= 5;
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                return false;
+            }
         }
     }
 }
