@@ -25,11 +25,11 @@ namespace BirdsEverywhere.BirdTypes
         public static CustomBirdType createBird(SingleBirdSpawnParameters sParams, GameLocation location)
         {
             if (sParams is SingleBirdSpawnParamsTile)
-                return birdTypes[sParams.BirdType]((int)sParams.Position.X, (int)sParams.Position.Y, sParams.ID);
+                return birdTypes[sParams.BirdType]((int)sParams.position.X, (int)sParams.position.Y, sParams.ID);
 
             else if(sParams is SingleBirdSpawnParamsTerrainFeature)
             {
-                CustomBirdTypeTerrainFeature birdType = birdTypes[sParams.BirdType]((int)sParams.Position.X, (int)sParams.Position.Y, sParams.ID) as CustomBirdTypeTerrainFeature;
+                CustomBirdTypeTerrainFeature birdType = birdTypes[sParams.BirdType]((int)sParams.position.X, (int)sParams.position.Y, sParams.ID) as CustomBirdTypeTerrainFeature;
                 return birdType.setTerrainFeature((sParams as SingleBirdSpawnParamsTerrainFeature).terrainFeatureIndex, location);
             }
             return null;

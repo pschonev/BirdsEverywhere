@@ -23,7 +23,7 @@ namespace BirdsEverywhere.Spawners
 
         public override bool stillValidSpawnPosition(GameLocation location)
         {
-            return condition(location, Position, (int)Position.X, (int)Position.Y);
+            return condition(location, position, (int)position.X, (int)position.Y);
         }
     }
 
@@ -41,18 +41,18 @@ namespace BirdsEverywhere.Spawners
 
         public override bool stillValidSpawnPosition(GameLocation location)
         {
-            return condition(location, terrainFeatureIndex, new Vector2());
+            return condition(location, terrainFeatureIndex, position);
         }
     }
 
     public abstract class SingleBirdSpawnParameters
     {
-        public Vector2 Position;
+        public Vector2 position;
         public string ID;
         public string BirdType;
         public SingleBirdSpawnParameters(Vector2 position, string id, string birdType)
         {
-            this.Position = position;
+            this.position = position;
             this.ID = id;
             this.BirdType = birdType;
         }
