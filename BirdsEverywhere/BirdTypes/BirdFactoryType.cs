@@ -8,6 +8,7 @@ using BirdsEverywhere.BirdTypes;
 using StardewValley.TerrainFeatures;
 using BirdsEverywhere.Spawners;
 using StardewValley;
+using StardewModdingAPI;
 
 namespace BirdsEverywhere.BirdTypes
 {
@@ -22,6 +23,13 @@ namespace BirdsEverywhere.BirdTypes
             {"BushBird", (tileX, tileY, birdName) => new BushBird(tileX, tileY, birdName)}
         };
 
+        private delegate CustomBirdTypeTerrainFeature critterDelegateTerrainFeature(int tileX, int tileY, string birdName);
+
+        private static readonly Dictionary<string, critterDelegateTerrainFeature> birdTypesTerrainFeature = new Dictionary<string, critterDelegateTerrainFeature>() {
+            {"TreeTrunkBird", (tileX, tileY, birdName) => new TreeTrunkBird(tileX, tileY, birdName)},
+            {"BushBird", (tileX, tileY, birdName) => new BushBird(tileX, tileY, birdName)}
+        };
+
         public static CustomBirdType createBird(SingleBirdSpawnParameters sParams, GameLocation location)
         {
             if (sParams is SingleBirdSpawnParamsTile)
@@ -29,9 +37,11 @@ namespace BirdsEverywhere.BirdTypes
 
             else if(sParams is SingleBirdSpawnParamsTerrainFeature)
             {
-                CustomBirdTypeTerrainFeature birdType = birdTypes[sParams.BirdType]((int)sParams.position.X, (int)sParams.position.Y, sParams.ID) as CustomBirdTypeTerrainFeature;
-                return birdType.setTerrainFeature((sParams as SingleBirdSpawnParamsTerrainFeature).terrainFeatureIndex, location);
+                return birdTypesTerrainFeature[sParams.BirdType]((int)sParams.position.X, (int)sParams.position.Y, sParams.ID)
+                    .setTerrainFeature((sParams as SingleBirdSpawnParamsTerrainFeature).terrainFeatureIndex, location);
             }
+
+            ModEntry.modInstance.Monitor.Log($"Can't create bird {sParams.ID} in bird factory.", LogLevel.Error);
             return null;
         }
     }
