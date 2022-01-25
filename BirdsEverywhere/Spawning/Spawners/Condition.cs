@@ -75,9 +75,11 @@ namespace BirdsEverywhere.Spawners
 
             for (int j = 0; j < distance; j++)
             {
-                position.X += (flip ? 1 : (-1));
-                if (!location.largeTerrainFeatures[index].getBoundingBox().Intersects(new Rectangle((int)position.X * 64, (int)position.Y * 64, 64, 64)) &&
-                    !location.isTileLocationTotallyClearAndPlaceable(position))
+                position.X += (flip ? (-1) : 1);
+                if ((!location.largeTerrainFeatures[index].getBoundingBox().Intersects(new Rectangle((int)position.X * 64, (int)position.Y * 64, 64, 64)) &&
+                    !location.isTileLocationTotallyClearAndPlaceable(position)) ||
+                    location.doesEitherTileOrTileIndexPropertyEqual((int)position.X, (int)position.Y, "Spawnable", "Back", "F")
+                    )
                 {
                     return false;
                 }
