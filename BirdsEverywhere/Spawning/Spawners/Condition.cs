@@ -11,7 +11,7 @@ namespace BirdsEverywhere.Spawners
 {
     public class Condition
     {
-        public delegate bool SpawnCondition(GameLocation location, Vector2 tile, int xCoord2, int yCoord2);
+        public delegate bool TileSpawnCondition(GameLocation location, Vector2 tile, int xCoord2, int yCoord2);
 
         public static bool isValidGroundTile(GameLocation location, Vector2 tile, int xCoord2, int yCoord2)
         {
@@ -45,7 +45,9 @@ namespace BirdsEverywhere.Spawners
                             (Game1.random.NextDouble() < 0.1 || !location.isBehindTree(tile)));
         }
 
-        public static bool isEligibleTree(GameLocation location, int index)
+        public delegate bool TerrainSpawnCondition(GameLocation location, int index, Vector2 position);
+
+        public static bool isEligibleTree(GameLocation location, int index, Vector2 position)
         {
             try
             {
@@ -59,6 +61,28 @@ namespace BirdsEverywhere.Spawners
             {
                 return false;
             }
+        }
+
+        public static bool straightPathToBush(GameLocation location, int index, Vector2 position)
+        {
+            LargeTerrainFeature bush = location.largeTerrainFeatures[index];
+            if (!(bush is Bush))
+                return false;
+
+            // if bush is to the right, flip is active and bird looks to the right
+            bool flip = bush.tilePosition.X > position.X;
+            int distance = (int)Math.Abs(bush.tilePosition.X - position.X);
+
+            for (int j = 0; j < distance; j++)
+            {
+                position.X += (flip ? 1 : (-1));
+                if (!location.largeTerrainFeatures[index].getBoundingBox().Intersects(new Rectangle((int)position.X * 64, (int)position.Y * 64, 64, 64)) &&
+                    !location.isTileLocationTotallyClearAndPlaceable(position))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }

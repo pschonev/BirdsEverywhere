@@ -16,6 +16,7 @@ namespace BirdsEverywhere.BirdTypes
 			Sleeping,
 			Stopped,
 			Walking,
+			Running,
 			Swimming
         }
 
