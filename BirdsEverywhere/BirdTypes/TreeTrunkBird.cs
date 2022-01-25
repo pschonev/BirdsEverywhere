@@ -9,7 +9,7 @@ using StardewValley.BellsAndWhistles;
 
 namespace BirdsEverywhere.BirdTypes
 {
-    class TreeTrunkBird : CustomBirdType
+    class TreeTrunkBird : CustomBirdTypeTerrainFeature
     {
 		public const int flyingSpeed = 6;
 
@@ -25,7 +25,7 @@ namespace BirdsEverywhere.BirdTypes
 			startingPosition = position;
 		}
 
-		public TreeTrunkBird setTree(int index, GameLocation location)
+		public override TreeTrunkBird setTerrainFeature(int index, GameLocation location)
         {
 			this.tree = location.terrainFeatures.Pairs.ElementAt(index).Value as Tree;
 			return this;

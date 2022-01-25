@@ -17,7 +17,9 @@ namespace BirdsEverywhere.BirdTypes
 
         private static readonly Dictionary<string, critterDelegate> birdTypes = new Dictionary<string, critterDelegate>() {
             {"LandBird", (tileX, tileY, birdName) => new LandBird(tileX, tileY, birdName)},
-            {"WaterLandBird", (tileX, tileY, birdName) => new WaterLandBird(tileX, tileY, birdName)}
+            {"WaterLandBird", (tileX, tileY, birdName) => new WaterLandBird(tileX, tileY, birdName)},
+            {"TreeTrunkBird", (tileX, tileY, birdName) => new TreeTrunkBird(tileX, tileY, birdName)},
+            {"BushBird", (tileX, tileY, birdName) => new BushBird(tileX, tileY, birdName)}
         };
 
         public static CustomBirdType createBird(SingleBirdSpawnParameters sParams, GameLocation location)
@@ -25,10 +27,10 @@ namespace BirdsEverywhere.BirdTypes
             if (sParams is SingleBirdSpawnParamsTile)
                 return birdTypes[sParams.BirdType]((int)sParams.Position.X, (int)sParams.Position.Y, sParams.ID);
 
-            else if(sParams is SingleBirdSpawnParamsTree)
+            else if(sParams is SingleBirdSpawnParamsTerrainFeature)
             {
-                TreeTrunkBird treeBirdType = new TreeTrunkBird((int)sParams.Position.X, (int)sParams.Position.Y, sParams.ID);
-                return treeBirdType.setTree((sParams as SingleBirdSpawnParamsTree).treeIndex, location);
+                CustomBirdTypeTerrainFeature birdType = birdTypes[sParams.BirdType]((int)sParams.Position.X, (int)sParams.Position.Y, sParams.ID) as CustomBirdTypeTerrainFeature;
+                return birdType.setTerrainFeature((sParams as SingleBirdSpawnParamsTerrainFeature).terrainFeatureIndex, location);
             }
             return null;
         }

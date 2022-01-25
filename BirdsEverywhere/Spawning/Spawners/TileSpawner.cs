@@ -17,7 +17,7 @@ namespace BirdsEverywhere.Spawners
     /// Implements multiple strategies to check a location for viable spawn tiles and spawn a variable number of birds
     /// </summary>
     /// 
-    public class GroundSpawner : Spawner
+    public class GroundSpawner : TileSpawner
     {
         /// <summary>
         /// Checks for valid ground tile (doesn't have to be accessible to player).
@@ -29,20 +29,20 @@ namespace BirdsEverywhere.Spawners
         }
     }
 
-    public class WaterSpawner : Spawner
+    public class WaterSpawner : TileSpawner
     {
         /// <summary>
         /// Checks for valid water tile.
         /// </summary>
-        protected new SpawnCondition condition = (location, tile, xCoord2, yCoord2) => isValidWaterTile(location, tile, xCoord2, yCoord2);
+        protected new TileSpawnCondition condition = (location, tile, xCoord2, yCoord2) => isValidWaterTile(location, tile, xCoord2, yCoord2);
     }
 
-    public class WaterOrGroundSpawner : Spawner
+    public class WaterOrGroundSpawner : TileSpawner
     { /// <summary>
       /// Checks if tile is either water or ground and handles the resulting state.
       /// </summary>
       /// 
-      public WaterOrGroundSpawner()
+        public WaterOrGroundSpawner()
         {
             condition = (location, tile, xCoord2, yCoord2) => isValidWaterOrGroundTile(location, tile, xCoord2, yCoord2);
         }
@@ -63,52 +63,19 @@ namespace BirdsEverywhere.Spawners
         }
     }
 
-    public class SpawnableGroundSpawner : Spawner
+    public class SpawnableGroundSpawner : TileSpawner
     {
         /// <summary>
         /// Checks whether the tile is on spawnable ground i.e. if the player can walk up to the birds.
         /// </summary>
-        protected new SpawnCondition condition = (location, tile, xCoord2, yCoord2) => isSpawnableGroundTile(location, tile, xCoord2, yCoord2);
+        protected new TileSpawnCondition condition = (location, tile, xCoord2, yCoord2) => isSpawnableGroundTile(location, tile, xCoord2, yCoord2);
     }
-    public class TreeTrunkSpawner : Spawner
+
+    public abstract class TileSpawner : Spawner
     {
-        /// <summary>
-        /// Checks for valid tree.
-        /// </summary>
+        protected TileSpawnCondition condition;
+
         public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100)
-        {
-            List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
-            var shuffledIndices = Enumerable.Range(0, (location.terrainFeatures.Count())).ToList();
-
-            int groupCount = Game1.random.Next(data.spawnData.minGroupCount, data.spawnData.maxGroupCount);
-            ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} {data.name}s.", LogLevel.Debug);
-
-            attempts = Math.Min(attempts, location.terrainFeatures.Count());
-            for ( int i = 0; i < attempts; i++)
-            {
-                int index = shuffledIndices[i];
-
-                if (isEligibleTree(location, index)) {
-                    Vector2 position = (location.terrainFeatures.Pairs.ElementAt(index).Value as Tree).currentTileLocation;
-                    spawnList.Add(new SingleBirdSpawnParamsTree(index, position, data.id, data.spawnData.birdType));
-                    ModEntry.modInstance.Monitor.Log($"Added {data.id} to tree at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
-
-                    groupCount--;
-                    if (groupCount <= 0)
-                    {
-                        break;
-                    }
-                }
-            }
-            return spawnList;
-        }
-    }
-
-    public abstract class Spawner
-    {
-        protected SpawnCondition condition;
-
-        public virtual List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100)
         {
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
 
@@ -129,7 +96,7 @@ namespace BirdsEverywhere.Spawners
                     if (condition(location, initialTile, xCoord2, yCoord2))
                     {
                         spawnList = spawnSingleBird(location, initialTile, (int)initialTile.X, (int)initialTile.Y, data.spawnData, data.id, spawnList);
-                        foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(initialTile, groupSize-1))
+                        foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(initialTile, groupSize - 1))
                         {
                             spawnList = spawnSingleBird(location, tile, (int)tile.X, (int)tile.Y, data.spawnData, data.id, spawnList);
                         }
@@ -150,6 +117,11 @@ namespace BirdsEverywhere.Spawners
             }
             return spawnList;
         }
+    }
+
+    public abstract class Spawner
+    {
+        public abstract List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100);
     }
 }
 

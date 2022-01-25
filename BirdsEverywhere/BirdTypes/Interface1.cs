@@ -1,0 +1,18 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using StardewValley;
+
+namespace BirdsEverywhere.BirdTypes
+{
+    // this should really be an interface but covariant return for interfaces is not implemented in C# 9
+    abstract class CustomBirdTypeTerrainFeature : CustomBirdType
+    {
+        protected CustomBirdTypeTerrainFeature(int baseFrame, int tileX, int tileY, string birdName, int spriteWidth = 32, int spriteHeight = 32) :
+            base(baseFrame, tileX, tileY, birdName, spriteWidth, spriteHeight)
+        {}
+        public abstract CustomBirdType setTerrainFeature(int index, GameLocation location);
+    }
+}

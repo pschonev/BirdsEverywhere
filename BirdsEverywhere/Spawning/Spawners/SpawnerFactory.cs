@@ -20,7 +20,8 @@ namespace BirdsEverywhere.Spawners
             {"WaterSpawner", () => new WaterSpawner()},
             {"WaterOrGroundSpawner", () => new WaterOrGroundSpawner()},
             {"SpawnableGroundSpawner", () => new SpawnableGroundSpawner()},
-            {"TreeTrunkSpawner", () => new TreeTrunkSpawner() }
+            {"TreeTrunkSpawner", () => new TreeTrunkSpawner() },
+            {"BushSpawner", () => new BushSpawner() }
         };
 
         public static Spawner createSpawner(GameLocation location, BirdData data)
