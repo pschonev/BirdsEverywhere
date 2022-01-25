@@ -1,0 +1,13 @@
+{
+  "id": "grey_partridge",
+  "name": "Grey Partridge",
+  "scName": "Perdix perdix",
+
+  "spawnData": {
+    "locations": [ "BusStop" ],
+    "spawnPattern": "BushSpawner",
+    "birdType":  "BushBird",
+    "maxGroupCount": 2,
+    "maxGroupSize":  1
+  }
+}
