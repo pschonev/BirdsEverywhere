@@ -155,7 +155,7 @@ namespace BirdsEverywhere.Spawners
                 if (!sParams.stillValidSpawnPosition(location))
                     continue;
                 location.critters.Add(BirdFactory.createBird(sParams, location));
-                ModEntry.modInstance.Monitor.Log($"Added {sParams.ID} at {(int)sParams.Position.X} - {(int)sParams.Position.Y}.", LogLevel.Debug);
+                ModEntry.modInstance.Monitor.Log($"Added {sParams.ID} at {(int)sParams.position.X} - {(int)sParams.position.Y}.", LogLevel.Debug);
             }
         }
     }
