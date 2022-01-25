@@ -23,6 +23,12 @@ namespace BirdsEverywhere.Spawners
         /// <summary>
         /// Checks for valid tree.
         /// </summary>
+
+        public TreeTrunkSpawner()
+        {
+            condition = (location, index, position) => isEligibleTree(location, index, position);
+        }
+
         public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100)
         {
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
@@ -56,8 +62,14 @@ namespace BirdsEverywhere.Spawners
     public class BushSpawner : TerrainFeatureSpawner
     {
         /// <summary>
-        /// Checks for valid tree.
+        /// Checks for valid bush with free path.
         /// </summary>
+
+        public BushSpawner()
+        {
+            condition = (location, index, position) => straightPathToBush(location, index, position);
+        }
+
         public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100)
         {
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
