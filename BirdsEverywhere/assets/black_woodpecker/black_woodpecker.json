@@ -6,6 +6,7 @@
   "spawnData": {
     "locations": [ "BusStop" ],
     "maxGroupCount": 4,
-    "spawnPattern": "TreeTrunkSpawner"
+    "spawnPattern": "TreeTrunkSpawner",
+    "birdType": "TreeTrunkBird"
   }
 }
