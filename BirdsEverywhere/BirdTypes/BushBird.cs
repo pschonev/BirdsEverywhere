@@ -14,16 +14,18 @@ namespace BirdsEverywhere.BirdTypes
 		private Bush bush;
 
 		public BushBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
-			: base(0, tileX, tileY, birdName, 16, 16)
-		{	position.Y += 48f;
-			bool flip = bush.tilePosition.X > position.X;
+			: base(0, tileX, tileY, birdName)
+		{
+			//position.Y += 48f;
+			flip = (Game1.random.NextDouble() < 0.5);
 			sprite.loop = true;
-			startingPosition = position;
 		}
 
 		public override BushBird setTerrainFeature(int index, GameLocation location)
 		{
-			this.bush = location.largeTerrainFeatures[index] as Bush;
+			bush = location.largeTerrainFeatures[index] as Bush;
+			flip = bush.tilePosition.X < position.X;
+			startingPosition = position;
 			return this;
 		}
 
