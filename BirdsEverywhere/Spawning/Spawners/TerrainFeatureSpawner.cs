@@ -45,7 +45,7 @@ namespace BirdsEverywhere.Spawners
                 if (isEligibleTree(location, index, new Vector2()))
                 {
                     Vector2 position = (location.terrainFeatures.Pairs.ElementAt(index).Value as Tree).currentTileLocation;
-                    spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(condition, index, position, data.id, data.spawnData.birdType));
+                    spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.id, data.spawnData.birdType));
                     ModEntry.modInstance.Monitor.Log($"Added {data.id} to tree at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
 
                     groupCount--;
@@ -89,11 +89,11 @@ namespace BirdsEverywhere.Spawners
                     int distance = Game1.random.Next(5, 12);
                     bool flip = (Game1.random.NextDouble() < 0.5);
 
-                    Vector2 position = new Vector2(bushPosition.X + (flip ? 1 : (-1)), bushPosition.Y);
+                    Vector2 position = new Vector2(bushPosition.X + (flip ? distance : (-distance)), bushPosition.Y);
 
                     if (straightPathToBush(location, index, position))
                     {
-                        spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(condition, index, position, data.id, data.spawnData.birdType));
+                        spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.id, data.spawnData.birdType));
                         ModEntry.modInstance.Monitor.Log($"Added {data.id} to tree at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
 
                         groupCount--;
@@ -110,7 +110,7 @@ namespace BirdsEverywhere.Spawners
 
     public abstract class TerrainFeatureSpawner : Spawner
     {
-        protected TerrainSpawnCondition condition;
+        public TerrainSpawnCondition condition;
     }
 }
 

@@ -57,7 +57,7 @@ namespace BirdsEverywhere.Spawners
                 (int)(treeCandidate as Tree).treeType != 2 &&
                 (int)(treeCandidate as Tree).growthStage >= 5;
             }
-            catch (ArgumentOutOfRangeException ex)
+            catch (ArgumentOutOfRangeException)
             {
                 return false;
             }
@@ -70,7 +70,7 @@ namespace BirdsEverywhere.Spawners
                 return false;
 
             // if bush is to the right, flip is active and bird looks to the right
-            bool flip = bush.tilePosition.X > position.X;
+            bool flip = bush.tilePosition.X < position.X;
             int distance = (int)Math.Abs(bush.tilePosition.X - position.X);
 
             for (int j = 0; j < distance; j++)
