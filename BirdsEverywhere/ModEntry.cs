@@ -158,7 +158,7 @@ namespace BirdsEverywhere
         private void Player_Warped(object sender, WarpedEventArgs e)
         {
             modInstance.Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
-            if (e.NewLocation == null || !Utils.isEligibleLocation(e.NewLocation))
+            if (e.NewLocation == null)
                 return;
             removeVanillaBirds(e.NewLocation);
 
