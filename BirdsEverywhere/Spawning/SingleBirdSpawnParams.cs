@@ -29,18 +29,18 @@ namespace BirdsEverywhere.Spawners
 
     public class SingleBirdSpawnParamsTerrainFeature : SingleBirdSpawnParameters
     {
-        public Condition.TerrainSpawnCondition condition;
         public int terrainFeatureIndex;
 
-        public SingleBirdSpawnParamsTerrainFeature(Condition.TerrainSpawnCondition condition, int terrainFeatureIndex, Vector2 position, string id, string birdType)
+        public SingleBirdSpawnParamsTerrainFeature(int terrainFeatureIndex, Vector2 position, string id, string birdType)
             : base(position, id, birdType)
         {
-            this.condition = condition;
             this.terrainFeatureIndex = terrainFeatureIndex;
         }
 
         public override bool stillValidSpawnPosition(GameLocation location)
         {
+            BirdData data = ModEntry.birdDataCollection[this.ID];
+            Condition.TerrainSpawnCondition condition = (SpawnerFactory.createSpawner(location, data) as TerrainFeatureSpawner).condition;
             return condition(location, terrainFeatureIndex, position);
         }
     }
