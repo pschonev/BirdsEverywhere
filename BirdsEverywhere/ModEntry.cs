@@ -117,8 +117,21 @@ namespace BirdsEverywhere
 
         private void OnModMessageReceived(object sender, ModMessageReceivedEventArgs e)
         {
-            // any player receives updated observation data (SaveData)
-            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "SaveNewObservation")
+            // a specific player at a location receives a request from entering player to send them the bird objects there
+            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "RequestCurrentBirds" && Game1.player.UniqueMultiplayerID == e.ReadAs<long>())
+                this.Helper.Multiplayer.SendMessage((e.FromPlayerID, Game1.currentLocation.critters.Where(x=> x is CustomBirdType).ToList()), 
+                    "UpdateCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
+
+            // update birds according to the previous request
+            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateCurrentBirds" && Game1.player.UniqueMultiplayerID == e.ReadAs<(long id, List<Critter> critters)>().id)
+            {
+                Game1.currentLocation.instantiateCrittersList();
+                Game1.currentLocation.critters = e.ReadAs<(long id, List<Critter> critters)>().critters;
+            }
+                
+
+                // any player receives updated observation data (SaveData)
+                if (e.FromModID == this.ModManifest.UniqueID && e.Type == "SaveNewObservation")
                 saveData = e.ReadAs<SaveData>();
 
             // any player receives global message of bird observation to show
@@ -170,7 +183,16 @@ namespace BirdsEverywhere
 
             if (!Utils.isEligibleLocation(e.NewLocation))
                 return;
-            dailySpawner.Populate(e.NewLocation);
+
+            var farmer = Game1.getOnlineFarmers().FirstOrDefault(f => f.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID && f.currentLocation == e.NewLocation);
+            if (farmer == null)
+            {
+                dailySpawner.Populate(e.NewLocation);
+            }
+            else
+            {
+                this.Helper.Multiplayer.SendMessage(farmer.UniqueMultiplayerID, "RequestCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
+            }
         }
 
         private void TimeChanged(object sender, TimeChangedEventArgs e)
