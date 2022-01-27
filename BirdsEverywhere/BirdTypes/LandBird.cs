@@ -16,11 +16,11 @@ namespace BirdsEverywhere.BirdTypes
 		public LandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
 			: base(0, tileX, tileY, birdName)
 		{
-			flip = (Game1.random.NextDouble() < 0.5);
+			flip = (random.NextDouble() < 0.5);
 			position.X += 32f;
 			position.Y += 32f;
 			startingPosition = position;
-			flightOffset = (float)Game1.random.NextDouble() - 0.5f;
+			flightOffset = (float)random.NextDouble() - 0.5f;
 
 			this.state = state;
         }
@@ -53,7 +53,7 @@ namespace BirdsEverywhere.BirdTypes
 
 		private void donePecking(Farmer who)
 		{
-			state = ((!(Game1.random.NextDouble() < 0.5)) ? BehaviorStatus.Stopped : BehaviorStatus.Pecking);
+			state = ((!(random.NextDouble() < 0.5)) ? BehaviorStatus.Stopped : BehaviorStatus.Pecking);
 		}
 
 		private void playFlap(Farmer who)
@@ -92,7 +92,7 @@ namespace BirdsEverywhere.BirdTypes
 				characterCheckTimer = 200;
 				if (f != null && state != BehaviorStatus.FlyingAway)
 				{
-					if (Game1.random.NextDouble() < 0.85)
+					if (random.NextDouble() < 0.85)
 					{
 						Game1.playSound("SpringBirds");
 					}
@@ -126,7 +126,7 @@ namespace BirdsEverywhere.BirdTypes
 						peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 2), 480));
 						peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 170, secondaryArm: false, flip));
 						peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 170, secondaryArm: false, flip));
-						int pecks = Game1.random.Next(1, 5);
+						int pecks = random.Next(1, 5);
 						for (int i = 0; i < pecks; i++)
 						{
 							peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 70));
@@ -156,7 +156,7 @@ namespace BirdsEverywhere.BirdTypes
 					{
 						sprite.currentFrame = baseFrame + 5;
 					}
-					if (Game1.random.NextDouble() < 0.003 && sprite.CurrentAnimation == null)
+					if (random.NextDouble() < 0.003 && sprite.CurrentAnimation == null)
 					{
 						state = BehaviorStatus.Stopped;
 					}
@@ -180,9 +180,9 @@ namespace BirdsEverywhere.BirdTypes
 					}
 					break;
 				case BehaviorStatus.Stopped:
-					if (Game1.random.NextDouble() < 0.008 && sprite.CurrentAnimation == null && yJumpOffset >= 0f)
+					if (random.NextDouble() < 0.008 && sprite.CurrentAnimation == null && yJumpOffset >= 0f)
 					{
-						switch (Game1.random.Next(6))
+						switch (random.Next(6))
 						{
 							case 0:
 								state = BehaviorStatus.Sleeping;
@@ -214,7 +214,7 @@ namespace BirdsEverywhere.BirdTypes
 								{
 									flip = true;
 								}
-								walkTimer = Game1.random.Next(5, 15) * 100;
+								walkTimer = random.Next(5, 15) * 100;
 								break;
 						}
 					}

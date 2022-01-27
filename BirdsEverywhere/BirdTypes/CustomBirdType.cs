@@ -4,6 +4,7 @@ using StardewValley.BellsAndWhistles;
 using StardewValley;
 using StardewModdingAPI;
 using StardewModdingAPI.Utilities;
+using System;
 
 namespace BirdsEverywhere.BirdTypes
 {
@@ -28,10 +29,16 @@ namespace BirdsEverywhere.BirdTypes
 
 		protected int characterCheckTimer = 200;
 
+		protected long birdID;
+
+		protected Random random;
+
 		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, int spriteWidth=32, int spriteHeight=32)
 			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
         {
 			this.birdName = birdName;
+			this.birdID = ModEntry.modInstance.Helper.Multiplayer.GetNewID();
+			random = new Random((int)(birdID % Int32.MaxValue));
 			string assetPath = $"assets/{birdName}/{birdName}.png";
 			Texture2D texture = ModEntry.modInstance.Helper.Content.Load<Texture2D>(assetPath);
 			this.birdTexture = ModEntry.modInstance.Helper.Content.GetActualAssetKey(assetPath);
