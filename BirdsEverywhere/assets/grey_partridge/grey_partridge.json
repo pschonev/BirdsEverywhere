@@ -4,10 +4,11 @@
   "scName": "Perdix perdix",
 
   "spawnData": {
-    "locations": [ "BusStop" ],
+    "locations": [ "Backwoods"],
     "spawnPattern": "BushSpawner",
     "birdType":  "BushBird",
-    "maxGroupCount": 2,
+    "maxGroupCount": 5,
+    "minGroupCount":  2,
     "maxGroupSize":  1
   }
 }
