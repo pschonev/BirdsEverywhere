@@ -10,6 +10,7 @@ using StardewValley.BellsAndWhistles;
 using BirdsEverywhere.Spawners;
 using BirdsEverywhere.BirdList;
 using BirdsEverywhere.BirdTypes;
+using Newtonsoft.Json;
 
 namespace BirdsEverywhere
 {
@@ -43,6 +44,11 @@ namespace BirdsEverywhere
             helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", Logging.PrintSeenBirds);
 
             ModEntry.MyTabId = SpaceCore.Menus.ReserveGameMenuTab("birds");
+
+            JsonConvert.DefaultSettings = () => new JsonSerializerSettings
+            {
+                ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore
+            };
         }
 
         // ##################
@@ -113,14 +119,24 @@ namespace BirdsEverywhere
         {
             // a specific player at a location receives a request from entering player to send them the bird objects there
             if (e.FromModID == this.ModManifest.UniqueID && e.Type == "RequestCurrentBirds" && Game1.player.UniqueMultiplayerID == e.ReadAs<long>())
-                this.Helper.Multiplayer.SendMessage((e.FromPlayerID, Game1.currentLocation.critters.Where(x=> x is CustomBirdType).ToList()), 
+            { 
+                Monitor.Log($"{Game1.player.Name} got request to send active birds.", LogLevel.Debug);
+                this.Helper.Multiplayer.SendMessage((e.FromPlayerID, Game1.currentLocation.critters.Where(x => x is CustomBirdType).ToList()),
                     "UpdateCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
+            }
+                
 
             // update birds according to the previous request
-            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateCurrentBirds" && Game1.player.UniqueMultiplayerID == e.ReadAs<(long id, List<Critter> critters)>().id)
+            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateCurrentBirds")
             {
-                Game1.currentLocation.instantiateCrittersList();
-                Game1.currentLocation.critters = e.ReadAs<(long id, List<Critter> critters)>().critters;
+                Monitor.Log($"Player ID who received active bird data: {Game1.player.UniqueMultiplayerID} Player ID who supposedly first sent request {e.ReadAs<(long id, List<Critter> critters)>().id}. Matching? - {Game1.player.UniqueMultiplayerID == e.ReadAs<(long id, List<Critter> critters)>().id}", LogLevel.Debug);
+                if (Game1.player.UniqueMultiplayerID == e.ReadAs<(long id, List<Critter> critters)>().id)
+                {
+                    Monitor.Log($"{Game1.player.Name} got active birds and updates critter list.", LogLevel.Debug);
+                    Game1.currentLocation.instantiateCrittersList();
+                    Game1.currentLocation.critters = e.ReadAs<(long id, List<Critter> critters)>().critters;
+                }
+                
             }
                 
 
@@ -144,7 +160,10 @@ namespace BirdsEverywhere
 
                 // farmhand receives SaveData on connect
                 if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateFarmhandSave")
+                {
+                    Monitor.Log($"{Game1.player.Name} received bird data.", LogLevel.Debug);
                     saveData = e.ReadAs<SaveData>();
+                }
 
                 // farmhand receives birds today after connecting
                 if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsOnConnect")
@@ -185,6 +204,7 @@ namespace BirdsEverywhere
             }
             else
             {
+                Monitor.Log($"{Game1.player.Name} request active birds at {farmer.currentLocation}.", LogLevel.Debug);
                 this.Helper.Multiplayer.SendMessage(farmer.UniqueMultiplayerID, "RequestCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
             }
         }
