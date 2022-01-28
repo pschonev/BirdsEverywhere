@@ -48,7 +48,7 @@ namespace BirdsEverywhere
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings
             {
                 ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore,
-                TypeNameHandling = Newtonsoft.Json.TypeNameHandling.All
+                //TypeNameHandling = Newtonsoft.Json.TypeNameHandling.All
             };
         }
 

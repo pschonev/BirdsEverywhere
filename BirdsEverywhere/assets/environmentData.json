@@ -3,13 +3,13 @@
     {
       "name": "valley",
       "birds": [
-        "black_woodpecker",
-        "grey_partridge",
-        "herring_gull",
         "blue_tit",
-        "great_tit"
+        "great_tit",
+        "grey_partridge",
+        "black_woodpecker",
+        "herring_gull"
       ],
-      "locations": [ "Farm", "Forest", "BusStop", "Beach" ]
+      "locations": [ "Farm", "Forest", "BusStop", "Beach", "Backwoods" ]
     },
     {
       "name": "desert",
