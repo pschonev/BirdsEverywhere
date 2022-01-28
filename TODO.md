@@ -1,14 +1,27 @@
 # TODO
-
+### next
+- birds in trees? flying into trees (see squirrel)
+- newly calculate bird positions when chance % or when no bird spawns
 - implement possibilities to have dimorphism (gender), different plumage (breeding season), babies (e.g. ducks) in season with advanced, young birds (gulls, swans)
 - change layerdepth of drawing birds that are not flying
 - spawner direction
 - implement stuff from Bird and PerchingBird like birds flying to a new spot
-- PerchingBird keeps track of all bird locations. syncing position and state of every bird in multiplayer possible after al??
 
+### also
+- PerchingBird keeps track of all bird locations. syncing position and state of every bird in multiplayer possible after al??
+- parse configs properly (multiple levels of default values -> BirdData - template - default spawner - advanced)
+- luck factor e.g. 3% chance that ANY new bird will spawn (even rare ones)
+- implement many more behaviors
 - validate every config when loading (locations, files etc)
-- config specify specific days to spawn (days of the week)
-- 
+- sounds
+- fix bird list
+- Kuhreiher auf Kühen
+
+## Multiplayer Sprite sync
+- just put it all in moddata at location
+- handle critters myself instead of critter list doing it
+- clear when everyone left location
+
 ## Spawners
 
 - add directional spawners to
