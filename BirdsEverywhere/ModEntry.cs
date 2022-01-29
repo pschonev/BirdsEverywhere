@@ -121,8 +121,12 @@ namespace BirdsEverywhere
             // a specific player at a location receives a request from entering player to send them the bird objects there
             if (e.FromModID == this.ModManifest.UniqueID && e.Type == "RequestCurrentBirds" && Game1.player.UniqueMultiplayerID == e.ReadAs<long>())
             { 
-                Monitor.Log($"{Game1.player.Name} got request to send active birds.", LogLevel.Debug);
-                this.Helper.Multiplayer.SendMessage((e.FromPlayerID, Game1.currentLocation.critters.Where(x => x is CustomBirdType).ToList()),
+                Monitor.Log($"{Game1.player.Name} got request to send active birds.\n Storing them in {Game1.currentLocation.Name} - moddata.", LogLevel.Debug);
+                Game1.currentLocation.modData["activeBirdData"] = JsonConvert.SerializeObject(Game1.currentLocation.critters.Where(x => x is CustomBirdType).ToList(), Formatting.Indented,
+                    new JsonSerializerSettings {
+                        ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                    });
+                this.Helper.Multiplayer.SendMessage(e.FromPlayerID,
                     "UpdateCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
             }
                 
@@ -130,12 +134,13 @@ namespace BirdsEverywhere
             // update birds according to the previous request
             if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateCurrentBirds")
             {
-                Monitor.Log($"Player ID who received active bird data: {Game1.player.UniqueMultiplayerID} Player ID who supposedly first sent request {e.ReadAs<(long id, List<Critter> critters)>().id}. Matching? - {Game1.player.UniqueMultiplayerID == e.ReadAs<(long id, List<Critter> critters)>().id}", LogLevel.Debug);
-                if (Game1.player.UniqueMultiplayerID == e.ReadAs<(long id, List<Critter> critters)>().id)
+                long originalSenderID = e.ReadAs<long>();
+                Monitor.Log($"Player ID who received active bird data: {Game1.player.UniqueMultiplayerID} Player ID who supposedly first sent request {originalSenderID}. Matching? - {Game1.player.UniqueMultiplayerID == originalSenderID}", LogLevel.Debug);
+                if (Game1.player.UniqueMultiplayerID == originalSenderID)
                 {
-                    Monitor.Log($"{Game1.player.Name} got active birds and updates critter list.", LogLevel.Debug);
+                    Monitor.Log($"{Game1.player.Name} got active birds and updates critter list, depending on values in {Game1.currentLocation.Name} - moddata.", LogLevel.Debug);
                     Game1.currentLocation.instantiateCrittersList();
-                    Game1.currentLocation.critters = e.ReadAs<(long id, List<Critter> critters)>().critters;
+                    Game1.currentLocation.critters = JsonConvert.DeserializeObject<List<Critter>>(Game1.currentLocation.modData["activeBirdData"]);
                 }
                 
             }
