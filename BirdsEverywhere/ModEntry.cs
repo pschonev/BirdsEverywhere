@@ -9,7 +9,7 @@ using StardewValley.Menus;
 using StardewValley.BellsAndWhistles;
 using BirdsEverywhere.Spawners;
 using BirdsEverywhere.BirdList;
-
+using Newtonsoft.Json;
 
 namespace BirdsEverywhere
 {
@@ -43,6 +43,12 @@ namespace BirdsEverywhere
             helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", Logging.PrintSeenBirds);
 
             ModEntry.MyTabId = SpaceCore.Menus.ReserveGameMenuTab("birds");
+
+            JsonConverter[] converters = { new SpawnConverter() };
+            JsonConvert.DefaultSettings = () => new JsonSerializerSettings
+            {
+                Converters = converters
+            };
         }
 
         // ##################

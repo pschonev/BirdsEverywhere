@@ -19,6 +19,7 @@ namespace BirdsEverywhere.Spawners
             : base(position, id, birdType)
         {
             this.condition = condition;
+            this.className = "SingleBirdSpawnParamsTile";
         }
 
         public override bool stillValidSpawnPosition(GameLocation location)
@@ -35,6 +36,7 @@ namespace BirdsEverywhere.Spawners
             : base(position, id, birdType)
         {
             this.terrainFeatureIndex = terrainFeatureIndex;
+            this.className = "SingleBirdSpawnParamsTerrainFeature";
         }
 
         public override bool stillValidSpawnPosition(GameLocation location)
@@ -47,6 +49,7 @@ namespace BirdsEverywhere.Spawners
 
     public abstract class SingleBirdSpawnParameters
     {
+        public string className;
         public Vector2 position;
         public string ID;
         public string BirdType;
