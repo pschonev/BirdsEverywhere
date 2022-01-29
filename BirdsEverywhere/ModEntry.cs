@@ -162,13 +162,17 @@ namespace BirdsEverywhere
                 // farmhand receives SaveData on connect
                 if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateFarmhandSave")
                 {
-                    Monitor.Log($"{Game1.player.Name} received bird data.", LogLevel.Debug);
+                    Monitor.Log($"{Game1.player.Name} received save data.", LogLevel.Debug);
                     saveData = e.ReadAs<SaveData>();
                 }
 
                 // farmhand receives birds today after connecting
                 if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsOnConnect")
+                {
+                    Monitor.Log($"{Game1.player.Name} received bird data.", LogLevel.Debug);
                     dailySpawner = e.ReadAs<DailySpawner>();
+                }
+                    
             }
         }
 
