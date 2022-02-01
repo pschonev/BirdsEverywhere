@@ -12,6 +12,8 @@ namespace BirdsEverywhere.BirdTypes
     class BushBird : CustomBirdTypeTerrainFeature
     {
 		private Bush bush;
+		private int index;
+		private string locationName;
 
 		private int flightDistance;
 
@@ -24,6 +26,9 @@ namespace BirdsEverywhere.BirdTypes
 
 		public override BushBird setTerrainFeature(int index, GameLocation location)
 		{
+			this.index = index;
+			this.locationName = location.Name;
+
 			bush = location.largeTerrainFeatures[index] as Bush;
 			flip = bush.tilePosition.X < (position.X / 64);
 			startingPosition = position;
@@ -80,6 +85,45 @@ namespace BirdsEverywhere.BirdTypes
 				}
 			}
 			return base.update(time, environment);
+		}
+
+		// #############
+		// # Load/Save #
+		// #############
+
+		// this constructor is for loading a bird from saved params 
+		public BushBird(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
+				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName)
+			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
+		{
+			this.setTerrainFeature(index, Game1.getLocationFromName(locationName));
+		}
+
+		public class CurrentBushBirdParams : CurrentBirdParams
+		{
+
+			int index;
+			string locationName;
+
+			public CurrentBushBirdParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
+				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName)
+				: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
+			{
+				this.index = index;
+				this.locationName = locationName;
+			}
+
+			public override BushBird LoadFromParams()
+			{
+				return new BushBird(position, startingPosition, birdName, birdID, flip,
+				state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset, index, locationName);
+			}
+		}
+
+		public override CurrentBushBirdParams saveParams()
+		{
+			return new CurrentBushBirdParams(position, startingPosition, birdName, birdID, flip,
+				state, new CurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, index, locationName);
 		}
 	}
 }
