@@ -1,10 +1,10 @@
 # TODO
 ### next
 - birds in trees? flying into trees (see squirrel)
-- newly calculate bird positions when chance % or when no bird spawns
 - implement possibilities to have dimorphism (gender), different plumage (breeding season), babies (e.g. ducks) in season with advanced, young birds (gulls, swans)
 - change layerdepth of drawing birds that are not flying
 - spawner direction
+- newly calculate bird positions when chance % or when no bird spawns
 - implement stuff from Bird and PerchingBird like birds flying to a new spot
 
 ### also
@@ -15,12 +15,27 @@
 - validate every config when loading (locations, files etc)
 - sounds
 - fix bird list
+- cache textures
 - Kuhreiher auf Kühen
 
 ## Multiplayer Sprite sync
-- just put it all in moddata at location
-- handle critters myself instead of critter list doing it
-- clear when everyone left location
+- player who warped somewhere new checks if there are other players there 
+- if not, spawn birds yourself. if there are others send the first possible one a message
+- the one who got the message does the following:
+  - pack all values of birds a location using CustomBird.getCurrentParameters
+  - send parameters in message
+  - reset Random() with the birdID as seed (birdID is created every time someone enters empty location)
+- all players who receive the message and are at the specified location
+  - if they are the original player who warped there: use the currentBirdParameters to rebuild them
+  - everyone: seed random() with birdID (again)
+
+- currentParams is internal class only used by CustomBirdType and derivatives
+- it includes position, currentFrame, frameloop, state, birdID, yoffset, index of terrain feature etc
+- currenParams gets created by running CustomBirdType.saveParams()
+  - this creates a derivative of currentParams that is defined in the derivative of CustomBirdType
+  - different behaviors defined in overwritten saveParams() function in CustomBirdType derivative
+  - inside the currentParams class there is createBirdFromParams() which goes the other way around
+  - it creates a CustomBirdType of the specific derivative
 
 ## Spawners
 
