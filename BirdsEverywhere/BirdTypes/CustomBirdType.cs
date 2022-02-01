@@ -113,6 +113,18 @@ namespace BirdsEverywhere.BirdTypes
 			Texture2D texture = ModEntry.modInstance.Helper.Content.Load<Texture2D>(assetPath);
 			return ModEntry.modInstance.Helper.Content.GetActualAssetKey(assetPath);
 		}
+		public override void draw(SpriteBatch b)
+		{
+			if (sprite == null)
+				return;
+			//base.draw(b);
+			float z;
+			if(state == BehaviorStatus.FlyingAway)
+				z = (float)(this.position.Y / 10000.0 + this.position.X / 100000.0);
+			else
+				z = (float)((this.position.Y - 1.0) / 10000.0);
+			this.sprite.draw(b, Game1.GlobalToLocal(Game1.viewport, this.position - new Vector2(8, 8)), z, 0, 0, Color.White, this.flip, 4f);
+		}
 
 		public void addBirdObservation(string birdName, string location)
 		{
