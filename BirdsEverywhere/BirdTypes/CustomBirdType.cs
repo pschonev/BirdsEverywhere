@@ -127,6 +127,7 @@ namespace BirdsEverywhere.BirdTypes
 
 		public abstract class CurrentBirdParams
         {
+			public string birdTypeName;
 
 			protected Vector2 position;
 			protected Vector2 startingPosition;
@@ -180,13 +181,17 @@ namespace BirdsEverywhere.BirdTypes
 
 			public CurrentAnimatedSprite(AnimatedSprite sprite)
             {
-				List<(int frame, int ms)> currentAnimation = new List<(int frame, int ms)>();
-				foreach(FarmerSprite.AnimationFrame animFrame in sprite.CurrentAnimation)
-                {
-					currentAnimation.Add((animFrame.frame, animFrame.milliseconds));
-                }
-
-				this.currentAnimation = currentAnimation;
+				if (currentAnimation != null)
+				{
+					List<(int frame, int ms)> currentAnimation = new List<(int frame, int ms)>();
+					foreach (FarmerSprite.AnimationFrame animFrame in sprite.CurrentAnimation)
+					{
+						currentAnimation.Add((animFrame.frame, animFrame.milliseconds));
+					}
+					this.currentAnimation = currentAnimation;
+				}
+				else
+					this.currentAnimation = null;
 				this.currentFrame = sprite.currentFrame;
 				this.timer = sprite.timer;
 				this.loop = sprite.loop;
@@ -195,5 +200,13 @@ namespace BirdsEverywhere.BirdTypes
 		}
 
 		public abstract CurrentBirdParams saveParams();
+
+		public CurrentAnimatedSprite getCurrentAnimatedSprite(AnimatedSprite sprite)
+        {
+			if (sprite != null)
+				return new CurrentAnimatedSprite(sprite);
+			else
+				return null;
+		}
 	}
 }
