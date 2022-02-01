@@ -71,20 +71,28 @@ namespace BirdsEverywhere.BirdTypes
 
 			// setting the sprite
 			this.birdTexture = getTextureName(birdName);
-			AnimatedSprite currentSprite = new AnimatedSprite(birdTexture, baseFrame, spriteWidth, spriteHeight);
-			List<FarmerSprite.AnimationFrame> currentAnim = new List<FarmerSprite.AnimationFrame>();
-			foreach((int frame, int ms) frameWithTime in sprite.currentAnimation)
-            {
-				currentAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + frameWithTime.frame), frameWithTime.ms));
+			if (sprite != null)
+			{
+				AnimatedSprite currentSprite = new AnimatedSprite(birdTexture, baseFrame, spriteWidth, spriteHeight);
+				if (sprite.currentAnimation != null)
+				{
+					List<FarmerSprite.AnimationFrame> currentAnim = new List<FarmerSprite.AnimationFrame>();
+					foreach ((int frame, int ms) frameWithTime in sprite.currentAnimation)
+					{
+						currentAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + frameWithTime.frame), frameWithTime.ms));
+					}
+					currentSprite.setCurrentAnimation(currentAnim);
+				}
+				currentSprite.currentFrame = sprite.currentFrame;
+				currentSprite.timer = sprite.timer;
+				currentSprite.loop = sprite.loop;
+				currentSprite.currentAnimationIndex = sprite.currentAnimationIndex;
+				this.sprite = currentSprite;
 			}
-			currentSprite.setCurrentAnimation(currentAnim);
-			currentSprite.currentFrame = sprite.currentFrame;
-			currentSprite.timer = sprite.timer;
-			currentSprite.loop = sprite.loop;
-			currentSprite.currentAnimationIndex = sprite.currentAnimationIndex;
-			this.sprite = currentSprite;
+			else
+				this.sprite = null;
 
-			// set random again
+			// set random again with birdID seed
 			seedRandom();
 		}
 
@@ -127,25 +135,25 @@ namespace BirdsEverywhere.BirdTypes
 
 		public abstract class CurrentBirdParams
         {
-			public string birdTypeName;
+			public string birdTypeName { get; set; }
 
-			protected Vector2 position;
-			protected Vector2 startingPosition;
-			protected BehaviorStatus state;
-			protected string birdName;
-			protected int characterCheckTimer;
-			protected long birdID;
-			protected bool flip;
-			protected CurrentAnimatedSprite currentAnimatedSprite;
-			protected float gravityAffectedDY;
-			protected float yOffset;
-			protected float yJumpOffset;
+			public Vector2 position { get; set; }
+			public Vector2 startingPosition { get; set; }
+			public BehaviorStatus state { get; set; }
+			public string birdName { get; set; }
+			public int characterCheckTimer { get; set; }
+			public long birdID { get; set; }
+			public bool flip { get; set; }
+			public CurrentAnimatedSprite currentAnimatedSprite { get; set; }
+			public float gravityAffectedDY { get; set; }
+			public float yOffset { get; set; }
+			public float yJumpOffset { get; set; }
 
-			protected int baseFrame;
-			protected int spriteWidth;
-			protected int spriteHeight;
+			public int baseFrame { get; set; }
+			public int spriteWidth { get; set; }
+			public int spriteHeight { get; set; }
 
-			protected CurrentBirdParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip, 
+			public CurrentBirdParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip, 
 				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset,
 				int characterCheckTimer = 200, int baseFrame=0,  int spriteWidth = 32, int spriteHeight = 32)
             {
@@ -161,7 +169,6 @@ namespace BirdsEverywhere.BirdTypes
 				this.yOffset = yOffset;
 				this.yJumpOffset = yJumpOffset;
 
-
 				this.baseFrame = baseFrame;
 				this.spriteWidth = spriteWidth;
 				this.spriteHeight = spriteHeight;
@@ -169,17 +176,28 @@ namespace BirdsEverywhere.BirdTypes
 
 			public abstract CustomBirdType LoadFromParams();
 
+
+
 		}
 
 		public class CurrentAnimatedSprite
         {
-			public List<(int frame, int ms)> currentAnimation;
-			public int currentFrame;
-			public float timer;
-			public bool loop;
-			public int currentAnimationIndex;
+			public List<(int frame, int ms)> currentAnimation { get; set; }
+			public int currentFrame { get; set; }
+			public float timer { get; set; }
+			public bool loop { get; set; }
+			public int currentAnimationIndex { get; set; }
 
-			public CurrentAnimatedSprite(AnimatedSprite sprite)
+			public CurrentAnimatedSprite(List<(int frame, int ms)> currentAnimation,int currentFrame, float timer,  bool loop, int currentAnimationIndex)
+            {
+				this.currentAnimation = currentAnimation;
+				this.currentFrame = currentFrame;
+				this.timer = timer;
+				this.loop = loop;
+				this.currentAnimationIndex = currentAnimationIndex;
+            }
+
+			internal CurrentAnimatedSprite(AnimatedSprite sprite)
             {
 				if (currentAnimation != null)
 				{

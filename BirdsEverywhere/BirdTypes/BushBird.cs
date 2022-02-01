@@ -17,7 +17,7 @@ namespace BirdsEverywhere.BirdTypes
 
 		private int flightDistance;
 
-		public BushBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
+		public BushBird(int tileX, int tileY, string birdName)
 			: base(0, tileX, tileY, birdName)
 		{
 			position.Y += 48f;
@@ -101,9 +101,8 @@ namespace BirdsEverywhere.BirdTypes
 
 		public class CurrentBushBirdParams : CurrentBirdParams
 		{
-
-			int index;
-			string locationName;
+			public int index { get; set; }
+			public string locationName { get; set; }
 
 			public CurrentBushBirdParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
 				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName)

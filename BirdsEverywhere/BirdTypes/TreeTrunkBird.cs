@@ -157,9 +157,9 @@ namespace BirdsEverywhere.BirdTypes
 		public class CurrentTreeTrunkBirdParams : CurrentBirdParams
 		{
 
-			int index;
-			string locationName;
-			int peckTimer;
+			public int index { get; set; }
+			public string locationName { get; set; }
+			public int peckTimer { get; set; }
 
 			public CurrentTreeTrunkBirdParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
 				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName, int peckTimer)

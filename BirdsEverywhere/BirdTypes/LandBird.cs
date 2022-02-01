@@ -244,8 +244,8 @@ namespace BirdsEverywhere.BirdTypes
 
 		public class CurrentLandBirdParams : CurrentBirdParams {
 
-			float flightOffset; 
-			int walkTimer;
+			public float flightOffset { get; set; }
+			public int walkTimer { get; set; }
 
 			public CurrentLandBirdParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
 				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, float flightOffset, int walkTimer)

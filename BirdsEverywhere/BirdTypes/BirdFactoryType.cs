@@ -18,9 +18,7 @@ namespace BirdsEverywhere.BirdTypes
 
         private static readonly Dictionary<string, critterDelegate> birdTypes = new Dictionary<string, critterDelegate>() {
             {"LandBird", (tileX, tileY, birdName) => new LandBird(tileX, tileY, birdName)},
-            {"WaterLandBird", (tileX, tileY, birdName) => new WaterLandBird(tileX, tileY, birdName)},
-            {"TreeTrunkBird", (tileX, tileY, birdName) => new TreeTrunkBird(tileX, tileY, birdName)},
-            {"BushBird", (tileX, tileY, birdName) => new BushBird(tileX, tileY, birdName)}
+            {"WaterLandBird", (tileX, tileY, birdName) => new WaterLandBird(tileX, tileY, birdName)}
         };
 
         private delegate CustomBirdTypeTerrainFeature critterDelegateTerrainFeature(int tileX, int tileY, string birdName);
