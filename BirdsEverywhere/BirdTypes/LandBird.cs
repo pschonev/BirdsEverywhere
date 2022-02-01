@@ -251,6 +251,7 @@ namespace BirdsEverywhere.BirdTypes
 				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, float flightOffset, int walkTimer)
 				: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
             {
+				this.birdTypeName = "LandBird";
 				this.flightOffset = flightOffset;
 				this.walkTimer = walkTimer;
             }
@@ -264,8 +265,8 @@ namespace BirdsEverywhere.BirdTypes
 
 		public override CurrentLandBirdParams saveParams()
         {
-			return new CurrentLandBirdParams(position, startingPosition, birdName, birdID, flip,
-				state, new CurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, flightOffset, walkTimer);
+				return new CurrentLandBirdParams(position, startingPosition, birdName, birdID, flip,
+					state, getCurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, flightOffset, walkTimer);
         }
 	}
 }

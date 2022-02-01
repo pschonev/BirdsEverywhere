@@ -165,6 +165,7 @@ namespace BirdsEverywhere.BirdTypes
 				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName, int peckTimer)
 				: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
 			{
+				this.birdTypeName = "TreeTrunkBird";
 				this.index = index;
 				this.locationName = locationName;
 				this.peckTimer = peckTimer;
@@ -180,7 +181,7 @@ namespace BirdsEverywhere.BirdTypes
 		public override CurrentTreeTrunkBirdParams saveParams()
 		{
 			return new CurrentTreeTrunkBirdParams(position, startingPosition, birdName, birdID, flip,
-				state, new CurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, index, locationName, peckTimer);
+				state, getCurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, index, locationName, peckTimer);
 		}
 	}
 }

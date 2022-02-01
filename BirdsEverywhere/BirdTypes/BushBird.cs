@@ -109,6 +109,7 @@ namespace BirdsEverywhere.BirdTypes
 				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName)
 				: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
 			{
+				this.birdTypeName = "BushBird";
 				this.index = index;
 				this.locationName = locationName;
 			}
@@ -123,7 +124,7 @@ namespace BirdsEverywhere.BirdTypes
 		public override CurrentBushBirdParams saveParams()
 		{
 			return new CurrentBushBirdParams(position, startingPosition, birdName, birdID, flip,
-				state, new CurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, index, locationName);
+				state, getCurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, index, locationName);
 		}
 	}
 }

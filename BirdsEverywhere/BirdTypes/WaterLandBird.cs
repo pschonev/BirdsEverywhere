@@ -205,6 +205,7 @@ namespace BirdsEverywhere.BirdTypes
 				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset)
 				: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
 			{
+				this.birdTypeName = "WaterLandBird";
 			}
 
 			public override WaterLandBird LoadFromParams()
@@ -217,7 +218,7 @@ namespace BirdsEverywhere.BirdTypes
 		public override CurrentwaterLandParams saveParams()
 		{
 			return new CurrentwaterLandParams(position, startingPosition, birdName, birdID, flip,
-				state, new CurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset);
+				state, getCurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset);
 		}
 	}
 }
