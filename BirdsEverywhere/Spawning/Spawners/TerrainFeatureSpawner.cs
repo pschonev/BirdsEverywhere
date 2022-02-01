@@ -85,7 +85,7 @@ namespace BirdsEverywhere.Spawners
 
                 if (location.largeTerrainFeatures[index] is Bush)
                 {
-                    Vector2 bushPosition = location.largeTerrainFeatures[index].tilePosition;
+                    Vector2 bushPosition = location.largeTerrainFeatures[index].tilePosition.Value;
                     int distance = Game1.random.Next(5, 12);
                     bool flip = (Game1.random.NextDouble() < 0.5);
 
