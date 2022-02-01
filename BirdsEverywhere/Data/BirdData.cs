@@ -28,7 +28,7 @@ namespace BirdsEverywhere
     public class SpawnData
     {
         public List<string> locations = new List<string>() { "Backwoods" }; // possible spawn locations
-        public string spawnPattern = "GroundSpawner"; // how to spawn the bird at location
+        public string spawnPattern = "SpawnableGroundSpawner"; // how to spawn the bird at location
         public string birdType = "LandBird"; // Bird class derivative that determines behavior
         public int minGroupCount = 1; //minimum amount of groups that are created
         public int maxGroupCount = 2;
