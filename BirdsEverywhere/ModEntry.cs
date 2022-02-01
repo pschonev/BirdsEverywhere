@@ -45,7 +45,7 @@ namespace BirdsEverywhere
 
             ModEntry.MyTabId = SpaceCore.Menus.ReserveGameMenuTab("birds");
 
-            JsonConverter[] converters = { new SpawnConverter() };
+            JsonConverter[] converters = { new SpawnConverter() , new CurrentBirdParamsConverter()};
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings
             {
                 Converters = converters
