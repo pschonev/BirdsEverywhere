@@ -68,7 +68,10 @@ namespace BirdsEverywhere.Spawners
         /// <summary>
         /// Checks whether the tile is on spawnable ground i.e. if the player can walk up to the birds.
         /// </summary>
-        protected new TileSpawnCondition condition = (location, tile, xCoord2, yCoord2) => isSpawnableGroundTile(location, tile, xCoord2, yCoord2);
+        public SpawnableGroundSpawner()
+        {
+            condition = (location, tile, xCoord2, yCoord2) => isSpawnableGroundTile(location, tile, xCoord2, yCoord2);
+        }
     }
 
     public abstract class TileSpawner : Spawner
