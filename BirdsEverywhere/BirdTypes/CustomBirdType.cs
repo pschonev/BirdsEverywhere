@@ -38,20 +38,30 @@ namespace BirdsEverywhere.BirdTypes
 			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
         {
 			this.birdName = birdName;
-			this.birdID = ModEntry.modInstance.Helper.Multiplayer.GetNewID();
-			seedRandom();
 			this.birdTexture = getTextureName(birdName);
 			this.sprite = new AnimatedSprite(birdTexture, baseFrame, spriteWidth, spriteHeight);
+			this.birdID = ModEntry.modInstance.Helper.Multiplayer.GetNewID();
+			seedRandom();
+		}
+
+		// constructor that doesn't get new bird ID
+		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, long birdID, int spriteWidth = 32, int spriteHeight = 32)
+			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
+		{
+			this.birdName = birdName;
+			this.birdTexture = getTextureName(birdName);
+			this.sprite = new AnimatedSprite(birdTexture, baseFrame, spriteWidth, spriteHeight);
+			this.birdID = birdID;
+			seedRandom();
 		}
 
 		// this is for loading a bird from saved params
 		protected CustomBirdType(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
 				BehaviorStatus state, CurrentAnimatedSprite sprite, float gravityAffectedDY, float yOffset, float yJumpOffset,
 				int characterCheckTimer = 200, int baseFrame = 0, int spriteWidth = 32, int spriteHeight = 32)
-			: this(baseFrame, (int)startingPosition.X / 64, (int)startingPosition.Y / 64, birdName, spriteWidth, spriteHeight)
+			: this(baseFrame, (int)startingPosition.X / 64, (int)startingPosition.Y / 64, birdName, birdID, spriteWidth, spriteHeight)
         {
 			this.position = position;
-			this.birdID = birdID;
 			this.flip = flip;
 			this.state = state;
 			this.characterCheckTimer = characterCheckTimer;

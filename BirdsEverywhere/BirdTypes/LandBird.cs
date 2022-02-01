@@ -25,14 +25,7 @@ namespace BirdsEverywhere.BirdTypes
 			this.state = state;
 		}
 
-		// this is for loading a bird from saved params 
-		public LandBird(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
-				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, float flightOffset, int walkTimer)
-			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
-        {
-			this.flightOffset = flightOffset;
-			this.walkTimer = walkTimer;
-        }
+		
 
 		public new LandBird setState(BehaviorStatus state)
 		{
@@ -234,6 +227,19 @@ namespace BirdsEverywhere.BirdTypes
 					break;
 			}
 			return base.update(time, environment);
+		}
+
+		// #############
+		// # Load/Save #
+		// #############
+
+		// this constructor is for loading a bird from saved params 
+		public LandBird(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
+				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, float flightOffset, int walkTimer)
+			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
+		{
+			this.flightOffset = flightOffset;
+			this.walkTimer = walkTimer;
 		}
 
 		public class CurrentLandBirdParams : CurrentBirdParams {

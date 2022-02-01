@@ -14,6 +14,8 @@ namespace BirdsEverywhere.BirdTypes
 		public const int flyingSpeed = 6;
 
 		private Tree tree;
+		private int index;
+		private string locationName;
 
 		private int peckTimer;
 
@@ -28,6 +30,8 @@ namespace BirdsEverywhere.BirdTypes
 		public override TreeTrunkBird setTerrainFeature(int index, GameLocation location)
         {
 			this.tree = location.terrainFeatures.Pairs.ElementAt(index).Value as Tree;
+			this.index = index;
+			this.locationName = location.Name;
 			return this;
 		}
 
@@ -98,7 +102,7 @@ namespace BirdsEverywhere.BirdTypes
 			{
 				Character f = Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, 6, environment);
 				characterCheckTimer = 200;
-				if ((f != null || (bool)tree.stump) && state != BehaviorStatus.FlyingAway)
+				if ((f != null || (bool)tree.stump.Value) && state != BehaviorStatus.FlyingAway)
 				{
 					state = BehaviorStatus.FlyingAway;
 					addBirdObservation(this.birdName, environment.Name);
@@ -134,6 +138,49 @@ namespace BirdsEverywhere.BirdTypes
 				yOffset -= 1f;
 			}
 			return base.update(time, environment);
+		}
+
+
+		// #############
+		// # Load/Save #
+		// #############
+
+		// this constructor is for loading a bird from saved params 
+		public TreeTrunkBird(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
+				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName, int peckTimer)
+			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
+		{
+			this.setTerrainFeature(index, Game1.getLocationFromName(locationName));
+			this.peckTimer = peckTimer;
+		}
+
+		public class CurrentTreeTrunkBirdParams : CurrentBirdParams
+		{
+
+			int index;
+			string locationName;
+			int peckTimer;
+
+			public CurrentTreeTrunkBirdParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
+				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName, int peckTimer)
+				: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
+			{
+				this.index = index;
+				this.locationName = locationName;
+				this.peckTimer = peckTimer;
+			}
+
+			public override TreeTrunkBird LoadFromParams()
+			{
+				return new TreeTrunkBird(position, startingPosition, birdName, birdID, flip,
+				state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset, index, locationName, peckTimer);
+			}
+		}
+
+		public override CurrentTreeTrunkBirdParams saveParams()
+		{
+			return new CurrentTreeTrunkBirdParams(position, startingPosition, birdName, birdID, flip,
+				state, new CurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, index, locationName, peckTimer);
 		}
 	}
 }
