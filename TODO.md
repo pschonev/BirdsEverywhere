@@ -2,6 +2,7 @@
 ### next
 - birds in trees? flying into trees (see squirrel)
 - implement possibilities to have dimorphism (gender), different plumage (breeding season), babies (e.g. ducks) in season with advanced, young birds (gulls, swans)
+- fix bush birds doing nothing before running into bush (also flight distance)
 - change layerdepth of drawing birds that are not flying
 - spawner direction
 - newly calculate bird positions when chance % or when no bird spawns
