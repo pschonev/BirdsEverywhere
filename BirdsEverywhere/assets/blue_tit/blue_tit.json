@@ -6,6 +6,7 @@
   "spawnData": {
     "locations": [ "BusStop" ],
     "maxGroupCount": 2,
-    "maxGroupSize":  12
+    "minGroupSize": 3,
+    "maxGroupSize": 12
   }
 }
