@@ -124,7 +124,7 @@ namespace BirdsEverywhere
                 Monitor.Log($"{Game1.player.Name} got request to send active birds.", LogLevel.Debug);
                 List<CustomBirdType> birds = Game1.currentLocation.critters.Where(x => x is CustomBirdType).Select(x => x as CustomBirdType).ToList();
                 List<CustomBirdType.CurrentBirdParams> currentBirdParams = birds.Select(x => x.saveParams()).ToList();
-                
+
                 this.Helper.Multiplayer.SendMessage((e.FromPlayerID, currentBirdParams),
                     "UpdateCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
                 foreach(CustomBirdType bird in Game1.currentLocation.critters.OfType<CustomBirdType>())
