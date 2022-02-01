@@ -148,7 +148,7 @@ namespace BirdsEverywhere.BirdTypes
 		// this constructor is for loading a bird from saved params 
 		public TreeTrunkBird(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
 				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName, int peckTimer)
-			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
+			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset, spriteWidth: 16, spriteHeight: 16)
 		{
 			this.setTerrainFeature(index, Game1.getLocationFromName(locationName));
 			this.peckTimer = peckTimer;
