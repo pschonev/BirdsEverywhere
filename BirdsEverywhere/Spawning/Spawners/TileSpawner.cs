@@ -73,7 +73,7 @@ namespace BirdsEverywhere.Spawners
 
     public abstract class TileSpawner : Spawner
     {
-        protected TileSpawnCondition condition;
+        public TileSpawnCondition condition;
 
         public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100)
         {

@@ -12,25 +12,23 @@ namespace BirdsEverywhere.Spawners
 {
     public class SingleBirdSpawnParamsTile : SingleBirdSpawnParameters
     {
-        private Condition.TileSpawnCondition condition;
-
-
         public SingleBirdSpawnParamsTile(Condition.TileSpawnCondition condition, Vector2 position, string id, string birdType)
             : base(position, id, birdType)
         {
-            this.condition = condition;
             this.className = "SingleBirdSpawnParamsTile";
         }
 
         public override bool stillValidSpawnPosition(GameLocation location)
         {
+            BirdData data = ModEntry.birdDataCollection[this.ID];
+            Condition.TileSpawnCondition condition = (SpawnerFactory.createSpawner(location, data) as TileSpawner).condition;
             return condition(location, position, (int)position.X, (int)position.Y);
         }
     }
 
     public class SingleBirdSpawnParamsTerrainFeature : SingleBirdSpawnParameters
     {
-        public int terrainFeatureIndex;
+        public int terrainFeatureIndex { get; set; }
 
         public SingleBirdSpawnParamsTerrainFeature(int terrainFeatureIndex, Vector2 position, string id, string birdType)
             : base(position, id, birdType)
@@ -49,10 +47,10 @@ namespace BirdsEverywhere.Spawners
 
     public abstract class SingleBirdSpawnParameters
     {
-        public string className;
-        public Vector2 position;
-        public string ID;
-        public string BirdType;
+        public string className { get; set; }
+        public Vector2 position { get; set; }
+        public string ID { get; set; }
+        public string BirdType { get; set; }
         public SingleBirdSpawnParameters(Vector2 position, string id, string birdType)
         {
             this.position = position;
