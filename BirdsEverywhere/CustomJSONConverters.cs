@@ -50,7 +50,7 @@ namespace BirdsEverywhere
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             JObject jo = JObject.Load(reader);
-            switch(jo["className"].Value<string>())
+            switch(jo["birdTypeName"].Value<string>())
             {
                 case "LandBird":
                     return jo.ToObject<LandBird.CurrentLandBirdParams>(serializer);
