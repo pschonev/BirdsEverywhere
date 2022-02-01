@@ -1,4 +1,12 @@
 # TODO
+
+### fix
+- birds spawn too close to edge
+- birds spawn behind bushes
+- birds are drawn on layer below foredgables
+- birds minGroupSize doesn't work properly, it constantly spawns 1-2 birds when it should draw min 3
+- birds spawn on top of each other instead
+
 ### next
 - birds in trees? flying into trees (see squirrel)
 - implement possibilities to have dimorphism (gender), different plumage (breeding season), babies (e.g. ducks) in season with advanced, young birds (gulls, swans)
