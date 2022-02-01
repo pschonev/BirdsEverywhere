@@ -47,7 +47,7 @@ namespace BirdsEverywhere.BirdTypes
 
 		private void donePecking(Farmer who)
 		{
-			peckTimer = Game1.random.Next(1000, 3000);
+			peckTimer = random.Next(1000, 3000);
 		}
 
 		private void playFlap(Farmer who)
@@ -86,7 +86,7 @@ namespace BirdsEverywhere.BirdTypes
 			peckTimer -= time.ElapsedGameTime.Milliseconds;
 			if (state != BehaviorStatus.FlyingAway && peckTimer <= 0 && sprite.CurrentAnimation == null)
 			{
-				int nibbles = Game1.random.Next(2, 8);
+				int nibbles = random.Next(2, 8);
 				List<FarmerSprite.AnimationFrame> anim = new List<FarmerSprite.AnimationFrame>();
 				for (int i = 0; i < nibbles; i++)
 				{

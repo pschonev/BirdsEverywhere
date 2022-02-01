@@ -16,7 +16,7 @@ namespace BirdsEverywhere.BirdTypes
 		public LandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
 			: base(0, tileX, tileY, birdName)
 		{
-			flip = (random.NextDouble() < 0.5);
+			flip = random.NextDouble() < 0.5;
 			position.X += 32f;
 			position.Y += 32f;
 			startingPosition = position;
