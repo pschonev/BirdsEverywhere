@@ -54,8 +54,8 @@ namespace BirdsEverywhere.Spawners
                 TerrainFeature treeCandidate = location.terrainFeatures.Pairs.ElementAt(index).Value;
 
                 return treeCandidate is Tree &&
-                (int)(treeCandidate as Tree).treeType != 2 &&
-                (int)(treeCandidate as Tree).growthStage >= 5;
+                (int)(treeCandidate as Tree).treeType.Value != 2 &&
+                (int)(treeCandidate as Tree).growthStage.Value >= 5;
             }
             catch (ArgumentOutOfRangeException)
             {
