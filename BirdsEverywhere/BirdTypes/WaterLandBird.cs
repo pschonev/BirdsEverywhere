@@ -12,7 +12,7 @@ namespace BirdsEverywhere.BirdTypes
 		public WaterLandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Stopped)
 			: base(0, tileX, tileY, birdName)
 		{
-			flip = (Game1.random.NextDouble() < 0.5);
+			flip = random.NextDouble() < 0.5;
 			startingPosition = position;
 			this.state = state;
 		}
@@ -31,7 +31,7 @@ namespace BirdsEverywhere.BirdTypes
 				characterCheckTimer = 200;
 				if (f != null && state != BehaviorStatus.FlyingAway)
 				{
-					if (Game1.random.NextDouble() < 0.25)
+					if (random.NextDouble() < 0.25)
 					{
 						Game1.playSound("seagulls");
 					}
@@ -66,7 +66,7 @@ namespace BirdsEverywhere.BirdTypes
 					{
 						position.X += 2f;
 					}
-					if (Game1.random.NextDouble() < 0.005)
+					if (random.NextDouble() < 0.005)
 					{
 						state = BehaviorStatus.Stopped;
 						sprite.loop = false;
@@ -88,7 +88,7 @@ namespace BirdsEverywhere.BirdTypes
 						}
 						if (yOffset > tmpY)
 						{
-							environment.temporarySprites.Add(new TemporaryAnimatedSprite("TileSheets\\animations", new Rectangle(0, 0, 64, 64), 150f, 8, 0, new Vector2(position.X - 32f, position.Y - 32f), flicker: false, Game1.random.NextDouble() < 0.5, 0.001f, 0.01f, Color.White, 1f, 0.003f, 0f, 0f));
+							environment.temporarySprites.Add(new TemporaryAnimatedSprite("TileSheets\\animations", new Rectangle(0, 0, 64, 64), 150f, 8, 0, new Vector2(position.X - 32f, position.Y - 32f), flicker: false, random.NextDouble() < 0.5, 0.001f, 0.01f, Color.White, 1f, 0.003f, 0f, 0f));
 						}
 						break;
 					}
@@ -109,10 +109,10 @@ namespace BirdsEverywhere.BirdTypes
 						state = BehaviorStatus.Swimming;
 					}
 
-					if (Game1.random.NextDouble() < 0.003 && sprite.CurrentAnimation == null)
+					if (random.NextDouble() < 0.003 && sprite.CurrentAnimation == null)
 					{
 						sprite.loop = false;
-						switch (Game1.random.Next(4))
+						switch (random.Next(4))
 						{
 							case 0:
 								{
@@ -123,7 +123,7 @@ namespace BirdsEverywhere.BirdTypes
 							new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 200),
 							new FarmerSprite.AnimationFrame((short)(baseFrame + 5), 200)
 						};
-									int extra2 = Game1.random.Next(5);
+									int extra2 = random.Next(5);
 									for (int i = 0; i < extra2; i++)
 									{
 										frames2.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 200));
@@ -135,7 +135,7 @@ namespace BirdsEverywhere.BirdTypes
 							case 1:
 								sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
 						{
-							new FarmerSprite.AnimationFrame(6, (short)Game1.random.Next(500, 4000))
+							new FarmerSprite.AnimationFrame(6, (short)random.Next(500, 4000))
 						});
 								break;
 							case 2:
@@ -146,7 +146,7 @@ namespace BirdsEverywhere.BirdTypes
 							new FarmerSprite.AnimationFrame((short)(baseFrame + 7), 100, secondaryArm: false, flip: false, hop),
 							new FarmerSprite.AnimationFrame((short)(baseFrame + 8), 100)
 						};
-									int extra2 = Game1.random.Next(3);
+									int extra2 = random.Next(3);
 									for (int j = 0; j < extra2; j++)
 									{
 										frames2.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 7), 100));
@@ -163,8 +163,8 @@ namespace BirdsEverywhere.BirdTypes
 							new FarmerSprite.AnimationFrame((short)(baseFrame + 1), 200)
 						});
 								sprite.loop = true;
-								flip = (Game1.random.NextDouble() < 0.5);
-								if (Game1.random.NextDouble() < 0.33)
+								flip = (random.NextDouble() < 0.5);
+								if (random.NextDouble() < 0.33)
 								{
 									if (position.X > startingPosition.X)
 									{
