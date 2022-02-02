@@ -50,16 +50,15 @@ namespace BirdsEverywhere
             return (Game1.random.NextDouble() * (maxDistance - minDistance) + minDistance) * sign;
         }
 
-		public static List<Vector2> getRandomPositionsStartingFromThisTile(Vector2 startTile, int number, int maxAttempts=0, double minDistance=1.0, double maxDistance=4.0, double branchChance=0.2)
+		public static List<Vector2> getRandomPositionsStartingFromThisTile(Vector2 startTile, int maxAttempts=10, double minDistance=1.0, double maxDistance=4.0, double branchChance=0.2)
 		{
 			List<Vector2> tiles = new List<Vector2>();
+            tiles.Add(startTile);
             Vector2 currentTile2 = startTile;
 
-            if (maxAttempts < number)
-				maxAttempts = number * 2;
 			int attempts = 0;
 
-			while (tiles.Count < number && attempts < maxAttempts)
+			while (attempts < maxAttempts)
 			{
                 float xDistance = (float)Math.Round(getRandomBoundedDoublePosOrNeg(minDistance, maxDistance));
                 float yDistance = (float)Math.Round(getRandomBoundedDoublePosOrNeg(minDistance, maxDistance));

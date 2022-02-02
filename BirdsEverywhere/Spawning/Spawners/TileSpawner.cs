@@ -78,30 +78,31 @@ namespace BirdsEverywhere.Spawners
     {
         public TileSpawnCondition condition;
 
-        public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100)
+        public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attemptsStartTile = 100, int attemptsPerBird = 4)
         {
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
 
-            int groupCount = Game1.random.Next(data.spawnData.minGroupCount, data.spawnData.maxGroupCount);
+            int groupCount = Game1.random.Next(Math.Max(1, data.spawnData.minGroupCount), data.spawnData.maxGroupCount);
             ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} group(s) with max {data.spawnData.maxGroupSize} {data.name}s.", LogLevel.Debug);
 
             for (int k = 0; k < groupCount; k++)
             {
-                int groupSize = Game1.random.Next(data.spawnData.minGroupSize, data.spawnData.maxGroupSize);
+                int groupSize = Game1.random.Next(Math.Max(1, data.spawnData.minGroupSize), data.spawnData.maxGroupSize);
 
-                for (int j = 0; j < attempts; j++)
+                for (int j = 0; j < attemptsStartTile; j++)
                 {
-                    int xCoord2 = Game1.random.Next(location.map.DisplayWidth / 64);
-                    int yCoord2 = Game1.random.Next(location.map.DisplayHeight / 64);
+                    int xCoord2 = Game1.random.Next(3, location.map.DisplayWidth / 64 - 4);
+                    int yCoord2 = Game1.random.Next(3, location.map.DisplayHeight / 64 - 4);
                     Vector2 initialTile = new Vector2(xCoord2, yCoord2);
 
                     // if tile meets condition this will spawn one bird there and up to a MAXIMUM of groupSize-1 additional birds
                     if (condition(location, initialTile, xCoord2, yCoord2))
                     {
-                        spawnList = spawnSingleBird(location, initialTile, (int)initialTile.X, (int)initialTile.Y, data.spawnData, data.id, spawnList);
-                        foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(initialTile, groupSize - 1))
+                        foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(initialTile, groupSize * attemptsPerBird))
                         {
                             spawnList = spawnSingleBird(location, tile, (int)tile.X, (int)tile.Y, data.spawnData, data.id, spawnList);
+                            if (spawnList.Count >= groupSize)
+                                break;
                         }
                         break; // this will break the for loop and stop spawning any more birds in this group
                     }
@@ -124,7 +125,7 @@ namespace BirdsEverywhere.Spawners
 
     public abstract class Spawner
     {
-        public abstract List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100);
+        public abstract List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100, int attemptsPerBird = 4);
     }
 }
 

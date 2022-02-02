@@ -29,7 +29,7 @@ namespace BirdsEverywhere.Spawners
             condition = (location, index, position) => isEligibleTree(location, index, position);
         }
 
-        public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100)
+        public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100, int attemptsPerBird = 4)
         {
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
             var shuffledIndices = Enumerable.Range(0, (location.terrainFeatures.Count())).OrderBy(a => Game1.random.NextDouble()).ToList();
@@ -70,7 +70,7 @@ namespace BirdsEverywhere.Spawners
             condition = (location, index, position) => straightPathToBush(location, index, position);
         }
 
-        public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100)
+        public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attempts = 100, int attemptsPerBird = 4)
         {
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
             var shuffledIndices = Enumerable.Range(0, (location.largeTerrainFeatures.Count())).OrderBy(a => Game1.random.NextDouble()).ToList();
