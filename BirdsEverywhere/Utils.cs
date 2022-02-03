@@ -50,7 +50,12 @@ namespace BirdsEverywhere
             return (Game1.random.NextDouble() * (maxDistance - minDistance) + minDistance) * sign;
         }
 
-		public static List<Vector2> getRandomPositionsStartingFromThisTile(Vector2 startTile, int maxAttempts=10, double minDistance=1.0, double maxDistance=4.0, double branchChance=0.2)
+        public static bool isCoordInsideScreenBounds(float coord, int sizeDimension, int padding)
+        {
+            return (coord >= padding - 1 && coord <= sizeDimension - padding);
+        }
+
+        public static List<Vector2> getRandomPositionsStartingFromThisTile(Vector2 startTile, GameLocation location, int maxAttempts=100, double minDistance=1.0, double maxDistance=4.0, double branchChance=0.2)
 		{
 			List<Vector2> tiles = new List<Vector2>();
             tiles.Add(startTile);
@@ -61,7 +66,9 @@ namespace BirdsEverywhere
 			while (attempts < maxAttempts)
 			{
                 float xDistance = (float)Math.Round(getRandomBoundedDoublePosOrNeg(minDistance, maxDistance));
+                xDistance = isCoordInsideScreenBounds(currentTile2.X + xDistance, location.map.DisplayWidth / 64, 4) ? xDistance : xDistance * -1;
                 float yDistance = (float)Math.Round(getRandomBoundedDoublePosOrNeg(minDistance, maxDistance));
+                yDistance = isCoordInsideScreenBounds(currentTile2.Y + yDistance, location.map.DisplayHeight / 64, 4) ? yDistance : yDistance * -1;
 
                 Vector2 tile = new Vector2(currentTile2.X + xDistance, currentTile2.Y + yDistance);
                 if (!tiles.Contains(tile))

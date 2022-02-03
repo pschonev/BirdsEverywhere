@@ -78,16 +78,16 @@ namespace BirdsEverywhere.Spawners
     {
         public TileSpawnCondition condition;
 
-        public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attemptsStartTile = 100, int attemptsPerBird = 4)
+        public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, int attemptsStartTile = 100, int attemptsPerBird = 20)
         {
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
 
             int groupCount = Game1.random.Next(Math.Max(1, data.spawnData.minGroupCount), data.spawnData.maxGroupCount);
-            ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} group(s) with max {data.spawnData.maxGroupSize} {data.name}s.", LogLevel.Debug);
 
             for (int k = 0; k < groupCount; k++)
             {
                 int groupSize = Game1.random.Next(Math.Max(1, data.spawnData.minGroupSize), data.spawnData.maxGroupSize);
+                ModEntry.modInstance.Monitor.Log($" Attempting to spawn one of {groupCount} group(s) with {groupSize} {data.name}s.", LogLevel.Debug);
 
                 for (int j = 0; j < attemptsStartTile; j++)
                 {
@@ -98,9 +98,12 @@ namespace BirdsEverywhere.Spawners
                     // if tile meets condition this will spawn one bird there and up to a MAXIMUM of groupSize-1 additional birds
                     if (condition(location, initialTile, xCoord2, yCoord2))
                     {
-                        foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(initialTile, groupSize * attemptsPerBird))
+                        int i = 0;
+                        foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(initialTile, location, groupSize * attemptsPerBird, branchChance: 0.5))
                         {
                             spawnList = spawnSingleBird(location, tile, (int)tile.X, (int)tile.Y, data.spawnData, data.id, spawnList);
+                            ModEntry.modInstance.Monitor.Log($"{i+1} iterations. Tile checked {(int)tile.X} - {(int)tile.Y}. {spawnList.Count} birds spawned. (start tile {xCoord2} - {yCoord2})", LogLevel.Debug);
+                            i++;
                             if (spawnList.Count >= groupSize)
                                 break;
                         }
