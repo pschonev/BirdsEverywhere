@@ -25,32 +25,14 @@ namespace BirdsEverywhere.BirdTypes
 			this.state = state;
 		}
 
-		
 
-		public new LandBird setState(BehaviorStatus state)
-		{
-			return (LandBird)base.setState(state);
-		}
+		// ##############################
+		// # End of Animation Behaviors #
+		// ##############################
 
 		public void hop(Farmer who)
 		{
 			gravityAffectedDY = -2f;
-		}
-
-		public override void drawAboveFrontLayer(SpriteBatch b)
-		{
-			if (state == BehaviorStatus.FlyingAway)
-			{
-				base.draw(b);
-			}
-		}
-
-		public override void draw(SpriteBatch b)
-		{
-			if (state != BehaviorStatus.FlyingAway)
-			{
-				base.draw(b);
-			}
 		}
 
 		private void donePecking(Farmer who)
@@ -73,6 +55,10 @@ namespace BirdsEverywhere.BirdTypes
 				Game1.playSound("shiny4");
 			}
 		}
+
+		// ########################
+		// # Behavior / Animation #
+		// ########################
 
 		public override bool update(GameTime time, GameLocation environment)
 		{
