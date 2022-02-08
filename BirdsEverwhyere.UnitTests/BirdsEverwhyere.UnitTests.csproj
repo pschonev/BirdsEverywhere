@@ -4,9 +4,7 @@
     <TargetFramework>net5.0</TargetFramework>
 	
     <IsPackable>false</IsPackable>
-	
-	 <GamePath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Stardew Valley\</GamePath>
-	
+		
 	<EnableGameDebugging>false</EnableGameDebugging>
 	<EnableModDeploy>false</EnableModDeploy>
 	<EnableModZip>false</EnableModZip>
