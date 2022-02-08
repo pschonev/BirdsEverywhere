@@ -26,10 +26,13 @@ namespace BirdsEverywhere
 
             var o = new JObject();
             //o.Add("$type", $"{value.GetType().FullName}, {value.GetType().Assembly.GetName().Name}");
+
+            // properties of Critter
             o.Add("birdTypeName", birdAsCritter.birdTypeName);
             o.Add("position", JToken.FromObject(birdAsCritter.position));
             o.Add("startingPosition", JToken.FromObject(birdAsCritter.startingPosition));
 
+            // AnimatedSpirit has to be handled specifically
             o.Add("currentAnimatedSprite", JToken.FromObject(new CurrentAnimatedSprite(birdAsCritter.sprite)));
             o.Add("flip", birdAsCritter.flip);
             o.Add("gravityAffectedDY", birdAsCritter.gravityAffectedDY);
@@ -37,6 +40,7 @@ namespace BirdsEverywhere
             o.Add("yJumpOffset", birdAsCritter.yJumpOffset);
             o.Add("baseFrame", birdAsCritter.baseFrame);
 
+            // properties of CustomBirdType and derivatives
             Type currentType = value.GetType();
             do {
                 foreach (PropertyInfo prop in currentType.GetProperties(BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Instance))
