@@ -10,7 +10,8 @@ namespace BirdsEverywhere.BirdTypes
 {
 	class LandBird : CustomBirdType
 	{
-		public float flightOffset { get; set; }
+        public override string birdTypeName { get; } = "LandBird";
+        public float flightOffset { get; set; }
 		public int walkTimer { get; set; }
 
 		public LandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
@@ -220,6 +221,7 @@ namespace BirdsEverywhere.BirdTypes
 		// #############
 
 		// this constructor is for loading a bird from saved params 
+		[JsonConstructor]
 		public LandBird(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
 				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, float flightOffset, int walkTimer)
 			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)

@@ -10,10 +10,10 @@ using Newtonsoft.Json;
 
 namespace BirdsEverywhere.BirdTypes
 {
-    abstract class CustomBirdType : Critter
-    {
+	abstract class CustomBirdType : Critter
+	{
 		public enum BehaviorStatus
-        {
+		{
 			Pecking,
 			FlyingAway,
 			Sleeping,
@@ -21,8 +21,8 @@ namespace BirdsEverywhere.BirdTypes
 			Walking,
 			Running,
 			Swimming
-        }
-
+		}
+		public abstract string birdTypeName { get; }
 		public BehaviorStatus state { get; set; }
 
 		[JsonIgnore]
@@ -47,7 +47,7 @@ namespace BirdsEverywhere.BirdTypes
 			seedRandom();
 		}
 
-		// constructor that doesn't get new bird ID
+		// constructor that doesn't create new bird ID
 		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, long birdID, int spriteWidth = 32, int spriteHeight = 32)
 			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
 		{

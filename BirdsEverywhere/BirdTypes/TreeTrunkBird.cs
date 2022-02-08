@@ -11,15 +11,14 @@ namespace BirdsEverywhere.BirdTypes
 {
     class TreeTrunkBird : CustomBirdTypeTerrainFeature
     {
+		public override string birdTypeName { get; } = "TreeTrunkBird";
 		public const int flyingSpeed = 6;
-
 		private Tree tree;
-		private int index;
-		private string locationName;
+		public int index { get; set; }
+		public string locationName { get; set; }
+		public int peckTimer { get; set; }
 
-		private int peckTimer;
-
-		public TreeTrunkBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
+	public TreeTrunkBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
 			: base(0, tileX, tileY, birdName, 16, 16)
 		{
 			base.position.X += 32f;

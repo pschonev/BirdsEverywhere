@@ -9,6 +9,7 @@ namespace BirdsEverywhere.BirdTypes
 {
 	class WaterLandBird : CustomBirdType
 	{
+		public override string birdTypeName { get; } = "WaterLandBird";
 		public WaterLandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Stopped)
 			: base(0, tileX, tileY, birdName)
 		{
