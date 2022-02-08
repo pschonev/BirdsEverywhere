@@ -40,16 +40,24 @@ namespace BirdsEverywhere
             helper.Events.Display.MenuChanged += OnMenuChanged;
             helper.Events.Multiplayer.ModMessageReceived += OnModMessageReceived;
             helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
+            helper.Events.GameLoop.GameLaunched += OnGameLaunched;
 
             helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", Logging.PrintSeenBirds);
 
             ModEntry.MyTabId = SpaceCore.Menus.ReserveGameMenuTab("birds");
 
-            JsonConverter[] converters = { new SpawnConverter() , new CurrentBirdParamsConverter()};
+            JsonConverter[] converters = { new SpawnConverter() , new CurrentBirdParamsConverter(), new CustomBirdTypeConverter()};
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings
             {
                 Converters = converters
             };
+        }
+
+        private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
+        {
+            LandBird testBird = new LandBird(10, 10, "blue_tit");
+            this.Helper.Data.WriteJsonFile("test_bird.json", testBird);
+            CustomBirdType bird = this.Helper.Data.ReadJsonFile<CustomBirdType>("test_bird.json");
         }
 
         // ##################
