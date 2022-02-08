@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Newtonsoft.Json;
 using StardewModdingAPI;
 using StardewValley;
 
@@ -9,9 +10,8 @@ namespace BirdsEverywhere.BirdTypes
 {
 	class LandBird : CustomBirdType
 	{
-		private float flightOffset;
-
-		private int walkTimer;
+		public float flightOffset { get; set; }
+		public int walkTimer { get; set; }
 
 		public LandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
 			: base(0, tileX, tileY, birdName)
