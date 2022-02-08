@@ -12,8 +12,9 @@ using StardewValley.BellsAndWhistles;
 
 namespace BirdsEverywhere
 {
-    public class CustomBirdTypeConverter : JsonConverter
+    public class CustomBirdTypeConverterWriter : JsonConverter
     {
+        public override bool CanRead => false;
         public override bool CanConvert(Type objectType)
         {
             return objectType.IsSubclassOf(typeof(CustomBirdType));
@@ -21,9 +22,11 @@ namespace BirdsEverywhere
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            Critter? birdAsCritter = value as Critter;
+            CustomBirdType? birdAsCritter = value as CustomBirdType;
 
             var o = new JObject();
+            //o.Add("$type", $"{value.GetType().FullName}, {value.GetType().Assembly.GetName().Name}");
+            o.Add("birdTypeName", birdAsCritter.birdTypeName);
             o.Add("position", JToken.FromObject(birdAsCritter.position));
             o.Add("startingPosition", JToken.FromObject(birdAsCritter.startingPosition));
 
@@ -40,6 +43,8 @@ namespace BirdsEverywhere
                 {
                     if (prop.GetCustomAttribute(typeof(JsonIgnoreAttribute)) != null)
                         continue;
+                    if (o.ContainsKey(prop.Name))
+                        continue;
                     o.Add(prop.Name, JToken.FromObject(prop.GetValue(value)));
                 }
                 currentType = currentType.BaseType;
@@ -52,6 +57,38 @@ namespace BirdsEverywhere
             throw new NotImplementedException();
         }
     }
+
+    public class CustomBirdTypeConverterReader : JsonConverter
+    {
+        public override bool CanWrite => false;
+        public override bool CanConvert(Type objectType)
+        {
+            return (objectType == typeof(CustomBirdType));
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            var jo = JObject.Load(reader);
+            switch (jo["birdTypeName"].Value<string>())
+            {
+                case "LandBird":
+                    return jo.ToObject<LandBird>(serializer);
+                case "BushBird":
+                    return jo.ToObject<BushBird>(serializer);
+                case "TreeTrunkBird":
+                    return jo.ToObject<TreeTrunkBird>(serializer);
+                case "WaterLandBird":
+                    return jo.ToObject<WaterLandBird>(serializer);
+            }
+            return null;
+        }
+    }
+
 
     public class CurrentAnimatedSprite
     {
