@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using StardewValley;
+using StardewModdingAPI;
 using Newtonsoft.Json;
 
 namespace BirdsEverwhyere.UnitTests
