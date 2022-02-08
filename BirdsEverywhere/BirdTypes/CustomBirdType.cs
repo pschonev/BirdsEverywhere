@@ -6,6 +6,7 @@ using StardewModdingAPI;
 using StardewModdingAPI.Utilities;
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace BirdsEverywhere.BirdTypes
 {
@@ -22,16 +23,18 @@ namespace BirdsEverywhere.BirdTypes
 			Swimming
         }
 
-		protected BehaviorStatus state;
+		public BehaviorStatus state { get; set; }
 
-		protected string birdTexture;
+		[JsonIgnore]
+		public string birdTexture { get; set; }
 
-		protected string birdName;
+		public string birdName { get; set; }
 
-		protected int characterCheckTimer = 200;
+		public int characterCheckTimer { get; set; } = 200;
 
-		protected long birdID;
+		public long birdID { get; set; }
 
+		[JsonIgnore]
 		protected Random random;
 
 		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, int spriteWidth=32, int spriteHeight=32)
