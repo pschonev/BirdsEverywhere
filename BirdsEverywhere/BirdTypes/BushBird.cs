@@ -11,11 +11,11 @@ namespace BirdsEverywhere.BirdTypes
 {
     class BushBird : CustomBirdTypeTerrainFeature
     {
+		public override string birdTypeName { get; } = "BushBird";
 		private Bush bush;
-		private int index;
-		private string locationName;
-
-		private int flightDistance;
+		public int index { get; set; }
+		public string locationName { get; set; }
+		public int flightDistance { get; set; }
 
 		public BushBird(int tileX, int tileY, string birdName)
 			: base(0, tileX, tileY, birdName)
