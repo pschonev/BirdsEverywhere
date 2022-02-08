@@ -46,7 +46,8 @@ namespace BirdsEverywhere
 
             ModEntry.MyTabId = SpaceCore.Menus.ReserveGameMenuTab("birds");
 
-            JsonConverter[] converters = { new SpawnConverter() , new CurrentBirdParamsConverter(), new CustomBirdTypeConverter()};
+            JsonConverter[] converters = { new SpawnConverter() , new CurrentBirdParamsConverter(), 
+                new CustomBirdTypeConverterWriter(), new CustomBirdTypeConverterReader()};
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings
             {
                 Converters = converters
@@ -55,7 +56,7 @@ namespace BirdsEverywhere
 
         private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
         {
-            LandBird testBird = new LandBird(10, 10, "blue_tit");
+            LandBird testBird = new LandBird(25, 25, "great_tit");
             this.Helper.Data.WriteJsonFile("test_bird.json", testBird);
             CustomBirdType bird = this.Helper.Data.ReadJsonFile<CustomBirdType>("test_bird.json");
         }
@@ -229,6 +230,14 @@ namespace BirdsEverywhere
             {
                 Monitor.Log($"{Game1.player.Name} request active birds at {farmer.currentLocation}.", LogLevel.Debug);
                 this.Helper.Multiplayer.SendMessage(farmer.UniqueMultiplayerID, "RequestCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
+            }
+
+            if (e.NewLocation.Name == "Farm")
+            {
+                LandBird testBird = new LandBird(65, 20, "great_tit");
+                this.Helper.Data.WriteJsonFile("test_bird.json", testBird);
+                CustomBirdType bird = this.Helper.Data.ReadJsonFile<CustomBirdType>("test_bird.json");
+                e.NewLocation.critters.Add(bird);
             }
         }
 
