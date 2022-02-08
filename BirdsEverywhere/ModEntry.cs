@@ -54,11 +54,17 @@ namespace BirdsEverywhere
             };
         }
 
-        private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
+        private CustomBirdType testSpawnBird()
         {
-            LandBird testBird = new LandBird(25, 25, "great_tit");
+            WaterLandBird testBird = new WaterLandBird(25, 25, "herring_gull");
             this.Helper.Data.WriteJsonFile("test_bird.json", testBird);
             CustomBirdType bird = this.Helper.Data.ReadJsonFile<CustomBirdType>("test_bird.json");
+            return bird;
+        }
+
+        private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
+        {
+            testSpawnBird();
         }
 
         // ##################
@@ -232,11 +238,10 @@ namespace BirdsEverywhere
                 this.Helper.Multiplayer.SendMessage(farmer.UniqueMultiplayerID, "RequestCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
             }
 
+            // test spawning a bird
             if (e.NewLocation.Name == "Farm")
             {
-                LandBird testBird = new LandBird(65, 20, "great_tit");
-                this.Helper.Data.WriteJsonFile("test_bird.json", testBird);
-                CustomBirdType bird = this.Helper.Data.ReadJsonFile<CustomBirdType>("test_bird.json");
+                var bird = testSpawnBird();
                 e.NewLocation.critters.Add(bird);
             }
         }
