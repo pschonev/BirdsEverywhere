@@ -22,6 +22,9 @@ namespace BirdsEverywhere.BirdTypes
 			Running,
 			Swimming
 		}
+
+		private long _birdID;
+
 		public abstract string birdTypeName { get; }
 		public BehaviorStatus state { get; set; }
 
@@ -32,7 +35,12 @@ namespace BirdsEverywhere.BirdTypes
 
 		public int characterCheckTimer { get; set; } = 200;
 
-		public long birdID { get; set; }
+		public long birdID {
+			get => _birdID;
+			set {
+				_birdID = value;
+				seedRandom();
+			} }
 
 		[JsonIgnore]
 		protected Random random;
