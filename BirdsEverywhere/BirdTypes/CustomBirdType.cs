@@ -100,9 +100,6 @@ namespace BirdsEverywhere.BirdTypes
 			}
 			else
 				this.sprite = null;
-
-			// set random again with birdID seed
-			seedRandom();
 		}
 
 		public CustomBirdType setState(BehaviorStatus state)
