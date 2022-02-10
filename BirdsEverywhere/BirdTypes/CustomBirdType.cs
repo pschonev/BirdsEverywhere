@@ -45,6 +45,8 @@ namespace BirdsEverywhere.BirdTypes
 		[JsonIgnore]
 		protected Random random;
 
+		public CustomBirdType() { }
+
 		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, int spriteWidth=32, int spriteHeight=32)
 			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
         {
@@ -52,54 +54,6 @@ namespace BirdsEverywhere.BirdTypes
 			this.birdTexture = getTextureName(birdName);
 			this.sprite = new AnimatedSprite(birdTexture, baseFrame, spriteWidth, spriteHeight);
 			this.birdID = ModEntry.modInstance.Helper.Multiplayer.GetNewID();
-		}
-
-		// constructor that doesn't create new bird ID
-		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, long birdID, int spriteWidth = 32, int spriteHeight = 32)
-			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
-		{
-			this.birdName = birdName;
-			this.birdTexture = getTextureName(birdName);
-			this.sprite = new AnimatedSprite(birdTexture, baseFrame, spriteWidth, spriteHeight);
-			this.birdID = birdID;
-		}
-
-		// this is for loading a bird from saved params
-		protected CustomBirdType(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
-				BehaviorStatus state, CurrentAnimatedSprite sprite, float gravityAffectedDY, float yOffset, float yJumpOffset,
-				int characterCheckTimer = 200, int baseFrame = 0, int spriteWidth = 32, int spriteHeight = 32)
-			: this(baseFrame, (int)startingPosition.X / 64, (int)startingPosition.Y / 64, birdName, birdID, spriteWidth, spriteHeight)
-        {
-			this.position = position;
-			this.flip = flip;
-			this.state = state;
-			this.characterCheckTimer = characterCheckTimer;
-			this.gravityAffectedDY = gravityAffectedDY;
-			this.yOffset = yOffset;
-			this.yJumpOffset = yJumpOffset;
-
-			// setting the sprite
-			this.birdTexture = getTextureName(birdName);
-			if (sprite != null)
-			{
-				AnimatedSprite currentSprite = new AnimatedSprite(birdTexture, baseFrame, spriteWidth, spriteHeight);
-				if (sprite.currentAnimation != null)
-				{
-					List<FarmerSprite.AnimationFrame> currentAnim = new List<FarmerSprite.AnimationFrame>();
-					foreach ((int frame, int ms) frameWithTime in sprite.currentAnimation)
-					{
-						currentAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + frameWithTime.frame), frameWithTime.ms));
-					}
-					currentSprite.setCurrentAnimation(currentAnim);
-				}
-				currentSprite.currentFrame = sprite.currentFrame;
-				currentSprite.timer = sprite.timer;
-				currentSprite.loop = sprite.loop;
-				currentSprite.currentAnimationIndex = sprite.currentAnimationIndex;
-				this.sprite = currentSprite;
-			}
-			else
-				this.sprite = null;
 		}
 
 		public CustomBirdType setState(BehaviorStatus state)
