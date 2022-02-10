@@ -2,7 +2,7 @@
   "Name": "BirdsEverywhere",
   "Author": "Ragoo",
   "Version": "0.0.1",
-  "Description": "<One or two sentences about the mod>",
+  "Description": "Adds many birds to the game and allows tracking observations.",
   "UniqueID": "Ragoo.BirdsEverywhere",
   "EntryDll": "BirdsEverywhere.dll",
   "MinimumApiVersion": "3.0.0",

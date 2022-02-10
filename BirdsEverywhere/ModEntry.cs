@@ -46,17 +46,36 @@ namespace BirdsEverywhere
 
             ModEntry.MyTabId = SpaceCore.Menus.ReserveGameMenuTab("birds");
 
-            JsonConverter[] converters = { new SpawnConverter() ,
+            JsonConverter[] converters = { new SpawnConverter(),
                 new CustomBirdTypeConverterWriter(), new CustomBirdTypeConverterReader()};
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings
             {
-                Converters = converters
+                Converters = converters,
+                Error = OnJsonError
             };
+        }
+
+        private static void OnJsonError(object? sender,
+Newtonsoft.Json.Serialization.ErrorEventArgs e)
+        {
+            if (e.CurrentObject is null)
+            {
+                ModEntry.modInstance.Monitor.Log($"Serialization on {e.ErrorContext.Path} generated an exception {e.ErrorContext.Error.GetType().Name} with warning {e.ErrorContext.Error.Message}",
+                LogLevel.Error);
+            }
+            else
+            {
+                ModEntry.modInstance.Monitor.Log($"Serialization on {e.CurrentObject.GetType().Name} had issues with path {e.ErrorContext.Path} and generated an exception {e.ErrorContext.Error.GetType().Name} with warning {e.ErrorContext.Error.Message}",
+                LogLevel.Error);
+            }
+
+            e.ErrorContext.Handled = true;
+
         }
 
         private CustomBirdType testSpawnBird()
         {
-            WaterLandBird testBird = new WaterLandBird(25, 25, "herring_gull");
+            var testBird = new LandBird(72, 16, "great_tit");
             this.Helper.Data.WriteJsonFile("test_bird.json", testBird);
             CustomBirdType bird = this.Helper.Data.ReadJsonFile<CustomBirdType>("test_bird.json");
             return bird;
