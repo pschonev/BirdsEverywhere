@@ -36,8 +36,8 @@ namespace BirdsEverywhere
             this.timer = sprite.timer;
             this.loop = sprite.loop;
             this.currentAnimationIndex = sprite.currentAnimationIndex;
-            this.spriteWidth = sprite.spriteWidth.Value;
-            this.spriteHeight = sprite.spriteHeight.Value;
+            this.spriteWidth = sprite.SpriteWidth;
+            this.spriteHeight = sprite.SpriteHeight;
         }
 
         public static AnimatedSprite CurrentToAnimatedSprite(CurrentAnimatedSprite sprite)
