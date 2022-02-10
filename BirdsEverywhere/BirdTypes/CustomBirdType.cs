@@ -47,6 +47,8 @@ namespace BirdsEverywhere.BirdTypes
 		[JsonIgnore]
 		protected Random random;
 
+		public CustomBirdType() { }
+
 		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, int spriteWidth=32, int spriteHeight=32)
 			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
         {
