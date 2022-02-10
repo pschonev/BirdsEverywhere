@@ -25,10 +25,11 @@ namespace BirdsEverywhere.BirdTypes
 			sprite.loop = true;
 		}
 
-		public override BushBird setTerrainFeature(int index, GameLocation location)
+		public override BushBird setTerrainFeature(int index, string locationName)
 		{
 			this.index = index;
-			this.locationName = location.Name;
+			this.locationName = locationName;
+			GameLocation location = Game1.getLocationFromName(locationName);
 
 			bush = location.largeTerrainFeatures[index] as Bush;
 			flip = bush.tilePosition.X < (position.X / 64);

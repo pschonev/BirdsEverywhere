@@ -82,12 +82,12 @@ namespace BirdsEverywhere
             {
                 case "LandBird":
                     return jo.ToObject<LandBird>(serializer);
-                case "BushBird":
-                    return jo.ToObject<BushBird>(serializer);
-                case "TreeTrunkBird":
-                    return jo.ToObject<TreeTrunkBird>(serializer);
                 case "WaterLandBird":
                     return jo.ToObject<WaterLandBird>(serializer);
+                case "BushBird":
+                    return jo.ToObject<BushBird>(serializer).setTerrainFeature(jo["index"].Value<int>(), jo["locationName"].Value<string>());
+                case "TreeTrunkBird":
+                    return jo.ToObject<TreeTrunkBird>(serializer).setTerrainFeature(jo["index"].Value<int>(), jo["locationName"].Value<string>());
             }
             return null;
         }
