@@ -11,15 +11,16 @@ namespace BirdsEverywhere.BirdTypes
 {
     class TreeTrunkBird : CustomBirdTypeTerrainFeature
     {
+		public override string birdTypeName { get; } = "TreeTrunkBird";
 		public const int flyingSpeed = 6;
-
 		private Tree tree;
-		private int index;
-		private string locationName;
+		public int index { get; set; }
+		public string locationName { get; set; }
+		public int peckTimer { get; set; }
 
-		private int peckTimer;
+		public TreeTrunkBird() { }
 
-		public TreeTrunkBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
+	public TreeTrunkBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
 			: base(0, tileX, tileY, birdName, 16, 16)
 		{
 			base.position.X += 32f;
@@ -27,11 +28,12 @@ namespace BirdsEverywhere.BirdTypes
 			startingPosition = position;
 		}
 
-		public override TreeTrunkBird setTerrainFeature(int index, GameLocation location)
-        {
-			this.tree = location.terrainFeatures.Pairs.ElementAt(index).Value as Tree;
+		public override TreeTrunkBird setTerrainFeature(int index, string locationName)
+		{
 			this.index = index;
-			this.locationName = location.Name;
+			this.locationName = locationName;
+			GameLocation location = Game1.getLocationFromName(locationName);
+			this.tree = location.terrainFeatures.Pairs.ElementAt(index).Value as Tree;
 			return this;
 		}
 
@@ -138,50 +140,6 @@ namespace BirdsEverywhere.BirdTypes
 				yOffset -= 1f;
 			}
 			return base.update(time, environment);
-		}
-
-
-		// #############
-		// # Load/Save #
-		// #############
-
-		// this constructor is for loading a bird from saved params 
-		public TreeTrunkBird(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
-				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName, int peckTimer)
-			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset, spriteWidth: 16, spriteHeight: 16)
-		{
-			this.setTerrainFeature(index, Game1.getLocationFromName(locationName));
-			this.peckTimer = peckTimer;
-		}
-
-		public class CurrentTreeTrunkBirdParams : CurrentBirdParams
-		{
-
-			public int index { get; set; }
-			public string locationName { get; set; }
-			public int peckTimer { get; set; }
-
-			public CurrentTreeTrunkBirdParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
-				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName, int peckTimer)
-				: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
-			{
-				this.birdTypeName = "TreeTrunkBird";
-				this.index = index;
-				this.locationName = locationName;
-				this.peckTimer = peckTimer;
-			}
-
-			public override TreeTrunkBird LoadFromParams()
-			{
-				return new TreeTrunkBird(position, startingPosition, birdName, birdID, flip,
-				state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset, index, locationName, peckTimer);
-			}
-		}
-
-		public override CurrentTreeTrunkBirdParams saveParams()
-		{
-			return new CurrentTreeTrunkBirdParams(position, startingPosition, birdName, birdID, flip,
-				state, getCurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, index, locationName, peckTimer);
 		}
 	}
 }

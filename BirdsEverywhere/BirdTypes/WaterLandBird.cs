@@ -9,6 +9,9 @@ namespace BirdsEverywhere.BirdTypes
 {
 	class WaterLandBird : CustomBirdType
 	{
+		public override string birdTypeName { get; } = "WaterLandBird";
+
+		public WaterLandBird() { }
 		public WaterLandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Stopped)
 			: base(0, tileX, tileY, birdName)
 		{
@@ -185,40 +188,6 @@ namespace BirdsEverywhere.BirdTypes
 					break;
 			}
 			return base.update(time, environment);
-		}
-
-		// #############
-		// # Load/Save #
-		// #############
-
-		// this constructor is for loading a bird from saved params 
-		public WaterLandBird(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
-				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset)
-			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
-		{
-		}
-
-		public class CurrentwaterLandParams : CurrentBirdParams
-		{
-
-			public CurrentwaterLandParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
-				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset)
-				: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
-			{
-				this.birdTypeName = "WaterLandBird";
-			}
-
-			public override WaterLandBird LoadFromParams()
-			{
-				return new WaterLandBird(position, startingPosition, birdName, birdID, flip,
-				state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset);
-			}
-		}
-
-		public override CurrentwaterLandParams saveParams()
-		{
-			return new CurrentwaterLandParams(position, startingPosition, birdName, birdID, flip,
-				state, getCurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset);
 		}
 	}
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Newtonsoft.Json;
 using StardewModdingAPI;
 using StardewValley;
 
@@ -9,9 +10,12 @@ namespace BirdsEverywhere.BirdTypes
 {
 	class LandBird : CustomBirdType
 	{
-		private float flightOffset;
+		public override string birdTypeName { get; } = "LandBird";
+		public float flightOffset { get; set; }
+		public int walkTimer { get; set; }
 
-		private int walkTimer;
+		
+		public LandBird() { }
 
 		public LandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
 			: base(0, tileX, tileY, birdName)
@@ -214,45 +218,5 @@ namespace BirdsEverywhere.BirdTypes
 			}
 			return base.update(time, environment);
 		}
-
-		// #############
-		// # Load/Save #
-		// #############
-
-		// this constructor is for loading a bird from saved params 
-		public LandBird(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
-				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, float flightOffset, int walkTimer)
-			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
-		{
-			this.flightOffset = flightOffset;
-			this.walkTimer = walkTimer;
-		}
-
-		public class CurrentLandBirdParams : CurrentBirdParams {
-
-			public float flightOffset { get; set; }
-			public int walkTimer { get; set; }
-
-			public CurrentLandBirdParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
-				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, float flightOffset, int walkTimer)
-				: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
-            {
-				this.birdTypeName = "LandBird";
-				this.flightOffset = flightOffset;
-				this.walkTimer = walkTimer;
-            }
-
-			public override LandBird LoadFromParams()
-            {
-				return new LandBird(position, startingPosition, birdName, birdID, flip,
-				state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset, flightOffset, walkTimer);
-            }
-		}
-
-		public override CurrentLandBirdParams saveParams()
-        {
-				return new CurrentLandBirdParams(position, startingPosition, birdName, birdID, flip,
-					state, getCurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, flightOffset, walkTimer);
-        }
 	}
 }

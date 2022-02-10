@@ -36,7 +36,7 @@ namespace BirdsEverywhere.BirdTypes
             else if(sParams is SingleBirdSpawnParamsTerrainFeature)
             {
                 return birdTypesTerrainFeature[sParams.BirdType]((int)sParams.position.X, (int)sParams.position.Y, sParams.ID)
-                    .setTerrainFeature((sParams as SingleBirdSpawnParamsTerrainFeature).terrainFeatureIndex, location);
+                    .setTerrainFeature((sParams as SingleBirdSpawnParamsTerrainFeature).terrainFeatureIndex, location.Name);
             }
 
             ModEntry.modInstance.Monitor.Log($"Can't create bird {sParams.ID} in bird factory.", LogLevel.Error);
