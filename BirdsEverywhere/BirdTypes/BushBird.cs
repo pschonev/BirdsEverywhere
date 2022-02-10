@@ -17,6 +17,7 @@ namespace BirdsEverywhere.BirdTypes
 		public string locationName { get; set; }
 		public int flightDistance { get; set; }
 
+		public BushBird() { }
 		public BushBird(int tileX, int tileY, string birdName)
 			: base(0, tileX, tileY, birdName)
 		{
@@ -85,45 +86,6 @@ namespace BirdsEverywhere.BirdTypes
 				}
 			}
 			return base.update(time, environment);
-		}
-
-		// #############
-		// # Load/Save #
-		// #############
-
-		// this constructor is for loading a bird from saved params 
-		public BushBird(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
-				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName)
-			: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
-		{
-			this.setTerrainFeature(index, Game1.getLocationFromName(locationName));
-		}
-
-		public class CurrentBushBirdParams : CurrentBirdParams
-		{
-			public int index { get; set; }
-			public string locationName { get; set; }
-
-			public CurrentBushBirdParams(Vector2 position, Vector2 startingPosition, string birdName, long birdID, bool flip,
-				BehaviorStatus state, CurrentAnimatedSprite currentAnimatedSprite, float gravityAffectedDY, float yOffset, float yJumpOffset, int index, string locationName)
-				: base(position, startingPosition, birdName, birdID, flip, state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset)
-			{
-				this.birdTypeName = "BushBird";
-				this.index = index;
-				this.locationName = locationName;
-			}
-
-			public override BushBird LoadFromParams()
-			{
-				return new BushBird(position, startingPosition, birdName, birdID, flip,
-				state, currentAnimatedSprite, gravityAffectedDY, yOffset, yJumpOffset, index, locationName);
-			}
-		}
-
-		public override CurrentBushBirdParams saveParams()
-		{
-			return new CurrentBushBirdParams(position, startingPosition, birdName, birdID, flip,
-				state, getCurrentAnimatedSprite(sprite), gravityAffectedDY, yOffset, yJumpOffset, index, locationName);
 		}
 	}
 }
