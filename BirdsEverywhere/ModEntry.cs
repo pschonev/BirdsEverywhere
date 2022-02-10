@@ -40,16 +40,50 @@ namespace BirdsEverywhere
             helper.Events.Display.MenuChanged += OnMenuChanged;
             helper.Events.Multiplayer.ModMessageReceived += OnModMessageReceived;
             helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
+            helper.Events.GameLoop.GameLaunched += OnGameLaunched;
 
             helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", Logging.PrintSeenBirds);
 
             ModEntry.MyTabId = SpaceCore.Menus.ReserveGameMenuTab("birds");
 
-            JsonConverter[] converters = { new SpawnConverter() , new CurrentBirdParamsConverter()};
+            JsonConverter[] converters = { new SpawnConverter(),
+                new CustomBirdTypeConverterWriter(), new CustomBirdTypeConverterReader()};
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings
             {
-                Converters = converters
+                Converters = converters,
+                Error = OnJsonError
             };
+        }
+
+        private static void OnJsonError(object? sender,
+Newtonsoft.Json.Serialization.ErrorEventArgs e)
+        {
+            if (e.CurrentObject is null)
+            {
+                ModEntry.modInstance.Monitor.Log($"Serialization on {e.ErrorContext.Path} generated an exception {e.ErrorContext.Error.GetType().Name} with warning {e.ErrorContext.Error.Message}",
+                LogLevel.Error);
+            }
+            else
+            {
+                ModEntry.modInstance.Monitor.Log($"Serialization on {e.CurrentObject.GetType().Name} had issues with path {e.ErrorContext.Path} and generated an exception {e.ErrorContext.Error.GetType().Name} with warning {e.ErrorContext.Error.Message}",
+                LogLevel.Error);
+            }
+
+            e.ErrorContext.Handled = true;
+
+        }
+
+        private CustomBirdType testSpawnBird()
+        {
+            var testBird = new LandBird(72, 16, "great_tit");
+            this.Helper.Data.WriteJsonFile("test_bird.json", testBird);
+            CustomBirdType bird = this.Helper.Data.ReadJsonFile<CustomBirdType>("test_bird.json");
+            return bird;
+        }
+
+        private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
+        {
+            testSpawnBird();
         }
 
         // ##################
@@ -123,9 +157,8 @@ namespace BirdsEverywhere
             { 
                 Monitor.Log($"{Game1.player.Name} got request to send active birds.", LogLevel.Debug);
                 List<CustomBirdType> birds = Game1.currentLocation.critters.Where(x => x is CustomBirdType).Select(x => x as CustomBirdType).ToList();
-                List<CustomBirdType.CurrentBirdParams> currentBirdParams = birds.Select(x => x.saveParams()).ToList();
 
-                this.Helper.Multiplayer.SendMessage((e.FromPlayerID, currentBirdParams),
+                this.Helper.Multiplayer.SendMessage((e.FromPlayerID, birds),
                     "UpdateCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
                 foreach(CustomBirdType bird in Game1.currentLocation.critters.OfType<CustomBirdType>())
                 {
@@ -137,14 +170,13 @@ namespace BirdsEverywhere
             // update birds according to the previous request
             if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateCurrentBirds")
             {
-                long sendingPlayerID = e.ReadAs<(long id, List<CustomBirdType.CurrentBirdParams> birdParams)>().id;
+                long sendingPlayerID = e.ReadAs<(long id, List<CustomBirdType> birds)>().id;
                 Monitor.Log($"Player ID who received active bird data: {Game1.player.UniqueMultiplayerID} Player ID who supposedly first sent request {sendingPlayerID}. Matching? - {Game1.player.UniqueMultiplayerID == sendingPlayerID}", LogLevel.Debug);
                 if (Game1.player.UniqueMultiplayerID == sendingPlayerID)
                 {
                     Monitor.Log($"{Game1.player.Name} got active birds and updates critter list.", LogLevel.Debug);
                     Game1.currentLocation.instantiateCrittersList();
-                    List<CustomBirdType.CurrentBirdParams> currentBirdParams = e.ReadAs<(long id, List<CustomBirdType.CurrentBirdParams> birdParams)>().birdParams;
-                    List<CustomBirdType> birds = currentBirdParams.Select(x => x.LoadFromParams()).ToList();
+                    List<CustomBirdType> birds = e.ReadAs<(long id, List<CustomBirdType> birds)>().birds;
                     Game1.currentLocation.critters.AddRange(birds);
                 }
                 
@@ -221,6 +253,13 @@ namespace BirdsEverywhere
             {
                 Monitor.Log($"{Game1.player.Name} request active birds at {farmer.currentLocation}.", LogLevel.Debug);
                 this.Helper.Multiplayer.SendMessage(farmer.UniqueMultiplayerID, "RequestCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
+            }
+
+            // test spawning a bird
+            if (e.NewLocation.Name == "Farm")
+            {
+                var bird = testSpawnBird();
+                e.NewLocation.critters.Add(bird);
             }
         }
 

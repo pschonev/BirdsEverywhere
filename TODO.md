@@ -1,30 +1,26 @@
 # TODO
 
 ### fix
-- birds spawn too close to edge
-- birds spawn behind bushes
-- birds are drawn on layer below foredgables
-- birds minGroupSize doesn't work properly, it constantly spawns 1-2 birds when it should draw min 3
-- birds spawn on top of each other instead
+- make terrainfeature birds saver, in case the index + location doesn't find their appropiate terrain feature
 
 ### next
 - birds in trees? flying into trees (see squirrel)
 - implement possibilities to have dimorphism (gender), different plumage (breeding season), babies (e.g. ducks) in season with advanced, young birds (gulls, swans)
 - fix bush birds doing nothing before running into bush (also flight distance)
-- change layerdepth of drawing birds that are not flying
 - spawner direction
 - newly calculate bird positions when chance % or when no bird spawns
 - implement stuff from Bird and PerchingBird like birds flying to a new spot
 
 ### also
-- PerchingBird keeps track of all bird locations. syncing position and state of every bird in multiplayer possible after al??
 - parse configs properly (multiple levels of default values -> BirdData - template - default spawner - advanced)
 - luck factor e.g. 3% chance that ANY new bird will spawn (even rare ones)
-- implement many more behaviors
+- implement many more behaviors and make behaviors modular?
 - validate every config when loading (locations, files etc)
 - sounds
 - fix bird list
 - cache textures
+- try to make condition factory so that singlebirdspawner doesn't have to create spawner instances
+- maybe have a dictionary spawner : condition to save them all once?
 - Kuhreiher auf Kühen
 
 ## Multiplayer Sprite sync
