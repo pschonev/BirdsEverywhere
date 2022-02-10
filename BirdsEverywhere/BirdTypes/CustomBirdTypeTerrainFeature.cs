@@ -17,6 +17,6 @@ namespace BirdsEverywhere.BirdTypes
             base(baseFrame, tileX, tileY, birdName, spriteWidth, spriteHeight)
         { }
 
-        public abstract CustomBirdType setTerrainFeature(int index, GameLocation location);
+        public abstract CustomBirdType setTerrainFeature(int index, string locationName);
     }
 }

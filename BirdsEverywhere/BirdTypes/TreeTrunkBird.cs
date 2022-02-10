@@ -28,11 +28,12 @@ namespace BirdsEverywhere.BirdTypes
 			startingPosition = position;
 		}
 
-		public override TreeTrunkBird setTerrainFeature(int index, GameLocation location)
-        {
-			this.tree = location.terrainFeatures.Pairs.ElementAt(index).Value as Tree;
+		public override TreeTrunkBird setTerrainFeature(int index, string locationName)
+		{
 			this.index = index;
-			this.locationName = location.Name;
+			this.locationName = locationName;
+			GameLocation location = Game1.getLocationFromName(locationName);
+			this.tree = location.terrainFeatures.Pairs.ElementAt(index).Value as Tree;
 			return this;
 		}
 
