@@ -93,39 +93,6 @@ namespace BirdsEverywhere
         }
     }
 
-
-    public class CurrentAnimatedSprite
-    {
-        public List<(int frame, int ms)> currentAnimation { get; set; }
-        public int currentFrame { get; set; }
-        public float timer { get; set; }
-        public bool loop { get; set; }
-        public int currentAnimationIndex { get; set; }
-        public int spriteWidth { get; set; }
-        public int spriteHeight { get; set; }
-
-        public CurrentAnimatedSprite(AnimatedSprite sprite)
-        {
-            if (currentAnimation != null)
-            {
-                List<(int frame, int ms)> currentAnimation = new List<(int frame, int ms)>();
-                foreach (FarmerSprite.AnimationFrame animFrame in sprite.CurrentAnimation)
-                {
-                    currentAnimation.Add((animFrame.frame, animFrame.milliseconds));
-                }
-                this.currentAnimation = currentAnimation;
-            }
-            else
-                this.currentAnimation = null;
-            this.currentFrame = sprite.currentFrame;
-            this.timer = sprite.timer;
-            this.loop = sprite.loop;
-            this.currentAnimationIndex = sprite.currentAnimationIndex;
-            this.spriteWidth = sprite.spriteWidth.Value;
-            this.spriteHeight = sprite.spriteHeight.Value;
-        }
-    }
-
     public class SpawnConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType)
@@ -141,43 +108,6 @@ namespace BirdsEverywhere
 
             if (jo["className"].Value<string>() == "SingleBirdSpawnParamsTile")
                 return jo.ToObject<SingleBirdSpawnParamsTile>(serializer);
-
-            return null;
-        }
-
-        public override bool CanWrite
-        {
-            get { return false; }
-        }
-
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class CurrentBirdParamsConverter : JsonConverter
-    {
-        public override bool CanConvert(Type objectType)
-        {
-            return (objectType == typeof(CustomBirdType.CurrentBirdParams));
-        }
-
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
-        {
-            JObject jo = JObject.Load(reader);
-            switch(jo["birdTypeName"].Value<string>())
-            {
-                case "LandBird":
-                    return jo.ToObject<LandBird.CurrentLandBirdParams>(serializer);
-                case "BushBird":
-                    return jo.ToObject<BushBird.CurrentBushBirdParams>(serializer);
-                case "TreeTrunkBird":
-                    return jo.ToObject<TreeTrunkBird.CurrentTreeTrunkBirdParams>(serializer);
-                case "WaterLandBird":
-                    return jo.ToObject<WaterLandBird.CurrentwaterLandParams>(serializer);
-            }
-            
 
             return null;
         }
