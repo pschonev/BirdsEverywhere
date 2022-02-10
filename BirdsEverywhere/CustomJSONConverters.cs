@@ -22,7 +22,7 @@ namespace BirdsEverywhere
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            CustomBirdType? birdAsCritter = value as CustomBirdType;
+            CustomBirdType birdAsCritter = value as CustomBirdType;
 
             var o = new JObject();
             //o.Add("$type", $"{value.GetType().FullName}, {value.GetType().Assembly.GetName().Name}");
