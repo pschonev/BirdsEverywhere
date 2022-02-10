@@ -52,7 +52,6 @@ namespace BirdsEverywhere.BirdTypes
 			this.birdTexture = getTextureName(birdName);
 			this.sprite = new AnimatedSprite(birdTexture, baseFrame, spriteWidth, spriteHeight);
 			this.birdID = ModEntry.modInstance.Helper.Multiplayer.GetNewID();
-			seedRandom();
 		}
 
 		// constructor that doesn't create new bird ID
@@ -63,7 +62,6 @@ namespace BirdsEverywhere.BirdTypes
 			this.birdTexture = getTextureName(birdName);
 			this.sprite = new AnimatedSprite(birdTexture, baseFrame, spriteWidth, spriteHeight);
 			this.birdID = birdID;
-			seedRandom();
 		}
 
 		// this is for loading a bird from saved params
