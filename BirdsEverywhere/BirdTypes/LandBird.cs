@@ -14,6 +14,7 @@ namespace BirdsEverywhere.BirdTypes
 		public float flightOffset { get; set; }
 		public int walkTimer { get; set; }
 
+		
 		public LandBird() { }
 
 		public LandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)

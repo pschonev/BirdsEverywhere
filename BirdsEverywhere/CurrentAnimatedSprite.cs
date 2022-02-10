@@ -1,8 +1,10 @@
-﻿using StardewValley;
+﻿using StardewModdingAPI;
+using StardewValley;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace BirdsEverywhere
@@ -17,6 +19,9 @@ namespace BirdsEverywhere
         public int currentAnimationIndex { get; set; }
         public int spriteWidth { get; set; }
         public int spriteHeight { get; set; }
+
+        
+        public CurrentAnimatedSprite() { }
 
         public CurrentAnimatedSprite(AnimatedSprite sprite)
         {
@@ -53,7 +58,7 @@ namespace BirdsEverywhere
                         currentAnim.Add(new FarmerSprite.AnimationFrame((short)(frameWithTime.frame), frameWithTime.ms));
                     }
                     currentSprite.setCurrentAnimation(currentAnim);
-                }
+                }                    
                 currentSprite.timer = sprite.timer;
                 currentSprite.loop = sprite.loop;
                 currentSprite.currentAnimationIndex = sprite.currentAnimationIndex;

@@ -27,27 +27,24 @@ namespace BirdsEverywhere.BirdTypes
 
 		public abstract string birdTypeName { get; }
 		public BehaviorStatus state { get; set; }
-
 		public string birdName { get; set; }
-
 		public int characterCheckTimer { get; set; } = 200;
 
 		public long birdID {
 			get => _birdID;
 			set {
 				_birdID = value;
+				ModEntry.modInstance.Monitor.Log($"Setting random generator", LogLevel.Debug);
 				seedRandom();
+				ModEntry.modInstance.Monitor.Log($"Done setting random generator", LogLevel.Debug);
 			} }
 
-		public CurrentAnimatedSprite currentAnimatedSprite { set
-            {
-				this.sprite = CurrentAnimatedSprite.CurrentToAnimatedSprite(value);
-			} }
+		
 
 		[JsonIgnore]
 		protected Random random;
 
-		public CustomBirdType() { }
+		public CustomBirdType() { } 
 
 		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, int spriteWidth=32, int spriteHeight=32)
 			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
@@ -57,6 +54,12 @@ namespace BirdsEverywhere.BirdTypes
 			this.sprite = new AnimatedSprite(textureKey, baseFrame, spriteWidth, spriteHeight);
 			this.birdID = ModEntry.modInstance.Helper.Multiplayer.GetNewID();
 		}
+
+		public CustomBirdType setAnimatedSprite(AnimatedSprite sprite)
+        {
+			this.sprite = sprite;
+			return this;
+        }
 
 		public void seedRandom()
         {

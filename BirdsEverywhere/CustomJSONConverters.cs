@@ -78,16 +78,19 @@ namespace BirdsEverywhere
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
             var jo = JObject.Load(reader);
+            CurrentAnimatedSprite currentSprite = jo["currentAnimatedSprite"].ToObject<CurrentAnimatedSprite>();
+            AnimatedSprite sprite = CurrentAnimatedSprite.CurrentToAnimatedSprite(currentSprite);
+
             switch (jo["birdTypeName"].Value<string>())
             {
                 case "LandBird":
-                    return jo.ToObject<LandBird>(serializer);
+                    return jo.ToObject<LandBird>(serializer).setAnimatedSprite(sprite);
                 case "WaterLandBird":
-                    return jo.ToObject<WaterLandBird>(serializer);
+                    return jo.ToObject<WaterLandBird>(serializer).setAnimatedSprite(sprite);
                 case "BushBird":
-                    return jo.ToObject<BushBird>(serializer).setTerrainFeature(jo["index"].Value<int>(), jo["locationName"].Value<string>());
+                    return jo.ToObject<BushBird>(serializer).setTerrainFeature(jo["index"].Value<int>(), jo["locationName"].Value<string>()).setAnimatedSprite(sprite);
                 case "TreeTrunkBird":
-                    return jo.ToObject<TreeTrunkBird>(serializer).setTerrainFeature(jo["index"].Value<int>(), jo["locationName"].Value<string>());
+                    return jo.ToObject<TreeTrunkBird>(serializer).setTerrainFeature(jo["index"].Value<int>(), jo["locationName"].Value<string>()).setAnimatedSprite(sprite);
             }
             return null;
         }
