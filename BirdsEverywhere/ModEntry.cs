@@ -46,7 +46,7 @@ namespace BirdsEverywhere
 
             ModEntry.MyTabId = SpaceCore.Menus.ReserveGameMenuTab("birds");
 
-            JsonConverter[] converters = { new SpawnConverter() , new CurrentBirdParamsConverter(), 
+            JsonConverter[] converters = { new SpawnConverter() ,
                 new CustomBirdTypeConverterWriter(), new CustomBirdTypeConverterReader()};
             JsonConvert.DefaultSettings = () => new JsonSerializerSettings
             {
@@ -138,9 +138,8 @@ namespace BirdsEverywhere
             { 
                 Monitor.Log($"{Game1.player.Name} got request to send active birds.", LogLevel.Debug);
                 List<CustomBirdType> birds = Game1.currentLocation.critters.Where(x => x is CustomBirdType).Select(x => x as CustomBirdType).ToList();
-                List<CustomBirdType.CurrentBirdParams> currentBirdParams = birds.Select(x => x.saveParams()).ToList();
 
-                this.Helper.Multiplayer.SendMessage((e.FromPlayerID, currentBirdParams),
+                this.Helper.Multiplayer.SendMessage((e.FromPlayerID, birds),
                     "UpdateCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
                 foreach(CustomBirdType bird in Game1.currentLocation.critters.OfType<CustomBirdType>())
                 {
@@ -152,14 +151,13 @@ namespace BirdsEverywhere
             // update birds according to the previous request
             if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateCurrentBirds")
             {
-                long sendingPlayerID = e.ReadAs<(long id, List<CustomBirdType.CurrentBirdParams> birdParams)>().id;
+                long sendingPlayerID = e.ReadAs<(long id, List<CustomBirdType> birds)>().id;
                 Monitor.Log($"Player ID who received active bird data: {Game1.player.UniqueMultiplayerID} Player ID who supposedly first sent request {sendingPlayerID}. Matching? - {Game1.player.UniqueMultiplayerID == sendingPlayerID}", LogLevel.Debug);
                 if (Game1.player.UniqueMultiplayerID == sendingPlayerID)
                 {
                     Monitor.Log($"{Game1.player.Name} got active birds and updates critter list.", LogLevel.Debug);
                     Game1.currentLocation.instantiateCrittersList();
-                    List<CustomBirdType.CurrentBirdParams> currentBirdParams = e.ReadAs<(long id, List<CustomBirdType.CurrentBirdParams> birdParams)>().birdParams;
-                    List<CustomBirdType> birds = currentBirdParams.Select(x => x.LoadFromParams()).ToList();
+                    List<CustomBirdType> birds = e.ReadAs<(long id, List<CustomBirdType> birds)>().birds;
                     Game1.currentLocation.critters.AddRange(birds);
                 }
                 
