@@ -40,7 +40,6 @@ namespace BirdsEverywhere
             helper.Events.Display.MenuChanged += OnMenuChanged;
             helper.Events.Multiplayer.ModMessageReceived += OnModMessageReceived;
             helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
-            helper.Events.GameLoop.GameLaunched += OnGameLaunched;
 
             helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", Logging.PrintSeenBirds);
 
@@ -71,19 +70,6 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
 
             e.ErrorContext.Handled = true;
 
-        }
-
-        private CustomBirdType testSpawnBird()
-        {
-            var testBird = new LandBird(72, 16, "great_tit");
-            this.Helper.Data.WriteJsonFile("test_bird.json", testBird);
-            CustomBirdType bird = this.Helper.Data.ReadJsonFile<CustomBirdType>("test_bird.json");
-            return bird;
-        }
-
-        private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
-        {
-            testSpawnBird();
         }
 
         // ##################
@@ -253,13 +239,6 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
             {
                 Monitor.Log($"{Game1.player.Name} request active birds at {farmer.currentLocation}.", LogLevel.Debug);
                 this.Helper.Multiplayer.SendMessage(farmer.UniqueMultiplayerID, "RequestCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
-            }
-
-            // test spawning a bird
-            if (e.NewLocation.Name == "Farm")
-            {
-                var bird = testSpawnBird();
-                e.NewLocation.critters.Add(bird);
             }
         }
 
