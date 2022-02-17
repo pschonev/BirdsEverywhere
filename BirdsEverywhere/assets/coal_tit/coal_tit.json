@@ -1,0 +1,12 @@
+{
+  "id": "coal_tit",
+  "name": "Coal Tit",
+  "scName": "Periparus ater",
+
+  "spawnData": {
+    "locations": [ "BusStop" ],
+    "maxGroupCount": 2,
+    "minGroupSize": 5,
+    "maxGroupSize": 12
+  }
+}
