@@ -2,7 +2,6 @@
 
 ### fix
 - make terrainfeature birds saver, in case the index + location doesn't find their appropiate terrain feature
-- remove the test bird that spawns on farm
 - birds running into bushes still don't behave properly...
 
 ### next
