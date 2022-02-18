@@ -305,6 +305,31 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
             {
                 this.Helper.Events.Display.RenderedActiveMenu -= this.DrawSocialIcon;
             }
+
+            if (args.NewMenu is GameMenu g)
+            {
+                foreach (IClickableMenu page in g.pages)
+                {
+                    if (page is CollectionsPage cp)
+                    {
+                        // cp itself is the collectionspage, time to add stuff to it
+
+                        string assetPath = $"assets/black_woodpecker/black_woodpecker.png";
+                        Texture2D birdIconTexture = modInstance.Helper.Content.Load<Texture2D>(assetPath);
+
+                        cp.sideTabs.Add(8, new ClickableTextureComponent(string.Concat(8), 
+                            new Rectangle(cp.xPositionOnScreen - 48, cp.yPositionOnScreen + 64 * (2 + cp.sideTabs.Count), 64, 64), "",
+                            "Birds", birdIconTexture, new Rectangle(0, 0, 16, 16), 4f)
+                        {
+                            myID = 7009,
+                            upNeighborID = -99998,
+                            downNeighborID = -99998,
+                            rightNeighborID = 0
+                        });
+                        cp.collections.Add(8, new List<List<ClickableTextureComponent>>());
+                    }
+                }
+            }
         }
 
         // The tab by default is rendered with the inventory icon due to how the tabs are hard-coded
