@@ -2,6 +2,7 @@
   "id": "blue_tit",
   "name": "Blue Tit",
   "scName": "Cyanistes caeruleus",
+  "description": "Small common tit.",
 
   "spawnData": {
     "locations": [ "BusStop" ],
