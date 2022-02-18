@@ -8,8 +8,8 @@ using StardewValley;
 using StardewValley.Menus;
 using StardewValley.BellsAndWhistles;
 using BirdsEverywhere.Spawners;
-using BirdsEverywhere.BirdList;
 using BirdsEverywhere.BirdTypes;
+using BirdsEverywhere.BirdList;
 using Newtonsoft.Json;
 
 namespace BirdsEverywhere
@@ -19,7 +19,6 @@ namespace BirdsEverywhere
     {
         public static Mod modInstance;
         const string saveKey = "bird-save";
-        private static int MyTabId;
 
         public static EnvironmentData environmentData;
         public static SaveData saveData;
@@ -42,8 +41,6 @@ namespace BirdsEverywhere
             helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
 
             helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", Logging.PrintSeenBirds);
-
-            ModEntry.MyTabId = SpaceCore.Menus.ReserveGameMenuTab("birds");
 
             JsonConverter[] converters = { new SpawnConverter(),
                 new CustomBirdTypeConverterWriter(), new CustomBirdTypeConverterReader()};
@@ -277,45 +274,19 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
         // ##################
         // # Bird List Menu #
         // ##################
-
-        private int MyTabIndex = -1;
         private void OnMenuChanged(object sender, MenuChangedEventArgs args)
         {
-            if (args.NewMenu is GameMenu gm)
-            {
-                var pages = gm.pages;
-                var tabs = gm.tabs;
-
-                this.MyTabIndex = tabs.Count;
-                tabs.Add(new ClickableComponent(new Rectangle(gm.xPositionOnScreen + 192, gm.yPositionOnScreen + IClickableMenu.tabYPositionRelativeToMenuY + 64 - 64, 64, 64), "birds", "Birds")
-                {
-                    myID = 812342,
-                    downNeighborID = 12342,
-                    rightNeighborID = 12343,
-                    leftNeighborID = 12341,
-                    tryDefaultIfNoDownNeighborExists = true,
-                    fullyImmutable = true
-                });
-                tabs[1].upNeighborID = 812342;
-                pages.Add(new BirdListPage(gm.xPositionOnScreen, gm.yPositionOnScreen, gm.width, gm.height));
-
-                this.Helper.Events.Display.RenderedActiveMenu += this.DrawSocialIcon;
-            }
-            else if (args.OldMenu is GameMenu)
-            {
-                this.Helper.Events.Display.RenderedActiveMenu -= this.DrawSocialIcon;
-            }
-
             if (args.NewMenu is GameMenu g)
             {
-                foreach (IClickableMenu page in g.pages)
-                {
-                    if (page is CollectionsPage cp)
+                int indexOfCollectionsPage = g.pages.FindIndex(x => x is CollectionsPage);
+                    if (g.pages[indexOfCollectionsPage] is CollectionsPage c)
                     {
-                        // cp itself is the collectionspage, time to add stuff to it
+                    // converting to my custom CollectionsPage
+                    CollectionsPageWithBirds cp = new CollectionsPageWithBirds(c);
 
-                        string assetPath = $"assets/black_woodpecker/black_woodpecker.png";
-                        Texture2D birdIconTexture = modInstance.Helper.Content.Load<Texture2D>(assetPath);
+                    // cp adding the clickable tab
+                    string iconAssetPath = $"assets/black_woodpecker/black_woodpecker.png";
+                    Texture2D birdIconTexture = modInstance.Helper.Content.Load<Texture2D>(iconAssetPath);
 
                         cp.sideTabs.Add(8, new ClickableTextureComponent(string.Concat(8), 
                             new Rectangle(cp.xPositionOnScreen - 48, cp.yPositionOnScreen + 64 * (2 + cp.sideTabs.Count), 64, 64), "",
@@ -327,35 +298,50 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                             rightNeighborID = 0
                         });
                         cp.collections.Add(8, new List<List<ClickableTextureComponent>>());
-                    }
+
+                        // addings the bird icons
+                        int widthUsed = 0;
+                        int baseX = cp.xPositionOnScreen + IClickableMenu.borderWidth + IClickableMenu.spaceToClearSideBorder;
+                        int baseY = cp.yPositionOnScreen + IClickableMenu.borderWidth + IClickableMenu.spaceToClearTopBorder - 16;
+                        int collectionWidth = 10;
+                        int whichCollection2 = 8;
+
+                        foreach (KeyValuePair<string, BirdData> kvp2 in birdDataCollection)
+                        {
+                            bool farmerHas2 = saveData.seenBirds.Contains(kvp2.Value.id);
+                            string birdAssetPath = $"assets/{kvp2.Value.id}/{kvp2.Value.id}.png";
+                            Texture2D birdTexture = modInstance.Helper.Content.Load<Texture2D>(birdAssetPath);
+
+                            int xPos4 = baseX + widthUsed % collectionWidth * 68;
+                            int yPos4 = baseY + widthUsed / collectionWidth * 68;
+                            if (yPos4 > cp.yPositionOnScreen + cp.height - 128)
+                            {
+                                cp.collections[whichCollection2].Add(new List<ClickableTextureComponent>());
+                                widthUsed = 0;
+                                xPos4 = baseX;
+                                yPos4 = baseY;
+                            }
+                            if (cp.collections[whichCollection2].Count == 0)
+                            {
+                                cp.collections[whichCollection2].Add(new List<ClickableTextureComponent>());
+                            }
+                            cp.collections[whichCollection2].Last().
+                                Add(new ClickableTextureComponent(kvp2.Value.id + " " + farmerHas2.ToString(), 
+                                new Rectangle(xPos4, yPos4, 64, 64), null, "", birdTexture,
+                                new Rectangle(0, 0, 32, 32), 4f, farmerHas2)
+                                {
+                                    myID = cp.collections[whichCollection2].Last().Count,
+                                    rightNeighborID = (((cp.collections[whichCollection2].Last().Count + 1) % collectionWidth == 0) ? (-1) : (cp.collections[whichCollection2].Last().Count + 1)),
+                                    leftNeighborID = ((cp.collections[whichCollection2].Last().Count % collectionWidth == 0) ? 7001 : (cp.collections[whichCollection2].Last().Count - 1)),
+                                    downNeighborID = ((yPos4 + 68 > cp.yPositionOnScreen + cp.height - 128) ? (-7777) : (cp.collections[whichCollection2].Last().Count + collectionWidth)),
+                                    upNeighborID = ((cp.collections[whichCollection2].Last().Count < collectionWidth) ? 12345 : (cp.collections[whichCollection2].Last().Count - collectionWidth)),
+                                    fullyImmutable = true
+                                });
+                            widthUsed++;
+                        }
+
+                    g.pages[indexOfCollectionsPage] = cp;
                 }
-            }
-        }
-
-        // The tab by default is rendered with the inventory icon due to how the tabs are hard-coded
-        // This draws over it with the social icon instead of the inventory one
-        private void DrawSocialIcon(object sender, RenderedActiveMenuEventArgs e)
-        {
-            // For some reason this check is necessary despite removing it in the onMenuChanged event.
-            if (Game1.activeClickableMenu is not GameMenu menu)
-            {
-                this.Helper.Events.Display.RenderedActiveMenu -= this.DrawSocialIcon;
-                return;
-            }
-            if (menu.invisible || this.MyTabIndex == -1)
-                return;
-
-            var tabs = menu.tabs;
-            if (tabs.Count <= this.MyTabIndex)
-            {
-                return;
-            }
-            var tab = tabs[this.MyTabIndex];
-            e.SpriteBatch.Draw(Game1.mouseCursors, new Vector2(tab.bounds.X, tab.bounds.Y + (menu.currentTab == menu.getTabNumberFromName(tab.name) ? 8 : 0)), new Rectangle(2 * 16, 368, 16, 16), Color.White, 0.0f, Vector2.Zero, 4f, SpriteEffects.None, 0.0001f);
-
-            if (!Game1.options.hardwareCursor)
-            {
-                e.SpriteBatch.Draw(Game1.mouseCursors, new Vector2(Game1.getOldMouseX(), Game1.getOldMouseY()), Game1.getSourceRectForStandardTileSheet(Game1.mouseCursors, Game1.options.gamepadControls ? 44 : 0, 16, 16), Color.White, 0.0f, Vector2.Zero, (float)(4.0 + Game1.dialogueButtonScale / 150.0), SpriteEffects.None, 1f);
             }
         }
     }
