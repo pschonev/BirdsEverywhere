@@ -2,6 +2,7 @@
   "id": "coal_tit",
   "name": "Coal Tit",
   "scName": "Periparus ater",
+  "description": "This tit lives in conifer forests.",
 
   "spawnData": {
     "locations": [ "BusStop" ],
