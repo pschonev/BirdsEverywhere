@@ -285,7 +285,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                     CollectionsPageWithBirds cp = new CollectionsPageWithBirds(c);
 
                     // cp adding the clickable tab
-                    string iconAssetPath = $"assets/black_woodpecker/black_woodpecker.png";
+                    string iconAssetPath = $"assets/collections_tab_icon.png";
                     Texture2D birdTabIconTexture = modInstance.Helper.Content.Load<Texture2D>(iconAssetPath);
 
                         cp.sideTabs.Add(8, new ClickableTextureComponent(string.Concat(8), 
