@@ -286,11 +286,11 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
 
                     // cp adding the clickable tab
                     string iconAssetPath = $"assets/black_woodpecker/black_woodpecker.png";
-                    Texture2D birdIconTexture = modInstance.Helper.Content.Load<Texture2D>(iconAssetPath);
+                    Texture2D birdTabIconTexture = modInstance.Helper.Content.Load<Texture2D>(iconAssetPath);
 
                         cp.sideTabs.Add(8, new ClickableTextureComponent(string.Concat(8), 
                             new Rectangle(cp.xPositionOnScreen - 48, cp.yPositionOnScreen + 64 * (2 + cp.sideTabs.Count), 64, 64), "",
-                            "Birds", birdIconTexture, new Rectangle(0, 0, 16, 16), 4f)
+                            "Birds", birdTabIconTexture, new Rectangle(0, 0, 16, 16), 4f)
                         {
                             myID = 7009,
                             upNeighborID = -99998,
@@ -309,7 +309,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                         foreach (KeyValuePair<string, BirdData> kvp2 in birdDataCollection)
                         {
                             bool farmerHas2 = saveData.seenBirds.Contains(kvp2.Value.id);
-                            string birdAssetPath = $"assets/{kvp2.Value.id}/{kvp2.Value.id}.png";
+                            string birdAssetPath = $"assets/{kvp2.Value.id}/{kvp2.Value.id}_icon.png";
                             Texture2D birdTexture = modInstance.Helper.Content.Load<Texture2D>(birdAssetPath);
 
                             int xPos4 = baseX + widthUsed % collectionWidth * 68;
@@ -328,7 +328,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                             cp.collections[whichCollection2].Last().
                                 Add(new ClickableTextureComponent(kvp2.Value.id + " " + farmerHas2.ToString(), 
                                 new Rectangle(xPos4, yPos4, 64, 64), null, "", birdTexture,
-                                new Rectangle(0, 0, 32, 32), 4f, farmerHas2)
+                                new Rectangle(0, 0, 16, 16), 4f, farmerHas2)
                                 {
                                     myID = cp.collections[whichCollection2].Last().Count,
                                     rightNeighborID = (((cp.collections[whichCollection2].Last().Count + 1) % collectionWidth == 0) ? (-1) : (cp.collections[whichCollection2].Last().Count + 1)),
