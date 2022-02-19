@@ -2,7 +2,9 @@
 
 ### fix
 - make terrainfeature birds saver, in case the index + location doesn't find their appropiate terrain feature
-- birds running into bushes still don't behave properly...
+- birds running into bushes still don't behave properly... sometimes.
+  - prevent small bushes from being used?
+  - check for any bush and not just the specified bush (to prevent running out of bounds over bushes for some reason)
 
 ### next
 - birds flying into trees
@@ -10,9 +12,9 @@
 - parser for birdData (inside birdData)
   - multiple levels of default values -> BirdData - template - default spawner - advanced)
 - implement possibilities to have dimorphism (gender), different plumage (breeding season), babies (e.g. ducks) in season with advanced, young birds (gulls, swans)
-- fix bird list GUI (instead use custom collections tab?)
 
 ### also
+- translation
 - make behaviors modular?
 - validate every config when loading (locations, files etc)
 - sounds
