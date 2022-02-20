@@ -266,7 +266,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
 
             foreach (var x in location.critters)
             {
-                modInstance.Monitor.Log($"Spawn {x} at {x.position}", LogLevel.Debug);
+                modInstance.Monitor.Log($"Spawn {x} at {x.position.X / 64} / {x.position.Y / 64}", LogLevel.Debug);
             }
             location.critters.RemoveAll(c => isVanillaBird(c));
         }
