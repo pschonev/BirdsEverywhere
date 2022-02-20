@@ -56,7 +56,7 @@ namespace BirdsEverywhere.Spawners
                 {
                     state = BehaviorStatus.Swimming;
                 }
-                spawnList.Add(new SingleBirdSpawnParamsTile(condition, tile, id, data.birdType));
+                spawnList.Add(new SingleBirdSpawnParamsTile(condition, tile, id, data.birdType, data.timeOfDayRanges, data.getNextTexture(id)));
             }
 
             return spawnList;
@@ -119,7 +119,7 @@ namespace BirdsEverywhere.Spawners
         {
             if (condition(location, tile, xCoord2, yCoord2))
             {
-                spawnList.Add(new SingleBirdSpawnParamsTile(condition, tile, id, data.birdType));
+                spawnList.Add(new SingleBirdSpawnParamsTile(condition, tile, id, data.birdType, data.timeOfDayRanges, data.getNextTexture(id)));
                 ModEntry.modInstance.Monitor.Log($"Added {id} at {(int)tile.X} - {(int)tile.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
             }
             return spawnList;

@@ -12,8 +12,8 @@ namespace BirdsEverywhere.Spawners
 {
     public class SingleBirdSpawnParamsTile : SingleBirdSpawnParameters
     {
-        public SingleBirdSpawnParamsTile(Condition.TileSpawnCondition condition, Vector2 position, string id, string birdType)
-            : base(position, id, birdType)
+        public SingleBirdSpawnParamsTile(Condition.TileSpawnCondition condition, Vector2 position, string id, string birdType, List<TimeRange> possibleTimesOfDay, string texture)
+            : base(position, id, birdType, possibleTimesOfDay, texture)
         {
             this.className = "SingleBirdSpawnParamsTile";
         }
@@ -30,8 +30,8 @@ namespace BirdsEverywhere.Spawners
     {
         public int terrainFeatureIndex { get; set; }
 
-        public SingleBirdSpawnParamsTerrainFeature(int terrainFeatureIndex, Vector2 position, string id, string birdType)
-            : base(position, id, birdType)
+        public SingleBirdSpawnParamsTerrainFeature(int terrainFeatureIndex, Vector2 position, string id, string birdType, List<TimeRange> possibleTimesOfDay, string texture)
+            : base(position, id, birdType, possibleTimesOfDay, texture)
         {
             this.terrainFeatureIndex = terrainFeatureIndex;
             this.className = "SingleBirdSpawnParamsTerrainFeature";
@@ -47,17 +47,22 @@ namespace BirdsEverywhere.Spawners
 
     public abstract class SingleBirdSpawnParameters
     {
-        public string className { get; set; }
+        public string className { get; set; } // the kind of SingleBirdSpawmParameter
         public Vector2 position { get; set; }
-        public string ID { get; set; }
-        public string BirdType { get; set; }
-        public SingleBirdSpawnParameters(Vector2 position, string id, string birdType)
+        public string ID { get; set; } // id of the bird
+        public string BirdType { get; set; } // type of bird (behavior)
+        public List<TimeRange> possibleTimesOfDay { get; set; }
+        public string texture { get; set; }
+        public SingleBirdSpawnParameters(Vector2 position, string id, string birdType, List<TimeRange> possibleTimesOfDay, string texture)
         {
             this.position = position;
             this.ID = id;
             this.BirdType = birdType;
+            this.possibleTimesOfDay = possibleTimesOfDay;
+            this.texture = texture;
         }
 
         public abstract bool stillValidSpawnPosition(GameLocation location);
+        public bool stillValidTime(int time) => possibleTimesOfDay.Any(x => x.isInRange(time));
     }
 }

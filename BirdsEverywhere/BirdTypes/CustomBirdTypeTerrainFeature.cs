@@ -13,8 +13,8 @@ namespace BirdsEverywhere.BirdTypes
     {
         public CustomBirdTypeTerrainFeature() { }
 
-        protected CustomBirdTypeTerrainFeature(int baseFrame, int tileX, int tileY, string birdName, int spriteWidth = 32, int spriteHeight = 32) :
-            base(baseFrame, tileX, tileY, birdName, spriteWidth, spriteHeight)
+        protected CustomBirdTypeTerrainFeature(int baseFrame, int tileX, int tileY, string birdName, string texture, int spriteWidth = 32, int spriteHeight = 32) :
+            base(baseFrame, tileX, tileY, birdName, texture, spriteWidth, spriteHeight)
         { }
 
         public abstract CustomBirdType setTerrainFeature(int index, string locationName);

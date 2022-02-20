@@ -28,6 +28,7 @@ namespace BirdsEverywhere.BirdTypes
 		public abstract string birdTypeName { get; }
 		public BehaviorStatus state { get; set; }
 		public string birdName { get; set; }
+		public string texture { get; set; }
 		public int characterCheckTimer { get; set; } = 200;
 
 		public long birdID {
@@ -46,11 +47,11 @@ namespace BirdsEverywhere.BirdTypes
 
 		public CustomBirdType() { } 
 
-		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, int spriteWidth=32, int spriteHeight=32)
+		protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, string texture, int spriteWidth=32, int spriteHeight=32)
 			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
         {
 			this.birdName = birdName;
-			string textureKey = getTextureName(birdName);
+			string textureKey = getTextureName();
 			this.sprite = new AnimatedSprite(textureKey, baseFrame, spriteWidth, spriteHeight);
 			this.birdID = ModEntry.modInstance.Helper.Multiplayer.GetNewID();
 		}
@@ -66,9 +67,9 @@ namespace BirdsEverywhere.BirdTypes
 			this.random = new Random((int)(this.birdID % Int32.MaxValue));
 		}
 
-		private string getTextureName(string birdName)
+		private string getTextureName()
         {
-			string assetPath = $"assets/{birdName}/{birdName}.png";
+			string assetPath = $"assets/{this.birdName}/{this.texture}.png";
 			Texture2D texture = ModEntry.modInstance.Helper.Content.Load<Texture2D>(assetPath);
 			return ModEntry.modInstance.Helper.Content.GetActualAssetKey(assetPath);
 		}
