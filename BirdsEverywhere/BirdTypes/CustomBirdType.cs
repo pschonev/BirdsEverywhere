@@ -51,6 +51,7 @@ namespace BirdsEverywhere.BirdTypes
 			: base(baseFrame, new Vector2(tileX * 64, tileY * 64))
         {
 			this.birdName = birdName;
+			this.texture = texture;
 			string textureKey = getTextureName();
 			this.sprite = new AnimatedSprite(textureKey, baseFrame, spriteWidth, spriteHeight);
 			this.birdID = ModEntry.modInstance.Helper.Multiplayer.GetNewID();
