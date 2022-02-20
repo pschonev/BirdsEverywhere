@@ -1,4 +1,5 @@
-﻿using System;
+﻿using StardewModdingAPI;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,7 +20,9 @@ namespace BirdsEverywhere
         public string template { get; set; } = "";
 
         public SpawnData spawnData { get; set; } = new SpawnData();
-        public Dictionary<string, List<SpawnData>> allSpawnData { get; set; } = new Dictionary<string, List<SpawnData>>(); // advanced spawn patters in the form season : SpawnData
+        public Dictionary<string, List<SpawnData>> allSpawnData { get; set; } = new Dictionary<string, List<SpawnData>>() {
+            { "spring", new List<SpawnData>() {new SpawnData() } }
+        }; // advanced spawn patters in the form season : SpawnData
 
         public List<SpawnData> possibleSpawnDataToday(string season, bool isRaining, int day)
         {
@@ -55,7 +58,7 @@ namespace BirdsEverywhere
         private int _textureIndex;
         private List<string> _textureList;
 
-        public List<string> locations { get; set; } = new List<string>() { "Backwoods" }; // possible spawn locations
+        public List<string> locations { get; set; } = new List<string>() { "BusStop" }; // possible spawn locations
         public string spawnPattern { get; set; } = "SpawnableGroundSpawner"; // how to spawn the bird at location
         public string birdType { get; set; } = "LandBird"; // Bird class derivative that determines behavior
         public Dictionary<string, int> textures { get; set; } = new Dictionary<string, int>(); // textures like gender, seasonal plumage, juveniles with ratio value
@@ -84,24 +87,29 @@ namespace BirdsEverywhere
         // allow spawning different textures
         private string getNextTextureModifier()
         {
-            string texture = _textureList[_textureIndex % _textureList.Count];
-            _textureIndex++;
-            return texture;
+            string modifier = this._textureList[_textureIndex % this._textureList.Count];
+            this._textureIndex++;
+            return modifier;
         }
 
         public string getNextTexture(string id)
         {
             string modifier = getNextTextureModifier();
             if (modifier == "")
+            {
                 return id;
+            }
             else
+            {
                 return $"{id}_{modifier}";
+            }
+                
         }
 
         public void initTextureList()
         {
-            _textureIndex = 0;
-            _textureList = getTextureListByRatio();
+            this._textureIndex = 0;
+            this._textureList = getTextureListByRatio();
         }
 
         private List<string> getTextureListByRatio()
