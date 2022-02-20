@@ -7,6 +7,7 @@ using StardewValley;
 using StardewModdingAPI;
 using Microsoft.Xna.Framework;
 using BirdsEverywhere.BirdTypes;
+using StardewModdingAPI.Utilities;
 
 namespace BirdsEverywhere.Spawners
 {
@@ -40,7 +41,7 @@ namespace BirdsEverywhere.Spawners
                 List<string> birdListToday = Utils.shuffleListByOrder(biome.birds, todaysLuckFactor);
                 addUnseenBirdForToday(seenBirds, birdListToday);
                 if (seenBirds.Count > 0)
-                    addSeenBirdsForToday(seenBirds, birdListToday, biome.locations.Count);
+                    addSeenBirdsForToday(seenBirds, birdListToday, biome.locations.Count / 2);
             }
             
             // logging
@@ -62,31 +63,32 @@ namespace BirdsEverywhere.Spawners
             foreach (string birdName in unseenBirdsInTodaysOrder)
             {
                 BirdData data = ModEntry.birdDataCollection[birdName];
-                if (data.seasons.Contains(Game1.currentSeason) || data.advancedSpawn.Keys.Contains(Game1.currentSeason))
-                {
-                    data.spawnData = getSpawnData(data);
-                    LocationSpecies.Add(Utils.getRandomElementFromList(data.spawnData.locations), data);
-                    return;
-                }
+                List<SpawnData> allPossibleSpawnData = data.possibleSpawnDataToday(Game1.currentSeason, Game1.isRaining, SDate.Now().Day);
+                if (allPossibleSpawnData == null)
+                    continue;
 
+                data.spawnData = BirdData.chooseOneSpawnData(allPossibleSpawnData);
+                LocationSpecies.Add(Utils.getRandomElementFromList(data.spawnData.locations), data);
+                return;
             }
         }
 
         private void addSeenBirdsForToday(HashSet<string> seenBirds, List<string> birdListToday, int locationCount)
         {
-            int maxLocationsWithBirds = Math.Max(1, locationCount / 2);
+            int maxLocationsWithBirds = Math.Max(1, locationCount);
             List<string> seenBirdsInTodaysOrder = birdListToday.Where(x => seenBirds.Contains(x)).ToList();
 
             foreach (string birdName in seenBirdsInTodaysOrder)
             {
                 BirdData data = ModEntry.birdDataCollection[birdName];
+                List<SpawnData> allPossibleSpawnData = data.possibleSpawnDataToday(Game1.currentSeason, Game1.isRaining, SDate.Now().Day);
 
-                // look at next bird if this bird doesn't spawn in this season
-                if (!data.seasons.Contains(Game1.currentSeason) && !data.advancedSpawn.Keys.Contains(Game1.currentSeason))
+                // look at next bird if this bird doesn't meet spawn requirements
+                if (allPossibleSpawnData == null)
                     continue;
 
                 // get default or advanced spawn data
-                data.spawnData = getSpawnData(data);
+                data.spawnData = BirdData.chooseOneSpawnData(allPossibleSpawnData);
 
                 foreach (string spawnLocation in data.spawnData.locations)
                 {
@@ -99,26 +101,6 @@ namespace BirdsEverywhere.Spawners
                     }
                 }
             }
-        }
-
-
-        private SpawnData getSpawnData(BirdData data)
-        {
-            if (data.advancedSpawn.Count == 0 || !data.advancedSpawn.Keys.Contains(Game1.currentSeason))
-                return data.spawnData;
-            else
-                return sampleAdvancedSpawnData(data);
-        }
-
-
-        private SpawnData sampleAdvancedSpawnData(BirdData data)
-        {
-            string season = Game1.currentSeason;
-            List<SpawnData> possibleSpawns = data.advancedSpawn[season];
-
-            // THIS IS RANDOM AND WILL BE BASED ON CHANCE LATER
-            return Utils.getRandomElementFromList(possibleSpawns);
-
         }
 
         // #############################
