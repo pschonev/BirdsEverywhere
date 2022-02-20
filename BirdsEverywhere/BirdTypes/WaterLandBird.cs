@@ -12,8 +12,8 @@ namespace BirdsEverywhere.BirdTypes
 		public override string birdTypeName { get; } = "WaterLandBird";
 
 		public WaterLandBird() { }
-		public WaterLandBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Stopped)
-			: base(0, tileX, tileY, birdName)
+		public WaterLandBird(int tileX, int tileY, string birdName, string texture, BehaviorStatus state = BehaviorStatus.Stopped)
+			: base(0, tileX, tileY, birdName, texture)
 		{
 			flip = random.NextDouble() < 0.5;
 			startingPosition = position;

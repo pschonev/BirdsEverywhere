@@ -20,8 +20,8 @@ namespace BirdsEverywhere.BirdTypes
 
 		public TreeTrunkBird() { }
 
-	public TreeTrunkBird(int tileX, int tileY, string birdName, BehaviorStatus state = BehaviorStatus.Pecking)
-			: base(0, tileX, tileY, birdName, 16, 16)
+	public TreeTrunkBird(int tileX, int tileY, string birdName, string texture, BehaviorStatus state = BehaviorStatus.Pecking)
+			: base(0, tileX, tileY, birdName, texture, 16, 16)
 		{
 			base.position.X += 32f;
 			base.position.Y += 0f;
