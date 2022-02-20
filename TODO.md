@@ -9,9 +9,12 @@
 ### next
 - birds flying into trees
 - fix bush birds doing nothing before running into bush (also flight distance)
-- parser for birdData (inside birdData)
-  - multiple levels of default values -> BirdData - template - default spawner - advanced)
-- implement possibilities to have dimorphism (gender), different plumage (breeding season), babies (e.g. ducks) in season with advanced, young birds (gulls, swans)
+
+- reintroduce defaultSpawnData and defaultSeason
+- multiple levels of default values -> BirdData - template - default spawner - advanced)
+
+- clean up (logging)
+- first release
 
 ### also
 - translation
