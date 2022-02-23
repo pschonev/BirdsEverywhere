@@ -1,0 +1,42 @@
+{
+  "id": "test_bird",
+  "name": "Test Bird",
+  "scName": "Testus Birdus",
+  "description": "It's just a test, bro'.",
+
+  "defaultSpawnData": {
+    "locations": [ "Beach", "Forest" ],
+    "maxGroupCount": 20,
+    "maxGroupSize": 12
+  },
+
+  "allSpawnData" :
+  {
+    "spring": [
+      {
+        "locations": [ "Farm"],
+        "birdType": "LandBird",
+        "spawnPattern": "SpawnableGroundSpawner"
+      },
+      {
+        "birdType": "WaterLandBird",
+        "spawnPattern": "SpawnableGroundSpawner",
+        "maxGroupSize": 3
+      }
+    ],
+    "summer": [
+      {
+        "birdType": "WaterLandBird",
+        "minGroupSize": 2,
+        "timeOfDayRanges" :
+        [
+          {
+            "minTime": 700,
+            "maxTime" : 1000 
+          }
+        ]
+      }
+    ]
+  }
+
+}
