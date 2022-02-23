@@ -20,7 +20,7 @@ namespace BirdsEverwhyere.UnitTests
         {
             string in_path = Path.Combine(projectDir, "test_bird.json");
             string jsonFileContent = File.ReadAllText(in_path);
-            testBirdData = JsonSerializer.Deserialize<BirdData>(jsonFileContent);
+            testBirdData = JsonSerializer.Deserialize<MockBirdData>(jsonFileContent);
         }
 
         [Test]
