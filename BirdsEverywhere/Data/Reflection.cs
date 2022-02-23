@@ -27,7 +27,7 @@ namespace BirdsEverywhere
                           let targetProperty = typeDest.GetProperty(srcProp.Name)
                           where srcProp.CanRead
                           && targetProperty != null
-                          && targetProperty.GetValue(destination) == null
+                          && IsNullOrEmpty(targetProperty.GetValue(destination))
                           && (targetProperty.GetSetMethod(true) != null && !targetProperty.GetSetMethod(true).IsPrivate)
                           && (targetProperty.GetSetMethod().Attributes & MethodAttributes.Static) == 0
                           && targetProperty.PropertyType.IsAssignableFrom(srcProp.PropertyType)
@@ -37,6 +37,16 @@ namespace BirdsEverywhere
             {
                 props.targetProperty.SetValue(destination, props.sourceProperty.GetValue(source, null), null);
             }
+        }
+
+        private static bool IsNullOrEmpty(object value)
+        {
+            if (Object.ReferenceEquals(value, null))
+                return true;
+
+            var type = value.GetType();
+            return type.IsValueType
+                && Object.Equals(value, Activator.CreateInstance(type));
         }
     }
 }
