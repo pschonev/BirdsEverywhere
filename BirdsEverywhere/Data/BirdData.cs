@@ -1,9 +1,6 @@
-﻿using StardewModdingAPI;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace BirdsEverywhere
 {
@@ -19,10 +16,32 @@ namespace BirdsEverywhere
 
         public string template { get; set; } = "";
 
-        public SpawnData spawnData { get; set; } = new SpawnData();
+        public SpawnData defaultSpawnData { get; set; }
+        public SpawnData currentSpawnData { get; set; } = new SpawnData();
         public Dictionary<string, List<SpawnData>> allSpawnData { get; set; } = new Dictionary<string, List<SpawnData>>() {
             { "spring", new List<SpawnData>() {new SpawnData() } }
         }; // advanced spawn patters in the form season : SpawnData
+
+        private static SpawnData globalDefaultSpawndata = SpawnData.getDefaultSpawnData();
+
+        [JsonConstructor]
+        public BirdData(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData)
+        {
+            this.defaultSpawnData = defaultSpawnData;
+            this.allSpawnData = insertDefaults(defaultSpawnData, allSpawnData);
+            this.allSpawnData = insertDefaults(globalDefaultSpawndata, this.allSpawnData);
+        }
+
+        public Dictionary<string, List<SpawnData>> insertDefaults(SpawnData defaults, Dictionary<string, List<SpawnData>> spawnDataBySeason)
+        {
+            foreach (KeyValuePair<string, List<SpawnData>> kvp in spawnDataBySeason) {
+                foreach (SpawnData spawnData in kvp.Value)
+                {
+                    defaults.CopyProperties(spawnData);
+                }
+            }
+            return spawnDataBySeason;
+        }
 
         public List<SpawnData> possibleSpawnDataToday(string season, bool isRaining, int day)
         {

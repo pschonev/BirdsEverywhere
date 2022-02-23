@@ -11,17 +11,32 @@ namespace BirdsEverywhere
         private int _textureIndex;
         private List<string> _textureList;
 
-        public List<string> locations { get; set; } = new List<string>() { "BusStop" }; // possible spawn locations
-        public string spawnPattern { get; set; } = "SpawnableGroundSpawner"; // how to spawn the bird at location
-        public string birdType { get; set; } = "LandBird"; // Bird class derivative that determines behavior
-        public Dictionary<string, int> textures { get; set; } = new Dictionary<string, int>(); // textures like gender, seasonal plumage, juveniles with ratio value
-        public int minGroupCount { get; set; } = 1; //minimum amount of groups that are created
-        public int maxGroupCount { get; set; } = 2;
-        public int minGroupSize { get; set; } = 1; //minimum amount of birds in a group
-        public int maxGroupSize { get; set; } = 5;
-        public List<string> weather { get; set; } = new List<string>() { "sun", "rain" }; // possible weather
-        public List<TimeRange> timeOfDayRanges { get; set; } = new List<TimeRange>() { new TimeRange(600, 2400), new TimeRange(600, 2400) }; // during which time of the day they can spawn
-        public List<TimeRange> daysRanges { get; set; } = new List<TimeRange>() { new TimeRange(1, 28) }; // when in the season they can spawn
+        public List<string> locations { get; set; }  // possible spawn locations
+        public string spawnPattern { get; set; } // how to spawn the bird at location
+        public string birdType { get; set; } // Bird class derivative that determines behavior
+        public Dictionary<string, int> textures { get; set; } // textures like gender, seasonal plumage, juveniles with ratio value
+        public int minGroupCount { get; set; } //minimum amount of groups that are created
+        public int maxGroupCount { get; set; }
+        public int minGroupSize { get; set; } //minimum amount of birds in a group
+        public int maxGroupSize { get; set; }
+        public List<string> weather { get; set; } // possible weather
+        public List<TimeRange> timeOfDayRanges { get; set; } // during which time of the day they can spawn
+        public List<TimeRange> daysRanges { get; set; } // when in the season they can spawn
+
+        public static SpawnData getDefaultSpawnData()
+        {
+            SpawnData s = new SpawnData();
+            s.locations = new List<string>() { "Forest" };
+            s.textures = new Dictionary<string, int>();
+            s.minGroupCount = 1;
+            s.maxGroupCount = 2;
+            s.minGroupSize = 1;
+            s.maxGroupSize = 5;
+            s.weather = new List<string>() { "sun", "rain" };
+            s.timeOfDayRanges = new List<TimeRange>() { new TimeRange(600, 2400), new TimeRange(0, 200) };
+            s.daysRanges = new List<TimeRange>() { new TimeRange(1, 28) };
+            return s;
+        }
 
         public bool isDayPossible(int day) => this.daysRanges.Any(x => x.isInRange(day));
         public bool isTimeOfDayPossible(int time) => this.timeOfDayRanges.Any(x => x.isInRange(time));
