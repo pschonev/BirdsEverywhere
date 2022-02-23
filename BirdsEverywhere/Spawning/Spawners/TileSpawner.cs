@@ -82,11 +82,11 @@ namespace BirdsEverywhere.Spawners
         {
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
 
-            int groupCount = Game1.random.Next(Math.Max(1, data.spawnData.minGroupCount), data.spawnData.maxGroupCount);
+            int groupCount = Game1.random.Next(Math.Max(1, data.currentSpawnData.minGroupCount), data.currentSpawnData.maxGroupCount);
 
             for (int k = 0; k < groupCount; k++)
             {
-                int groupSize = Game1.random.Next(Math.Max(1, data.spawnData.minGroupSize), data.spawnData.maxGroupSize);
+                int groupSize = Game1.random.Next(Math.Max(1, data.currentSpawnData.minGroupSize), data.currentSpawnData.maxGroupSize);
                 ModEntry.modInstance.Monitor.Log($" Attempting to spawn one of {groupCount} group(s) with {groupSize} {data.name}s.", LogLevel.Debug);
 
                 for (int j = 0; j < attemptsStartTile; j++)
@@ -101,7 +101,7 @@ namespace BirdsEverywhere.Spawners
                         int i = 0;
                         foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(initialTile, location, groupSize * attemptsPerBird, branchChance: 0.5))
                         {
-                            spawnList = spawnSingleBird(location, tile, (int)tile.X, (int)tile.Y, data.spawnData, data.id, spawnList);
+                            spawnList = spawnSingleBird(location, tile, (int)tile.X, (int)tile.Y, data.currentSpawnData, data.id, spawnList);
                             ModEntry.modInstance.Monitor.Log($"{i+1} iterations. Tile checked {(int)tile.X} - {(int)tile.Y}. {spawnList.Count} birds spawned. (start tile {xCoord2} - {yCoord2})", LogLevel.Debug);
                             i++;
                             if (spawnList.Count >= groupSize)

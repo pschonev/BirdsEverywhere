@@ -34,7 +34,7 @@ namespace BirdsEverywhere.Spawners
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
             var shuffledIndices = Enumerable.Range(0, (location.terrainFeatures.Count())).OrderBy(a => Game1.random.NextDouble()).ToList();
 
-            int groupCount = Game1.random.Next(data.spawnData.minGroupCount, data.spawnData.maxGroupCount);
+            int groupCount = Game1.random.Next(data.currentSpawnData.minGroupCount, data.currentSpawnData.maxGroupCount);
             ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} {data.name}s.", LogLevel.Debug);
 
             attempts = Math.Min(attempts, location.terrainFeatures.Count());
@@ -45,7 +45,7 @@ namespace BirdsEverywhere.Spawners
                 if (isEligibleTree(location, index, new Vector2()))
                 {
                     Vector2 position = (location.terrainFeatures.Pairs.ElementAt(index).Value as Tree).currentTileLocation;
-                    spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.id, data.spawnData.birdType, data.spawnData.timeOfDayRanges, data.spawnData.getNextTexture(data.id)));
+                    spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.id, data.currentSpawnData.birdType, data.currentSpawnData.timeOfDayRanges, data.currentSpawnData.getNextTexture(data.id)));
                     ModEntry.modInstance.Monitor.Log($"Added {data.id} to tree at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
 
                     groupCount--;
@@ -75,7 +75,7 @@ namespace BirdsEverywhere.Spawners
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
             var shuffledIndices = Enumerable.Range(0, (location.largeTerrainFeatures.Count())).OrderBy(a => Game1.random.NextDouble()).ToList();
 
-            int groupCount = Game1.random.Next(data.spawnData.minGroupCount, data.spawnData.maxGroupCount);
+            int groupCount = Game1.random.Next(data.currentSpawnData.minGroupCount, data.currentSpawnData.maxGroupCount);
             ModEntry.modInstance.Monitor.Log($" Attempting to spawn {groupCount} {data.name}s.", LogLevel.Debug);
 
             attempts = Math.Min(attempts, location.largeTerrainFeatures.Count());
@@ -93,7 +93,7 @@ namespace BirdsEverywhere.Spawners
 
                     if (straightPathToBush(location, index, position))
                     {
-                        spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.id, data.spawnData.birdType, data.spawnData.timeOfDayRanges, data.spawnData.getNextTexture(data.id)));
+                        spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.id, data.currentSpawnData.birdType, data.currentSpawnData.timeOfDayRanges, data.currentSpawnData.getNextTexture(data.id)));
                         ModEntry.modInstance.Monitor.Log($"Added {data.id} to bush at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
 
                         groupCount--;
