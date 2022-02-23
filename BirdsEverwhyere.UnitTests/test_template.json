@@ -1,0 +1,19 @@
+{
+  "defaultSpawnData": {
+    "locations": [ "TemplateLocation" ],
+    "birdType": "TemplateBirdtype",
+    "weather": [ "templateWeather" ],
+    "maxGroupCount": 99,
+    "minGroupSize": 99,
+    "maxGroupSize": 99
+  },
+  "allSpawnData": {
+    "winter": [
+      {
+        "locations": [ "Town" ],
+        "birdType": "TreeTrunkBird",
+        "spawnPattern": "TreeTrunkSpawner"
+      }
+    ]
+  }
+}
