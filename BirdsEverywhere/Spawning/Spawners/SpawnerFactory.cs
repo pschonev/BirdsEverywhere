@@ -26,8 +26,8 @@ namespace BirdsEverywhere.Spawners
 
         public static Spawner createSpawner(GameLocation location, BirdData data)
         {
-            ModEntry.modInstance.Monitor.Log($"For location {location} {data.name}s will be created with {data.spawnData.spawnPattern}", LogLevel.Debug);
-            return spawnerTypes[data.spawnData.spawnPattern]();
+            ModEntry.modInstance.Monitor.Log($"For location {location} {data.name}s will be created with {data.currentSpawnData.spawnPattern}", LogLevel.Debug);
+            return spawnerTypes[data.currentSpawnData.spawnPattern]();
         }
     }
 }

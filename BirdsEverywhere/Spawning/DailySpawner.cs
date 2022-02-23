@@ -67,8 +67,8 @@ namespace BirdsEverywhere.Spawners
                 if (allPossibleSpawnData == null)
                     continue;
 
-                data.spawnData = BirdData.chooseOneSpawnData(allPossibleSpawnData);
-                LocationSpecies.Add(Utils.getRandomElementFromList(data.spawnData.locations), data);
+                data.currentSpawnData = BirdData.chooseOneSpawnData(allPossibleSpawnData);
+                LocationSpecies.Add(Utils.getRandomElementFromList(data.currentSpawnData.locations), data);
                 return;
             }
         }
@@ -88,9 +88,9 @@ namespace BirdsEverywhere.Spawners
                     continue;
 
                 // get default or advanced spawn data
-                data.spawnData = BirdData.chooseOneSpawnData(allPossibleSpawnData);
+                data.currentSpawnData = BirdData.chooseOneSpawnData(allPossibleSpawnData);
 
-                foreach (string spawnLocation in data.spawnData.locations)
+                foreach (string spawnLocation in data.currentSpawnData.locations)
                 {
                     // only add bird if current location doesn't have birds yet
                     if (!LocationSpecies.ContainsKey(spawnLocation))
