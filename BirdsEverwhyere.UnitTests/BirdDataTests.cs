@@ -41,17 +41,17 @@ namespace BirdsEverwhyere.UnitTests
         [Test]
         public void BirdData_defaultSpawnData_OvewritesEmptyListString()
         {
-            Assert.That(testBirdData.allSpawnData["spring"][1].locations.SequenceEqual(new List<string>() { "Beach", "Forest" }) );
+            Assert.That(testBirdData.allSpawnData["spring"][1].locations.SequenceEqual(new List<string>() { "TestBirdLocation_Default_0", "TestBirdLocation_Default_1" }) );
         }
         [Test]
         public void BirdData_defaultSpawnData_DoesntOvewriteValueInt()
         {
-            Assert.That(testBirdData.allSpawnData["spring"][1].maxGroupSize == 3);
+            Assert.That(testBirdData.allSpawnData["spring"][1].maxGroupSize == 44);
         }
         [Test]
         public void BirdData_defaultSpawnData_DoesntOvewriteValueListString()
         {
-            Assert.That(testBirdData.allSpawnData["spring"][0].locations.SequenceEqual(new List<string>() { "Farm" }));
+            Assert.That(testBirdData.allSpawnData["spring"][0].locations.SequenceEqual(new List<string>() { "TestBirdLocation_0_Spring_Advanced" }));
         }
         
         // SpawnData default values -> allSpawnData
@@ -64,13 +64,13 @@ namespace BirdsEverwhyere.UnitTests
         [Test]
         public void BirdData_SpawnDataDefaults_OvewritesEmptyListString()
         {
-            Assert.That(testBirdData.allSpawnData["spring"][1].weather.SequenceEqual(new List<string>() { "sun", "rain" }));
+            Assert.That(testBirdData.allSpawnData["spring"][1].weather.SequenceEqual(new List<string>() { "TestBirdWeather_1_Spring_Advanced_0", "TestBirdWeather_1_Spring_Advanced_1" }));
         }
 
         [Test]
         public void BirdData_SpawnDataDefaults_DoesntOverwriteValueInt()
         {
-            Assert.That(testBirdData.allSpawnData["summer"][0].minGroupSize == 2);
+            Assert.That(testBirdData.allSpawnData["summer"][0].minGroupSize == 33);
         }
 
         // spawnPattern and birdType always need to be provided, so they can be null (need to validate in constructor to avoid this)
