@@ -6,33 +6,33 @@
   "template": "test_template",
 
   "defaultSpawnData": {
-    "locations": [ "Beach", "Forest" ],
+    "locations": [ "TestBirdLocation_Default_0", "TestBirdLocation_Default_1" ],
     "maxGroupCount": 20,
-    "maxGroupSize": 12
+    "maxGroupSize": 20
   },
 
   "allSpawnData": {
     "spring": [
       {
-        "locations": [ "Farm" ],
-        "birdType": "LandBird",
-        "spawnPattern": "SpawnableGroundSpawner"
+        "locations": [ "TestBirdLocation_0_Spring_Advanced" ],
+        "birdType": "TestBirdType_0_Spring_Advanced",
+        "spawnPattern": "TestSpawnPattern_0_Advanced"
       },
       {
-        "birdType": "WaterLandBird",
-        "spawnPattern": "SpawnableGroundSpawner",
-        "maxGroupSize": 3,
-        "weather":  ["sun", "rain"]
+        "birdType": "TestBirdType_1_Spring_Advanced",
+        "spawnPattern": "TestSpawnPattern_1_Advanced",
+        "maxGroupSize": 44,
+        "weather": [ "TestBirdWeather_1_Spring_Advanced_0", "TestBirdWeather_1_Spring_Advanced_1" ]
       }
     ],
     "summer": [
       {
-        "birdType": "WaterLandBird",
-        "minGroupSize": 2,
+        "birdType": "TestBirdType_0_Summer_Advanced",
+        "minGroupSize": 33,
         "timeOfDayRanges": [
           {
-            "minTime": 700,
-            "maxTime": 1000
+            "minTime": 333,
+            "maxTime": 333
           }
         ]
       }
