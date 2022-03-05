@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace BirdsEverywhere
@@ -22,25 +24,31 @@ namespace BirdsEverywhere
             { "spring", new List<SpawnData>() {new SpawnData() } }
         }; // advanced spawn patters in the form season : SpawnData
 
-        private static SpawnData globalDefaultSpawndata = SpawnData.getDefaultSpawnData();
+        public static SpawnData globalDefaultSpawndata = SpawnData.getDefaultSpawnData();
+
+        public BirdData() { }
 
         [JsonConstructor]
-        public BirdData(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData)
+        public BirdData(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData, string template)
         {
-            this.defaultSpawnData = defaultSpawnData;
-            this.allSpawnData = insertDefaults(defaultSpawnData, allSpawnData);
-            this.allSpawnData = insertDefaults(globalDefaultSpawndata, this.allSpawnData);
-        }
-
-        public Dictionary<string, List<SpawnData>> insertDefaults(SpawnData defaults, Dictionary<string, List<SpawnData>> spawnDataBySeason)
-        {
-            foreach (KeyValuePair<string, List<SpawnData>> kvp in spawnDataBySeason) {
-                foreach (SpawnData spawnData in kvp.Value)
-                {
-                    defaults.CopyProperties(spawnData);
-                }
+            if (!string.IsNullOrEmpty(template))
+            {
+                BirdTemplate templateData = ModEntry.modInstance.Helper.Content.Load<BirdTemplate>($"templates/{template}");
+                templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
+                allSpawnData.MergeDictionaries(templateData.allSpawnData);            
             }
-            return spawnDataBySeason;
+            if (allSpawnData == null)
+            {
+                allSpawnData = new Dictionary<string, List<SpawnData>>();
+            }
+            if (defaultSpawnData == null)
+            {
+                defaultSpawnData = SpawnData.getDefaultSpawnData();
+            }
+
+            this.defaultSpawnData = defaultSpawnData;
+            this.allSpawnData = SpawnData.insertDefaults(this.defaultSpawnData, allSpawnData);
+            this.allSpawnData = SpawnData.insertDefaults(globalDefaultSpawndata, this.allSpawnData);
         }
 
         public List<SpawnData> possibleSpawnDataToday(string season, bool isRaining, int day)

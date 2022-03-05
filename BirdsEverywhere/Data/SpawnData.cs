@@ -95,6 +95,18 @@ namespace BirdsEverywhere
             }
             return textureList;
         }
+
+        public static Dictionary<string, List<SpawnData>> insertDefaults(SpawnData defaults, Dictionary<string, List<SpawnData>> spawnDataBySeason)
+        {
+            foreach (KeyValuePair<string, List<SpawnData>> kvp in spawnDataBySeason)
+            {
+                foreach (SpawnData spawnData in kvp.Value)
+                {
+                    defaults.CopyProperties(spawnData);
+                }
+            }
+            return spawnDataBySeason;
+        }
     }
 
     public class TimeRange
@@ -114,4 +126,6 @@ namespace BirdsEverywhere
         }
 
     }
+
+    
 }
