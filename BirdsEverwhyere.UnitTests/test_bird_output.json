@@ -143,11 +143,11 @@
           "Template_1_Winter_Location"
         ],
         "spawnPattern": null,
-        "birdType": "Tempalte_1_Winter_BirdType",
+        "birdType": "Template_1_Winter_BirdType",
         "textures": {
         },
         "minGroupCount": 1,
-        "maxGroupCount": 99,
+        "maxGroupCount": 20,
         "minGroupSize": 99,
         "maxGroupSize": 999,
         "weather": [
@@ -172,19 +172,19 @@
       },
       {
         "locations": [
-          "Forest"
+          "TestBirdLocation_Default_0",
+          "TestBirdLocation_Default_1"
         ],
         "spawnPattern": "Template_2_Winter_SpawnPattern",
         "birdType": "TemplateBirdtype",
         "textures": {
         },
         "minGroupCount": 1,
-        "maxGroupCount": 2,
-        "minGroupSize": 1,
+        "maxGroupCount": 20,
+        "minGroupSize": 99,
         "maxGroupSize": 999,
         "weather": [
-          "sun",
-          "rain"
+          "templateWeather"
         ],
         "timeOfDayRanges": [
           {
@@ -214,12 +214,11 @@
         "textures": {
         },
         "minGroupCount": 1,
-        "maxGroupCount": 2,
-        "minGroupSize": 1,
+        "maxGroupCount": 20,
+        "minGroupSize": 99,
         "maxGroupSize": 999,
         "weather": [
-          "sun",
-          "rain"
+          "templateWeather"
         ],
         "timeOfDayRanges": [
           {
