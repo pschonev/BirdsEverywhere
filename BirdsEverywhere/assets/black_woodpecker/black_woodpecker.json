@@ -3,11 +3,11 @@
   "name": "Black Woodpecker",
   "scName": "Dryocopus martius",
   "description": "The biggest Eurasian woodpecker.",
+  "template": "all_year_garden",
 
-  "spawnData": {
-    "locations": [ "BusStop" ],
-    "maxGroupCount": 4,
+  "defaultSpawnData": {
     "spawnPattern": "TreeTrunkSpawner",
-    "birdType": "TreeTrunkBird"
+    "birdType": "TreeTrunkBird",
+    "maxGroupCount": 4
   }
 }

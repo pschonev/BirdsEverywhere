@@ -2,13 +2,12 @@
   "id": "grey_partridge",
   "name": "Grey Partridge",
   "scName": "Perdix perdix",
+  "description": "Kinda like a chicken.",
+  "template": "all_year_garden",
 
-  "spawnData": {
-    "locations": [ "Backwoods"],
+  "defaultSpawnData": {
     "spawnPattern": "BushSpawner",
-    "birdType":  "BushBird",
-    "maxGroupCount": 5,
-    "minGroupCount":  2,
-    "maxGroupSize":  1
+    "birdType": "BushBird",
+    "maxGroupCount": 3
   }
 }
