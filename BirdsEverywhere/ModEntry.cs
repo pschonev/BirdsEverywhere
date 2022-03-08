@@ -11,6 +11,8 @@ using BirdsEverywhere.Spawners;
 using BirdsEverywhere.BirdTypes;
 using BirdsEverywhere.BirdList;
 using Newtonsoft.Json;
+using System.Text.Json;
+using System.IO;
 
 namespace BirdsEverywhere
 {
@@ -105,6 +107,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                 foreach(string birdName in biome.birds)
                 {
                     birdDataCollection[birdName] = this.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+                    this.Helper.Data.WriteJsonFile($"assets/inspect_output/{birdName}.json", birdDataCollection[birdName]);
                 }
             }
 
