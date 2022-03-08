@@ -37,8 +37,7 @@ namespace BirdsEverywhere
             }
 
             this.defaultSpawnData = defaultSpawnData;
-            this.allSpawnData = SpawnData.insertDefaults(this.defaultSpawnData, allSpawnData);
-            this.allSpawnData = SpawnData.insertDefaults(globalDefaultSpawndata, this.allSpawnData);
+            this.allSpawnData = allSpawnData;
         }
 
         
