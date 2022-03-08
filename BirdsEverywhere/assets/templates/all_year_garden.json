@@ -1,0 +1,20 @@
+{
+  "defaultSpawnData": {
+    "spawnPattern": "SpawnableGroundSpawner",
+    "birdType": "LandBird",
+    "locations": [
+      "Forest",
+      "Farm",
+      "Backwoods"
+    ],
+    "maxGroupCount": 3,
+    "maxGroupSize": 7
+  },
+
+  "allSpawnData": {
+    "spring": [ {} ],
+    "summer": [ {} ],
+    "fall": [ {} ],
+    "winter": [ {} ]
+  }
+}

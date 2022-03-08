@@ -3,11 +3,5 @@
   "name": "Blue Tit",
   "scName": "Cyanistes caeruleus",
   "description": "Small common tit.",
-
-  "spawnData": {
-    "locations": [ "BusStop" ],
-    "maxGroupCount": 2,
-    "minGroupSize": 5,
-    "maxGroupSize": 12
-  }
+  "template": "all_year_garden"
 }
