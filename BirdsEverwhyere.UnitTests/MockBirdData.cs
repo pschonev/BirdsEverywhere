@@ -16,14 +16,6 @@ namespace BirdsEverwhyere.UnitTests
         public MockBirdData(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData, string template) 
             : base()
         {
-            if (!string.IsNullOrEmpty(template))
-            {
-                string templatePath = Path.Combine(projectDir, $"{template}.json");
-                string templateJson = File.ReadAllText(templatePath);
-                MockBirdTemplate templateData = JsonSerializer.Deserialize<MockBirdTemplate>(templateJson);
-                templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
-                allSpawnData.MergeDictionaries(templateData.allSpawnData);
-            }
             if (allSpawnData == null)
             {
                 allSpawnData = new Dictionary<string, List<SpawnData>>();
@@ -31,6 +23,14 @@ namespace BirdsEverwhyere.UnitTests
             if (defaultSpawnData == null)
             {
                 defaultSpawnData = SpawnData.getDefaultSpawnData();
+            }
+            if (!string.IsNullOrEmpty(template))
+            {
+                string templatePath = Path.Combine(projectDir, $"{template}.json");
+                string templateJson = File.ReadAllText(templatePath);
+                MockBirdTemplate templateData = JsonSerializer.Deserialize<MockBirdTemplate>(templateJson);
+                templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
+                allSpawnData.MergeDictionaries(templateData.allSpawnData);
             }
 
             this.defaultSpawnData = defaultSpawnData;
@@ -45,14 +45,6 @@ namespace BirdsEverwhyere.UnitTests
         public MockBirdTemplate(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData, string template)
            : base()
         {
-            if (!string.IsNullOrEmpty(template))
-            {
-                string templatePath = Path.Combine(MockBirdData.projectDir, $"{template}.json");
-                string templateJson = File.ReadAllText(templatePath);
-                MockBirdTemplate templateData = JsonSerializer.Deserialize<MockBirdTemplate>(templateJson);
-                templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
-                allSpawnData.MergeDictionaries(templateData.allSpawnData);
-            }
             if (allSpawnData == null)
             {
                 allSpawnData = new Dictionary<string, List<SpawnData>>();
@@ -60,6 +52,14 @@ namespace BirdsEverwhyere.UnitTests
             if (defaultSpawnData == null)
             {
                 defaultSpawnData = SpawnData.getDefaultSpawnData();
+            }
+            if (!string.IsNullOrEmpty(template))
+            {
+                string templatePath = Path.Combine(MockBirdData.projectDir, $"{template}.json");
+                string templateJson = File.ReadAllText(templatePath);
+                MockBirdTemplate templateData = JsonSerializer.Deserialize<MockBirdTemplate>(templateJson);
+                templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
+                allSpawnData.MergeDictionaries(templateData.allSpawnData);
             }
 
             this.defaultSpawnData = defaultSpawnData;
