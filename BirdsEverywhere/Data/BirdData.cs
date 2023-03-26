@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using Newtonsoft.Json;
+using StardewModdingAPI;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace BirdsEverywhere
 {
@@ -18,9 +18,11 @@ namespace BirdsEverywhere
 
         public string template { get; set; } = "";
 
-        public SpawnData defaultSpawnData { get; set; }
-        public SpawnData currentSpawnData { get; set; } = new SpawnData();
-        public Dictionary<string, List<SpawnData>> allSpawnData { get; set; } = new Dictionary<string, List<SpawnData>>(); // advanced spawn patters in the form season : SpawnData
+        public SpawnData defaultSpawnData { get; set; } = new SpawnData(); // contains default values that will replace empty values in allSpawnData
+        public SpawnData currentSpawnData { get; set; } = new SpawnData(); // contains the SpawnData that is currently used during the game
+        public Dictionary<string, List<SpawnData>> allSpawnData { get; set; } = new Dictionary<string, List<SpawnData>>() {
+            { "spring", new List<SpawnData>() {new SpawnData() } }
+        }; // all spawn patterns that the bird has in the form season : SpawnData
 
         public static SpawnData globalDefaultSpawndata = SpawnData.getDefaultSpawnData();
 
