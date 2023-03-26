@@ -11,8 +11,6 @@ using BirdsEverywhere.Spawners;
 using BirdsEverywhere.BirdTypes;
 using BirdsEverywhere.BirdList;
 using Newtonsoft.Json;
-using System.Text.Json;
-using System.IO;
 
 namespace BirdsEverywhere
 {

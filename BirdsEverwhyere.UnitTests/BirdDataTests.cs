@@ -73,6 +73,14 @@ namespace BirdsEverwhyere.UnitTests
             Assert.That(testBirdData.allSpawnData["summer"][0].minGroupSize == 33);
         }
 
+        // Check if spawnPattern is still null. No default is created for spawnPattern since it always has to be provided
+        [Test]
+        public void BirdData_SpawnDataDefaults_spawnPatternIsNull() 
+        {
+            Assert.That(testBirdData.defaultSpawnData.spawnPattern == null);
+            Assert.That(testBirdData.allSpawnData["summer"][0].spawnPattern == null);
+        }
+
         // spawnPattern and birdType always need to be provided, so they can be null (need to validate in constructor to avoid this)
         [Test]
         public void BirdData_NoDefaultsAndNotGivenRemainsNull()

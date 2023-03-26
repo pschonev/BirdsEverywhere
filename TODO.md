@@ -10,8 +10,8 @@
 - birds flying into trees
 - fix bush birds doing nothing before running into bush (also flight distance)
 
-- reintroduce defaultSpawnData and defaultSeason
-- multiple levels of default values -> BirdData - template - default spawner - advanced)
+- template class which has only necessary properties
+  - constructor doesn't have to validate assignment like that of BirdData
 
 - clean up (logging)
 - first release
@@ -19,6 +19,9 @@
 ### also
 - translation
 - make behaviors modular?
+- allow multiple bird species per location
+  - save location : birds in some object that also saves rectangle or centroid of each group?
+  - 2D matrix of relationships between birds that may spawn together
 - validate every config when loading (locations, files etc)
 - sounds
 - cache textures (necessary?)

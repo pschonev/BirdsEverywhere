@@ -1,20 +1,21 @@
-﻿using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+﻿using Newtonsoft.Json;
+using StardewModdingAPI;
+using System.Collections.Generic;
 
 namespace BirdsEverywhere
 {
     public class BirdTemplate
     {
         public string template { get; set; } = "";
-        public SpawnData defaultSpawnData { get; set; }
-        public Dictionary<string, List<SpawnData>> allSpawnData { get; set; } = new Dictionary<string, List<SpawnData>>(); // advanced spawn patters in the form season : SpawnData
+        public SpawnData defaultSpawnData { get; set; } = null;
+        public Dictionary<string, List<SpawnData>> allSpawnData { get; set; } = new Dictionary<string, List<SpawnData>>() {
+            { "spring", new List<SpawnData>() {new SpawnData() } }
+        }; // advanced spawn patters in the form season : SpawnData
 
         public static SpawnData globalDefaultSpawndata = SpawnData.getDefaultSpawnData();
 
-        public BirdTemplate() { }
+        // only for testing
+        public BirdTemplate() {}
 
         [JsonConstructor]
         public BirdTemplate(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData, string template)
@@ -29,7 +30,7 @@ namespace BirdsEverywhere
             }
             if (!string.IsNullOrEmpty(template))
             {
-                BirdTemplate templateData = ModEntry.modInstance.Helper.Content.Load<BirdTemplate>($"assets/templates/{template}.json");
+                BirdTemplate templateData = ModEntry.modInstance.Helper.Content.Load<BirdTemplate>($"assets/templates/{template}.json", ContentSource.ModFolder);
                 templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
                 allSpawnData.MergeDictionaries(templateData.allSpawnData);            
             }
