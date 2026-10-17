@@ -2,14 +2,12 @@
   "id": "herring_gull",
   "name": "Herring Gull",
   "scName": "Larus argentatus",
+  "description": "Common gull.",
+  "template": "all_year_garden",
 
-  "spawnData": {
-    "locations": [ "Farm" ],
+  "defaultSpawnData": {
+    "locations": [ "Beach" ],
     "spawnPattern": "WaterOrGroundSpawner",
-    "birdType": "WaterLandBird",
-    "minGroupCount": 19,
-    "maxGroupCount": 20,
-    "minGroupSize": 1,
-    "maxGroupSize": 1
+    "birdType": "WaterLandBird"
   }
 }

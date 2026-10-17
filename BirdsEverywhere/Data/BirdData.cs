@@ -1,56 +1,82 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using StardewModdingAPI;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BirdsEverywhere
 {
     public class BirdData
     {
-        public string id;
-        public string name;
-        public string scName;
-        public string description = "";
+        public string id { get; set; }
+        public string name { get; set; }
+        public string scName { get; set; }
+        public string description { get; set; } = "";
 
-        public string egg = "";
-        public string breedingSeason = "spring";
-        public string feather = "";
-        public bool dimorphism = false;
+        public string egg { get; set; } = "";
+        public string feather { get; set; } = "";
 
-        public string template = "";
-        public List<string> seasons = new List<string>() { "spring", "summer", "fall", "winter" };
+        public string template { get; set; } = "";
 
-        public SpawnData spawnData = new SpawnData();
-        public Dictionary<string, List<SpawnData>> advancedSpawn = new Dictionary<string, List<SpawnData>>(); // advanced spawn patters in the form season : SpawnData
-    }
+        public SpawnData defaultSpawnData { get; set; } = new SpawnData(); // contains default values that will replace empty values in allSpawnData
+        public SpawnData currentSpawnData { get; set; } = new SpawnData(); // contains the SpawnData that is currently used during the game
+        public Dictionary<string, List<SpawnData>> allSpawnData { get; set; } = new Dictionary<string, List<SpawnData>>() {
+            { "spring", new List<SpawnData>() {new SpawnData() } }
+        }; // all spawn patterns that the bird has in the form season : SpawnData
 
-    public class SpawnData
-    {
-        public List<string> locations = new List<string>() { "Backwoods" }; // possible spawn locations
-        public string spawnPattern = "SpawnableGroundSpawner"; // how to spawn the bird at location
-        public string birdType = "LandBird"; // Bird class derivative that determines behavior
-        public int minGroupCount = 1; //minimum amount of groups that are created
-        public int maxGroupCount = 2;
-        public int minGroupSize = 1; //minimum amount of birds in a group
-        public int maxGroupSize = 5;
-        public bool requireRain = false;
-        public List<timeRange> timeOfDayRanges = new List<timeRange>() { new timeRange(), new timeRange() }; // during which time of the day they can spawn
-        public List<timeRange> daysRanges = new List<timeRange>() { new timeRange(1, 30) }; // when in the season they can spawn
-    }
+        public static SpawnData globalDefaultSpawndata = SpawnData.getDefaultSpawnData();
 
-    public class timeRange
-    {
-        public int minTime = 600;
-        public int maxTime = 1800;
+        public BirdData() { }
 
-        public timeRange(){}
-
-        public timeRange(int minTime, int maxTime)
+        [JsonConstructor]
+        public BirdData(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData, string template)
         {
-            this.minTime = minTime;
-            this.maxTime = maxTime;
+            if (allSpawnData == null)
+            {
+                allSpawnData = new Dictionary<string, List<SpawnData>>();
+            }
+            if (defaultSpawnData == null)
+            {
+                defaultSpawnData = SpawnData.getDefaultSpawnData();
+            }
+            if (!string.IsNullOrEmpty(template))
+            {
+                BirdTemplate templateData = ModEntry.modInstance.Helper.Content.Load<BirdTemplate>($"assets/templates/{template}.json");
+                templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
+                allSpawnData.MergeDictionaries(templateData.allSpawnData);            
+            }
+
+            this.defaultSpawnData = defaultSpawnData;
+            this.allSpawnData = SpawnData.insertDefaults(this.defaultSpawnData, allSpawnData);
+            this.allSpawnData = SpawnData.insertDefaults(globalDefaultSpawndata, this.allSpawnData);
         }
 
+        public List<SpawnData> possibleSpawnDataToday(string season, bool isRaining, int day)
+        {
+            List<SpawnData> possibleSpawnData;
+            if (this.allSpawnData.TryGetValue(season, out possibleSpawnData)) {
+                possibleSpawnData = possibleSpawnData.Where(x => x.isWeatherPossible(isRaining) && x.isDayPossible(day)).ToList();
+                if (possibleSpawnData.Count > 0)
+                {
+                    return possibleSpawnData;
+                } 
+                else
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                return null;
+            }
+            
+        }
+
+        public static SpawnData chooseOneSpawnData(List<SpawnData> allPossibleSpawnData)
+        {
+            SpawnData spawnData =  Utils.getRandomElementFromList(allPossibleSpawnData);
+            spawnData.initTextureList();
+            return spawnData;
+        }
     }
 }
