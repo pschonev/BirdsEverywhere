@@ -1,0 +1,41 @@
+{
+  "id": "test_bird",
+  "name": "Test Bird",
+  "scName": "Testus Birdus",
+  "description": "It's just a test, bro'.",
+  "template": "test_template",
+
+  "defaultSpawnData": {
+    "locations": [ "TestBirdLocation_Default_0", "TestBirdLocation_Default_1" ],
+    "maxGroupCount": 20
+  },
+
+  "allSpawnData": {
+    "spring": [
+      {
+        "locations": [ "TestBirdLocation_0_Spring_Advanced" ],
+        "birdType": "TestBirdType_0_Spring_Advanced",
+        "spawnPattern": "TestSpawnPattern_0_Advanced"
+      },
+      {
+        "birdType": "TestBirdType_1_Spring_Advanced",
+        "spawnPattern": "TestSpawnPattern_1_Advanced",
+        "maxGroupSize": 44,
+        "weather": [ "TestBirdWeather_1_Spring_Advanced_0", "TestBirdWeather_1_Spring_Advanced_1" ]
+      }
+    ],
+    "summer": [
+      {
+        "birdType": "TestBirdType_0_Summer_Advanced",
+        "minGroupSize": 33,
+        "timeOfDayRanges": [
+          {
+            "minTime": 333,
+            "maxTime": 333
+          }
+        ]
+      }
+    ]
+  }
+
+}

@@ -1,0 +1,18 @@
+{
+  "defaultSpawnData": {
+    "maxGroupSize": 999
+  },
+  "allSpawnData": {
+    "autumn": [
+      {
+        "locations": [ "Template_2_Autumn_Location" ],
+        "birdType": "Tempalte_2_Autumn_BirdType"
+      }
+    ],
+    "winter": [
+      {
+        "spawnPattern": "Template_2_Winter_SpawnPattern"
+      }
+    ]
+  }
+}

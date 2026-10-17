@@ -18,8 +18,8 @@ namespace BirdsEverywhere.BirdTypes
 		public int flightDistance { get; set; }
 
 		public BushBird() { }
-		public BushBird(int tileX, int tileY, string birdName)
-			: base(0, tileX, tileY, birdName)
+		public BushBird(int tileX, int tileY, string birdName, string texture)
+			: base(0, tileX, tileY, birdName, texture)
 		{
 			position.Y += 48f;
 			sprite.loop = true;

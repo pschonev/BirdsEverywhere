@@ -2,11 +2,6 @@
   "id": "great_tit",
   "name": "Great Tit",
   "scName": "Parus major",
-
-  "spawnData": {
-    "locations": [ "BusStop", "Forest" ],
-    "maxGroupCount": 2,
-    "minGroupSize":  5,
-    "maxGroupSize":  12
-  }
+  "description": "The biggest tit.",
+  "template": "all_year_garden"
 }

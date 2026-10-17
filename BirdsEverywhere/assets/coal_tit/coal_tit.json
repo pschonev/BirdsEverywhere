@@ -3,11 +3,5 @@
   "name": "Coal Tit",
   "scName": "Periparus ater",
   "description": "This tit lives in conifer forests.",
-
-  "spawnData": {
-    "locations": [ "BusStop" ],
-    "maxGroupCount": 2,
-    "minGroupSize": 5,
-    "maxGroupSize": 12
-  }
+  "template": "all_year_garden"
 }

@@ -105,6 +105,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                 foreach(string birdName in biome.birds)
                 {
                     birdDataCollection[birdName] = this.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+                    this.Helper.Data.WriteJsonFile($"assets/inspect_output/{birdName}.json", birdDataCollection[birdName]);
                 }
             }
 
@@ -266,7 +267,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
 
             foreach (var x in location.critters)
             {
-                modInstance.Monitor.Log($"Spawn {x} at {x.position}", LogLevel.Debug);
+                modInstance.Monitor.Log($"Spawn {x} at {x.position.X / 64} / {x.position.Y / 64}", LogLevel.Debug);
             }
             location.critters.RemoveAll(c => isVanillaBird(c));
         }
