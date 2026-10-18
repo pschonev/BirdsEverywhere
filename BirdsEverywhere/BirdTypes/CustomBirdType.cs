@@ -71,8 +71,8 @@ namespace BirdsEverywhere.BirdTypes
 		private string getTextureName()
         {
 			string assetPath = $"assets/{this.birdName}/{this.texture}.png";
-			Texture2D texture = ModEntry.modInstance.Helper.Content.Load<Texture2D>(assetPath);
-			return ModEntry.modInstance.Helper.Content.GetActualAssetKey(assetPath);
+			Texture2D texture = ModEntry.modInstance.Helper.ModContent.Load<Texture2D>(assetPath);
+			return ModEntry.modInstance.Helper.ModContent.GetInternalAssetName(assetPath).Name;
 		}
 
 		public override void drawAboveFrontLayer(SpriteBatch b)

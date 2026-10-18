@@ -41,7 +41,7 @@ namespace BirdsEverywhere
             }
             if (!string.IsNullOrEmpty(template))
             {
-                BirdTemplate templateData = ModEntry.modInstance.Helper.Content.Load<BirdTemplate>($"assets/templates/{template}.json");
+                BirdTemplate templateData = ModEntry.modInstance.Helper.ModContent.Load<BirdTemplate>($"assets/templates/{template}.json");
                 templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
                 allSpawnData.MergeDictionaries(templateData.allSpawnData);            
             }

@@ -44,7 +44,7 @@ namespace BirdsEverywhere.Spawners
 
                 if (isEligibleTree(location, index, new Vector2()))
                 {
-                    Vector2 position = (location.terrainFeatures.Pairs.ElementAt(index).Value as Tree).currentTileLocation;
+                    Vector2 position = (location.terrainFeatures.Pairs.ElementAt(index).Value as Tree).Tile;
                     spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.id, data.currentSpawnData.birdType, data.currentSpawnData.timeOfDayRanges, data.currentSpawnData.getNextTexture(data.id)));
                     ModEntry.modInstance.Monitor.Log($"Added {data.id} to tree at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
 
@@ -85,7 +85,7 @@ namespace BirdsEverywhere.Spawners
 
                 if (location.largeTerrainFeatures[index] is Bush)
                 {
-                    Vector2 bushPosition = location.largeTerrainFeatures[index].tilePosition.Value;
+                    Vector2 bushPosition = location.largeTerrainFeatures[index].Tile;
                     int distance = Game1.random.Next(5, 12);
                     bool flip = (Game1.random.NextDouble() < 0.5);
 

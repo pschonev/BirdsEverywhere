@@ -25,11 +25,9 @@ namespace BirdsEverywhere.BirdList
 		public override void performHoverAction(int x, int y)
 		{
 			IReflectedField<string> hoverText = ModEntry.modInstance.Helper.Reflection.GetField<string>(this, "hoverText");
-			IReflectedField<string> descriptionText = ModEntry.modInstance.Helper.Reflection.GetField<string>(this, "descriptionText");
 			IReflectedField<int> value = ModEntry.modInstance.Helper.Reflection.GetField<int>(this, "value");
 			IReflectedField<Item> hoverItem = ModEntry.modInstance.Helper.Reflection.GetField<Item>(this, "hoverItem");
 
-			descriptionText.SetValue("");
 			hoverText.SetValue("");
 			value.SetValue(-1);
 			secretNoteImage = -1;
@@ -66,7 +64,7 @@ namespace BirdsEverywhere.BirdList
                         }
 						else
 						{
-							hoverText.SetValue(createDescription(Convert.ToInt32(data_split[0])));
+							hoverText.SetValue(createDescription(data_split[0]));
 						}
 					}
 					else
