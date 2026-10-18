@@ -32,11 +32,11 @@ namespace BirdsEverywhere.BirdTypes
 			GameLocation location = Game1.getLocationFromName(locationName);
 
 			bush = location.largeTerrainFeatures[index] as Bush;
-			flip = bush.tilePosition.X < (position.X / 64);
+			flip = bush.Tile.X < (position.X / 64);
 			startingPosition = position;
-			flightDistance = (int)Math.Abs(bush.tilePosition.X - (position.X / 64f)) - 1;
+			flightDistance = (int)Math.Abs(bush.Tile.X - (position.X / 64f)) - 1;
 
-			ModEntry.modInstance.Monitor.Log($"BushBird at {position.X / 64} - {position.Y / 64} will attempt to run to bush at {bush.tilePosition.X} - {bush.tilePosition.Y} (status flipped: {flip}).", LogLevel.Debug);
+			ModEntry.modInstance.Monitor.Log($"BushBird at {position.X / 64} - {position.Y / 64} will attempt to run to bush at {bush.Tile.X} - {bush.Tile.Y} (status flipped: {flip}).", LogLevel.Debug);
 			return this;
 		}
 
@@ -82,7 +82,7 @@ namespace BirdsEverywhere.BirdTypes
 				Rectangle tileRect = new Rectangle((int)position.X + 32, (int)position.Y - 32, 4, 192);
 				if (bush.getBoundingBox().Intersects(tileRect))
 				{
-					bush.performUseAction(bush.tilePosition.Value, environment);
+					bush.performUseAction(bush.Tile);
 					return true;
 				}
 			}

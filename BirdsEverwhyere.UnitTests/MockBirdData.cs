@@ -10,7 +10,7 @@ namespace BirdsEverwhyere.UnitTests
     class MockBirdData : BirdData
     {
         public static string projectDir =
-    Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
+    Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
 
         [JsonConstructor]
         public MockBirdData(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData, string template) 

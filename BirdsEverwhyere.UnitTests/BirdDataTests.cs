@@ -11,7 +11,7 @@ namespace BirdsEverwhyere.UnitTests
     public class BirdDataTests
     {
         private static string projectDir =
-    Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
+    Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
 
         private BirdData testBirdData;
 

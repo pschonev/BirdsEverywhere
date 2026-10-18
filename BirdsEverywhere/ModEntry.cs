@@ -75,7 +75,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
 
         private void OnLoaded(object sender, SaveLoadedEventArgs e)
         {
-            environmentData = modInstance.Helper.Content.Load<EnvironmentData>("assets/environmentData.json", ContentSource.ModFolder);
+            environmentData = modInstance.Helper.ModContent.Load<EnvironmentData>("assets/environmentData.json");
             if (Context.IsMainPlayer)
                 saveData = Helper.Data.ReadSaveData<SaveData>(saveKey) ?? new SaveData();
 
@@ -104,7 +104,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
             {
                 foreach(string birdName in biome.birds)
                 {
-                    birdDataCollection[birdName] = this.Helper.Content.Load<BirdData>($"assets/{birdName}/{birdName}.json", ContentSource.ModFolder);
+                    birdDataCollection[birdName] = this.Helper.ModContent.Load<BirdData>($"assets/{birdName}/{birdName}.json");
                     this.Helper.Data.WriteJsonFile($"assets/inspect_output/{birdName}.json", birdDataCollection[birdName]);
                 }
             }
@@ -287,7 +287,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
 
                     // cp adding the clickable tab
                     string iconAssetPath = $"assets/collections_tab_icon.png";
-                    Texture2D birdTabIconTexture = modInstance.Helper.Content.Load<Texture2D>(iconAssetPath);
+                    Texture2D birdTabIconTexture = modInstance.Helper.ModContent.Load<Texture2D>(iconAssetPath);
 
                         cp.sideTabs.Add(8, new ClickableTextureComponent(string.Concat(8), 
                             new Rectangle(cp.xPositionOnScreen - 48, cp.yPositionOnScreen + 64 * (2 + cp.sideTabs.Count), 64, 64), "",
@@ -311,7 +311,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                         {
                             bool farmerHas2 = saveData.seenBirds.Contains(kvp2.Value.id);
                             string birdAssetPath = $"assets/{kvp2.Value.id}/{kvp2.Value.id}_icon.png";
-                            Texture2D birdTexture = modInstance.Helper.Content.Load<Texture2D>(birdAssetPath);
+                            Texture2D birdTexture = modInstance.Helper.ModContent.Load<Texture2D>(birdAssetPath);
 
                             int xPos4 = baseX + widthUsed % collectionWidth * 68;
                             int yPos4 = baseY + widthUsed / collectionWidth * 68;

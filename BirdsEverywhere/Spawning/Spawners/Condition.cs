@@ -16,7 +16,7 @@ namespace BirdsEverywhere.Spawners
         public static bool isValidGroundTile(GameLocation location, Vector2 tile, int xCoord2, int yCoord2)
         {
             return (location.isTileOnMap(tile) &&
-                location.isTileLocationTotallyClearAndPlaceable(tile) &&
+                location.CanItemBePlacedHere(tile) &&
                 location.doesTileHaveProperty(xCoord2, yCoord2, "Water", "Back") == null);
         }
 
@@ -29,7 +29,7 @@ namespace BirdsEverywhere.Spawners
         public static bool isValidWaterOrGroundTile(GameLocation location, Vector2 tile, int xCoord2, int yCoord2)
         {
             return (location.isTileOnMap(tile) &&
-                    (location.isTileLocationTotallyClearAndPlaceable(tile) || location.doesTileHaveProperty((int)tile.X, (int)tile.Y, "Water", "Back") != null));
+                    (location.CanItemBePlacedHere(tile) || location.doesTileHaveProperty((int)tile.X, (int)tile.Y, "Water", "Back") != null));
         }
 
         public static bool isSpawnableGroundTile(GameLocation location, Vector2 tile, int xCoord2, int yCoord2)
@@ -38,7 +38,7 @@ namespace BirdsEverywhere.Spawners
                             location.doesTileHaveProperty(xCoord2, yCoord2, "Water", "Back") == null &&
                             location.doesTileHaveProperty(xCoord2, yCoord2, "Spawnable", "Back") != null &&
                             !location.doesEitherTileOrTileIndexPropertyEqual(xCoord2, yCoord2, "Spawnable", "Back", "F") &&
-                            location.isTileLocationTotallyClearAndPlaceable(xCoord2, yCoord2) &&
+                            location.CanItemBePlacedHere(new Vector2(xCoord2, yCoord2)) &&
                             location.getTileIndexAt(xCoord2, yCoord2, "AlwaysFront") == -1 &&
                             location.getTileIndexAt(xCoord2, yCoord2, "Front") == -1 &&
                             !location.isBehindBush(tile) &&
@@ -54,7 +54,7 @@ namespace BirdsEverywhere.Spawners
                 TerrainFeature treeCandidate = location.terrainFeatures.Pairs.ElementAt(index).Value;
 
                 return treeCandidate is Tree &&
-                (int)(treeCandidate as Tree).treeType.Value != 2 &&
+                (treeCandidate as Tree).treeType.Value != Tree.leafyTree &&
                 (int)(treeCandidate as Tree).growthStage.Value >= 5;
             }
             catch (ArgumentOutOfRangeException)
@@ -70,14 +70,14 @@ namespace BirdsEverywhere.Spawners
                 return false;
 
             // if bush is to the right, flip is active and bird looks to the right
-            bool flip = bush.tilePosition.X < position.X;
-            int distance = (int)Math.Abs(bush.tilePosition.X - position.X);
+            bool flip = bush.Tile.X < position.X;
+            int distance = (int)Math.Abs(bush.Tile.X - position.X);
 
             for (int j = 0; j < distance; j++)
             {
                 position.X += (flip ? (-1) : 1);
                 if ((!location.largeTerrainFeatures[index].getBoundingBox().Intersects(new Rectangle((int)position.X * 64, (int)position.Y * 64, 64, 64)) &&
-                    !location.isTileLocationTotallyClearAndPlaceable(position)) ||
+                    !location.CanItemBePlacedHere(position)) ||
                     location.doesEitherTileOrTileIndexPropertyEqual((int)position.X, (int)position.Y, "Spawnable", "Back", "F")
                     )
                 {
