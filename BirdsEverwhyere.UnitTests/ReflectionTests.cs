@@ -13,7 +13,7 @@ namespace BirdsEverwhyere.UnitTests
         public class TestClass
         {
             public string name { get; set; } = null;
-            public int?  age { get; set; } = 21;
+            public int? age { get; set; } = 21;
 
             public TestClass() { }
 

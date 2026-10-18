@@ -1,4 +1,4 @@
-﻿using BirdsEverywhere;
+using BirdsEverywhere;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,8 +12,16 @@ namespace BirdsEverwhyere.UnitTests
         public static string projectDir =
     Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
 
+        public static readonly string AssetsDir = Path.Combine(AppContext.BaseDirectory, "assets");
+
+        public static string TemplatePath(string template)
+        {
+            string local = Path.Combine(projectDir, $"{template}.json");
+            return File.Exists(local) ? local : Path.Combine(AssetsDir, "templates", $"{template}.json");
+        }
+
         [JsonConstructor]
-        public MockBirdData(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData, string template) 
+        public MockBirdData(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData, string template)
             : base()
         {
             if (allSpawnData == null)
@@ -26,8 +34,7 @@ namespace BirdsEverwhyere.UnitTests
             }
             if (!string.IsNullOrEmpty(template))
             {
-                string templatePath = Path.Combine(projectDir, $"{template}.json");
-                string templateJson = File.ReadAllText(templatePath);
+                string templateJson = File.ReadAllText(TemplatePath(template));
                 MockBirdTemplate templateData = JsonSerializer.Deserialize<MockBirdTemplate>(templateJson);
                 templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
                 allSpawnData.MergeDictionaries(templateData.allSpawnData);
@@ -55,15 +62,14 @@ namespace BirdsEverwhyere.UnitTests
             }
             if (!string.IsNullOrEmpty(template))
             {
-                string templatePath = Path.Combine(MockBirdData.projectDir, $"{template}.json");
-                string templateJson = File.ReadAllText(templatePath);
+                string templateJson = File.ReadAllText(MockBirdData.TemplatePath(template));
                 MockBirdTemplate templateData = JsonSerializer.Deserialize<MockBirdTemplate>(templateJson);
                 templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
                 allSpawnData.MergeDictionaries(templateData.allSpawnData);
             }
 
             this.defaultSpawnData = defaultSpawnData;
-            this.allSpawnData =  allSpawnData;
+            this.allSpawnData = allSpawnData;
         }
     }
 }

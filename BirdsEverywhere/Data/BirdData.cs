@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using StardewModdingAPI;
 using System.Collections.Generic;
 using System.IO;
@@ -43,7 +43,7 @@ namespace BirdsEverywhere
             {
                 BirdTemplate templateData = ModEntry.modInstance.Helper.ModContent.Load<BirdTemplate>($"assets/templates/{template}.json");
                 templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
-                allSpawnData.MergeDictionaries(templateData.allSpawnData);            
+                allSpawnData.MergeDictionaries(templateData.allSpawnData);
             }
 
             this.defaultSpawnData = defaultSpawnData;
@@ -54,12 +54,13 @@ namespace BirdsEverywhere
         public List<SpawnData> possibleSpawnDataToday(string season, bool isRaining, int day)
         {
             List<SpawnData> possibleSpawnData;
-            if (this.allSpawnData.TryGetValue(season, out possibleSpawnData)) {
+            if (this.allSpawnData.TryGetValue(season, out possibleSpawnData))
+            {
                 possibleSpawnData = possibleSpawnData.Where(x => x.isWeatherPossible(isRaining) && x.isDayPossible(day)).ToList();
                 if (possibleSpawnData.Count > 0)
                 {
                     return possibleSpawnData;
-                } 
+                }
                 else
                 {
                     return null;
@@ -69,12 +70,12 @@ namespace BirdsEverywhere
             {
                 return null;
             }
-            
+
         }
 
         public static SpawnData chooseOneSpawnData(List<SpawnData> allPossibleSpawnData)
         {
-            SpawnData spawnData =  Utils.getRandomElementFromList(allPossibleSpawnData);
+            SpawnData spawnData = Utils.getRandomElementFromList(StardewValley.Game1.random, allPossibleSpawnData);
             spawnData.initTextureList();
             return spawnData;
         }

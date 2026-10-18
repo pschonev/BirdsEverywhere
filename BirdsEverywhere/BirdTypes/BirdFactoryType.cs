@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -28,12 +28,14 @@ namespace BirdsEverywhere.BirdTypes
             {"BushBird", (tileX, tileY, birdName, texture) => new BushBird(tileX, tileY, birdName, texture)}
         };
 
+        public static IEnumerable<string> KnownBirdTypes => birdTypes.Keys.Concat(birdTypesTerrainFeature.Keys);
+
         public static CustomBirdType createBird(SingleBirdSpawnParameters sParams, GameLocation location)
         {
             if (sParams is SingleBirdSpawnParamsTile)
                 return birdTypes[sParams.BirdType]((int)sParams.position.X, (int)sParams.position.Y, sParams.ID, sParams.texture);
 
-            else if(sParams is SingleBirdSpawnParamsTerrainFeature)
+            else if (sParams is SingleBirdSpawnParamsTerrainFeature)
             {
                 return birdTypesTerrainFeature[sParams.BirdType]((int)sParams.position.X, (int)sParams.position.Y, sParams.ID, sParams.texture)
                     .setTerrainFeature((sParams as SingleBirdSpawnParamsTerrainFeature).terrainFeatureIndex, location.Name);

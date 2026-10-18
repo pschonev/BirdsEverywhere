@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -43,7 +43,7 @@ namespace BirdsEverywhere.Spawners
                 if (seenBirds.Count > 0)
                     addSeenBirdsForToday(seenBirds, birdListToday, biome.locations.Count / 2);
             }
-            
+
             // logging
             ModEntry.modInstance.Monitor.Log($" Birds today: ", LogLevel.Debug);
             foreach (KeyValuePair<string, BirdData> kvp in LocationSpecies)
@@ -68,7 +68,7 @@ namespace BirdsEverywhere.Spawners
                     continue;
 
                 data.currentSpawnData = BirdData.chooseOneSpawnData(allPossibleSpawnData);
-                LocationSpecies.Add(Utils.getRandomElementFromList(data.currentSpawnData.locations), data);
+                LocationSpecies.Add(Utils.getRandomElementFromList(Game1.random, data.currentSpawnData.locations), data);
                 return;
             }
         }

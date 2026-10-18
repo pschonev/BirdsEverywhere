@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,7 +11,7 @@ namespace BirdsEverywhere.Spawners
 {   /// <summary>
 /// Implements multiple strategies to check a location for viable spawn tiles and spawn a variable number of birds
 /// </summary>
-    class SpawnerFactory
+    public static class SpawnerFactory
     {
         public delegate Spawner SpawnPatternDelegate();
 
@@ -24,10 +24,20 @@ namespace BirdsEverywhere.Spawners
             {"BushSpawner", () => new BushSpawner() }
         };
 
+        public static IReadOnlyCollection<string> KnownPatterns => spawnerTypes.Keys;
+
         public static Spawner createSpawner(GameLocation location, BirdData data)
         {
-            ModEntry.modInstance.Monitor.Log($"For location {location} {data.name}s will be created with {data.currentSpawnData.spawnPattern}", LogLevel.Debug);
-            return spawnerTypes[data.currentSpawnData.spawnPattern]();
+            string pattern = data.currentSpawnData.spawnPattern;
+            ModEntry.modInstance.Monitor.Log($"For location {location} {data.name}s will be created with {pattern}", LogLevel.Debug);
+            return createSpawner(pattern) ?? throw new KeyNotFoundException($"Unknown spawn pattern '{pattern}' for bird '{data.id}'.");
+        }
+
+        public static Spawner? createSpawner(string? pattern)
+        {
+            if (pattern is null || !spawnerTypes.TryGetValue(pattern, out SpawnPatternDelegate? create))
+                return null;
+            return create();
         }
     }
 }

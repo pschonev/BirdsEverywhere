@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,17 +12,17 @@ namespace BirdsEverywhere.Spawners
 {
     public class SingleBirdSpawnParamsTile : SingleBirdSpawnParameters
     {
-        public SingleBirdSpawnParamsTile(Condition.TileSpawnCondition condition, Vector2 position, string id, string birdType, List<TimeRange> possibleTimesOfDay, string texture)
-            : base(position, id, birdType, possibleTimesOfDay, texture)
+        public SingleBirdSpawnParamsTile(Condition.TileSpawnCondition condition, Vector2 position, string id, string birdType, string spawnPattern, List<TimeRange> possibleTimesOfDay, string texture)
+            : base(position, id, birdType, spawnPattern, possibleTimesOfDay, texture)
         {
             this.className = "SingleBirdSpawnParamsTile";
         }
 
         public override bool stillValidSpawnPosition(GameLocation location)
         {
-            BirdData data = ModEntry.birdDataCollection[this.ID];
-            Condition.TileSpawnCondition condition = (SpawnerFactory.createSpawner(location, data) as TileSpawner).condition;
-            return condition(location, position, (int)position.X, (int)position.Y);
+            if (SpawnerFactory.createSpawner(spawnPattern) is not TileSpawner spawner)
+                return logUnknownPattern();
+            return spawner.condition(location, position, (int)position.X, (int)position.Y);
         }
     }
 
@@ -30,8 +30,8 @@ namespace BirdsEverywhere.Spawners
     {
         public int terrainFeatureIndex { get; set; }
 
-        public SingleBirdSpawnParamsTerrainFeature(int terrainFeatureIndex, Vector2 position, string id, string birdType, List<TimeRange> possibleTimesOfDay, string texture)
-            : base(position, id, birdType, possibleTimesOfDay, texture)
+        public SingleBirdSpawnParamsTerrainFeature(int terrainFeatureIndex, Vector2 position, string id, string birdType, string spawnPattern, List<TimeRange> possibleTimesOfDay, string texture)
+            : base(position, id, birdType, spawnPattern, possibleTimesOfDay, texture)
         {
             this.terrainFeatureIndex = terrainFeatureIndex;
             this.className = "SingleBirdSpawnParamsTerrainFeature";
@@ -39,9 +39,9 @@ namespace BirdsEverywhere.Spawners
 
         public override bool stillValidSpawnPosition(GameLocation location)
         {
-            BirdData data = ModEntry.birdDataCollection[this.ID];
-            Condition.TerrainSpawnCondition condition = (SpawnerFactory.createSpawner(location, data) as TerrainFeatureSpawner).condition;
-            return condition(location, terrainFeatureIndex, position);
+            if (SpawnerFactory.createSpawner(spawnPattern) is not TerrainFeatureSpawner spawner)
+                return logUnknownPattern();
+            return spawner.condition(location, terrainFeatureIndex, position);
         }
     }
 
@@ -51,18 +51,26 @@ namespace BirdsEverywhere.Spawners
         public Vector2 position { get; set; }
         public string ID { get; set; } // id of the bird
         public string BirdType { get; set; } // type of bird (behavior)
+        public string spawnPattern { get; set; }
         public List<TimeRange> possibleTimesOfDay { get; set; }
         public string texture { get; set; }
-        public SingleBirdSpawnParameters(Vector2 position, string id, string birdType, List<TimeRange> possibleTimesOfDay, string texture)
+        public SingleBirdSpawnParameters(Vector2 position, string id, string birdType, string spawnPattern, List<TimeRange> possibleTimesOfDay, string texture)
         {
             this.position = position;
             this.ID = id;
             this.BirdType = birdType;
+            this.spawnPattern = spawnPattern;
             this.possibleTimesOfDay = possibleTimesOfDay;
             this.texture = texture;
         }
 
         public abstract bool stillValidSpawnPosition(GameLocation location);
+
+        protected bool logUnknownPattern()
+        {
+            ModEntry.modInstance.Monitor.LogOnce($"Bird '{ID}' has unknown spawn pattern '{spawnPattern}'; keeping it in place.", LogLevel.Warn);
+            return true;
+        }
         public bool stillValidTime(int time) => possibleTimesOfDay.Any(x => x.isInRange(time));
     }
 }

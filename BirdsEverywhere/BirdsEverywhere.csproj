@@ -9,5 +9,6 @@
   <ItemGroup>
     <PackageReference Include="Pathoschild.Stardew.ModBuildConfig" Version="4.4.0" />
     <Reference Include="Newtonsoft.Json" HintPath="$(GamePath)/smapi-internal/Newtonsoft.Json.dll" Private="False" />
+    <InternalsVisibleTo Include="BirdsEverwhyere.UnitTests" />
   </ItemGroup>
 </Project>
