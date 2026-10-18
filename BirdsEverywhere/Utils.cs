@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
@@ -38,10 +38,18 @@ namespace BirdsEverywhere
             else return val;
         }
 
-        public static T getRandomElementFromList<T>(List<T> listToPickFrom)
+        public static T getRandomElementFromList<T>(Random random, IReadOnlyList<T> listToPickFrom)
         {
-            int index = Game1.random.Next(0, Math.Max(listToPickFrom.Count - 1, 0));
-            return listToPickFrom[index];
+            if (listToPickFrom.Count == 0)
+                throw new ArgumentException("Cannot pick from an empty list.", nameof(listToPickFrom));
+            return listToPickFrom[random.Next(listToPickFrom.Count)];
+        }
+
+        public static int NextInclusive(Random random, int min, int max)
+        {
+            if (min > max)
+                throw new ArgumentOutOfRangeException(nameof(min), min, $"min must not exceed max ({max}).");
+            return random.Next(min, max + 1);
         }
 
         public static double getRandomBoundedDoublePosOrNeg(double minDistance, double maxDistance)
@@ -55,16 +63,16 @@ namespace BirdsEverywhere
             return (coord >= padding - 1 && coord <= sizeDimension - padding);
         }
 
-        public static List<Vector2> getRandomPositionsStartingFromThisTile(Vector2 startTile, GameLocation location, int maxAttempts=100, double minDistance=1.0, double maxDistance=4.0, double branchChance=0.2)
-		{
-			List<Vector2> tiles = new List<Vector2>();
+        public static List<Vector2> getRandomPositionsStartingFromThisTile(Vector2 startTile, GameLocation location, int maxAttempts = 100, double minDistance = 1.0, double maxDistance = 4.0, double branchChance = 0.2)
+        {
+            List<Vector2> tiles = new List<Vector2>();
             tiles.Add(startTile);
             Vector2 currentTile2 = startTile;
 
-			int attempts = 0;
+            int attempts = 0;
 
-			while (attempts < maxAttempts)
-			{
+            while (attempts < maxAttempts)
+            {
                 float xDistance = (float)Math.Round(getRandomBoundedDoublePosOrNeg(minDistance, maxDistance));
                 xDistance = isCoordInsideScreenBounds(currentTile2.X + xDistance, location.map.DisplayWidth / 64, 4) ? xDistance : xDistance * -1;
                 float yDistance = (float)Math.Round(getRandomBoundedDoublePosOrNeg(minDistance, maxDistance));
@@ -78,9 +86,9 @@ namespace BirdsEverywhere
                         currentTile2 = tile;
                 }
                 attempts++;
-			}
-			return tiles;
-		}
+            }
+            return tiles;
+        }
 
         public static void logList(IEnumerable<string> list, string description = "-")
         {

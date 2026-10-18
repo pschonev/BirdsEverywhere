@@ -23,14 +23,6 @@ namespace BirdsEverwhyere.UnitTests
             testBirdData = JsonSerializer.Deserialize<MockBirdData>(jsonFileContent);
         }
 
-        [Test]
-        public void BirdData_serialize()
-        {
-            string out_path = Path.Combine(projectDir, "test_bird_output.json");            
-            string jsonOutput = JsonSerializer.Serialize(testBirdData);
-            File.WriteAllText(out_path, jsonOutput);
-        }
-
         // defaultSpawnData -> allSpawnData
         // this tests whether SpawnData defaultSpawnData correctly overwrites values in allSpawnData
         [Test]
@@ -41,7 +33,7 @@ namespace BirdsEverwhyere.UnitTests
         [Test]
         public void BirdData_defaultSpawnData_OvewritesEmptyListString()
         {
-            Assert.That(testBirdData.allSpawnData["spring"][1].locations.SequenceEqual(new List<string>() { "TestBirdLocation_Default_0", "TestBirdLocation_Default_1" }) );
+            Assert.That(testBirdData.allSpawnData["spring"][1].locations.SequenceEqual(new List<string>() { "TestBirdLocation_Default_0", "TestBirdLocation_Default_1" }));
         }
         [Test]
         public void BirdData_defaultSpawnData_DoesntOvewriteValueInt()
@@ -53,7 +45,7 @@ namespace BirdsEverwhyere.UnitTests
         {
             Assert.That(testBirdData.allSpawnData["spring"][0].locations.SequenceEqual(new List<string>() { "TestBirdLocation_0_Spring_Advanced" }));
         }
-        
+
         // SpawnData default values -> allSpawnData
         // this will test if the default object of SpawnData (SpawnData.getDefaultSpawnData) correctly overwrites values in allSpawnData
         [Test]
@@ -75,7 +67,7 @@ namespace BirdsEverwhyere.UnitTests
 
         // Check if spawnPattern is still null. No default is created for spawnPattern since it always has to be provided
         [Test]
-        public void BirdData_SpawnDataDefaults_spawnPatternIsNull() 
+        public void BirdData_SpawnDataDefaults_spawnPatternIsNull()
         {
             Assert.That(testBirdData.defaultSpawnData.spawnPattern == null);
             Assert.That(testBirdData.allSpawnData["summer"][0].spawnPattern == null);

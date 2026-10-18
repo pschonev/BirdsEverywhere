@@ -1,4 +1,4 @@
-﻿using StardewModdingAPI;
+using StardewModdingAPI;
 using StardewValley;
 using System;
 using System.Collections.Generic;
@@ -20,22 +20,12 @@ namespace BirdsEverywhere
         public int spriteWidth { get; set; }
         public int spriteHeight { get; set; }
 
-        
+
         public CurrentAnimatedSprite() { }
 
         public CurrentAnimatedSprite(AnimatedSprite sprite)
         {
-            if (currentAnimation != null)
-            {
-                List<(int frame, int ms)> currentAnimation = new List<(int frame, int ms)>();
-                foreach (FarmerSprite.AnimationFrame animFrame in sprite.CurrentAnimation)
-                {
-                    currentAnimation.Add((animFrame.frame, animFrame.milliseconds));
-                }
-                this.currentAnimation = currentAnimation;
-            }
-            else
-                this.currentAnimation = null;
+            this.currentAnimation = sprite.CurrentAnimation?.Select(f => (f.frame, f.milliseconds)).ToList();
             this.currentFrame = sprite.currentFrame;
             this.texture = sprite.textureName.Value;
             this.timer = sprite.timer;
@@ -58,7 +48,7 @@ namespace BirdsEverywhere
                         currentAnim.Add(new FarmerSprite.AnimationFrame((short)(frameWithTime.frame), frameWithTime.ms));
                     }
                     currentSprite.setCurrentAnimation(currentAnim);
-                }                    
+                }
                 currentSprite.timer = sprite.timer;
                 currentSprite.loop = sprite.loop;
                 currentSprite.currentAnimationIndex = sprite.currentAnimationIndex;

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using StardewModdingAPI;
 using System.Collections.Generic;
 
@@ -15,7 +15,7 @@ namespace BirdsEverywhere
         public static SpawnData globalDefaultSpawndata = SpawnData.getDefaultSpawnData();
 
         // only for testing
-        public BirdTemplate() {}
+        public BirdTemplate() { }
 
         [JsonConstructor]
         public BirdTemplate(SpawnData defaultSpawnData, Dictionary<string, List<SpawnData>> allSpawnData, string template)
@@ -32,13 +32,13 @@ namespace BirdsEverywhere
             {
                 BirdTemplate templateData = ModEntry.modInstance.Helper.ModContent.Load<BirdTemplate>($"assets/templates/{template}.json");
                 templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
-                allSpawnData.MergeDictionaries(templateData.allSpawnData);            
+                allSpawnData.MergeDictionaries(templateData.allSpawnData);
             }
 
             this.defaultSpawnData = defaultSpawnData;
             this.allSpawnData = allSpawnData;
         }
 
-        
+
     }
 }

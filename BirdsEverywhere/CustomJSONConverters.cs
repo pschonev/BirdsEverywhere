@@ -1,4 +1,4 @@
-﻿using BirdsEverywhere.BirdTypes;
+using BirdsEverywhere.BirdTypes;
 using BirdsEverywhere.Spawners;
 using StardewValley.TerrainFeatures;
 using Newtonsoft.Json;
@@ -42,7 +42,8 @@ namespace BirdsEverywhere
 
             // properties of CustomBirdType and derivatives
             Type currentType = value.GetType();
-            do {
+            do
+            {
                 foreach (PropertyInfo prop in currentType.GetProperties(BindingFlags.Public | BindingFlags.DeclaredOnly | BindingFlags.Instance))
                 {
                     if (prop.GetCustomAttribute(typeof(JsonIgnoreAttribute)) != null)
@@ -53,7 +54,7 @@ namespace BirdsEverywhere
                 }
                 currentType = currentType.BaseType;
             } while (currentType != null && currentType != typeof(Critter));
-                o.WriteTo(writer);
+            o.WriteTo(writer);
         }
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)

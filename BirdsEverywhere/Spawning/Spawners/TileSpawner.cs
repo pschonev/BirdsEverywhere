@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -34,7 +34,10 @@ namespace BirdsEverywhere.Spawners
         /// <summary>
         /// Checks for valid water tile.
         /// </summary>
-        protected new TileSpawnCondition condition = (location, tile, xCoord2, yCoord2) => isValidWaterTile(location, tile, xCoord2, yCoord2);
+        public WaterSpawner()
+        {
+            condition = (location, tile, xCoord2, yCoord2) => isValidWaterTile(location, tile, xCoord2, yCoord2);
+        }
     }
 
     public class WaterOrGroundSpawner : TileSpawner
@@ -56,7 +59,7 @@ namespace BirdsEverywhere.Spawners
                 {
                     state = BehaviorStatus.Swimming;
                 }
-                spawnList.Add(new SingleBirdSpawnParamsTile(condition, tile, id, data.birdType, data.timeOfDayRanges, data.getNextTexture(id)));
+                spawnList.Add(new SingleBirdSpawnParamsTile(condition, tile, id, data.birdType, data.spawnPattern, data.timeOfDayRanges, data.getNextTexture(id)));
             }
 
             return spawnList;
@@ -82,11 +85,11 @@ namespace BirdsEverywhere.Spawners
         {
             List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
 
-            int groupCount = Game1.random.Next(Math.Max(1, data.currentSpawnData.minGroupCount), data.currentSpawnData.maxGroupCount);
+            int groupCount = Utils.NextInclusive(Game1.random, Math.Max(1, data.currentSpawnData.minGroupCount), data.currentSpawnData.maxGroupCount);
 
             for (int k = 0; k < groupCount; k++)
             {
-                int groupSize = Game1.random.Next(Math.Max(1, data.currentSpawnData.minGroupSize), data.currentSpawnData.maxGroupSize);
+                int groupSize = Utils.NextInclusive(Game1.random, Math.Max(1, data.currentSpawnData.minGroupSize), data.currentSpawnData.maxGroupSize);
                 ModEntry.modInstance.Monitor.Log($" Attempting to spawn one of {groupCount} group(s) with {groupSize} {data.name}s.", LogLevel.Debug);
 
                 for (int j = 0; j < attemptsStartTile; j++)
@@ -102,7 +105,7 @@ namespace BirdsEverywhere.Spawners
                         foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(initialTile, location, groupSize * attemptsPerBird, branchChance: 0.5))
                         {
                             spawnList = spawnSingleBird(location, tile, (int)tile.X, (int)tile.Y, data.currentSpawnData, data.id, spawnList);
-                            ModEntry.modInstance.Monitor.Log($"{i+1} iterations. Tile checked {(int)tile.X} - {(int)tile.Y}. {spawnList.Count} birds spawned. (start tile {xCoord2} - {yCoord2})", LogLevel.Debug);
+                            ModEntry.modInstance.Monitor.Log($"{i + 1} iterations. Tile checked {(int)tile.X} - {(int)tile.Y}. {spawnList.Count} birds spawned. (start tile {xCoord2} - {yCoord2})", LogLevel.Debug);
                             i++;
                             if (spawnList.Count >= groupSize)
                                 break;
@@ -119,7 +122,7 @@ namespace BirdsEverywhere.Spawners
         {
             if (condition(location, tile, xCoord2, yCoord2))
             {
-                spawnList.Add(new SingleBirdSpawnParamsTile(condition, tile, id, data.birdType, data.timeOfDayRanges, data.getNextTexture(id)));
+                spawnList.Add(new SingleBirdSpawnParamsTile(condition, tile, id, data.birdType, data.spawnPattern, data.timeOfDayRanges, data.getNextTexture(id)));
                 ModEntry.modInstance.Monitor.Log($"Added {id} at {(int)tile.X} - {(int)tile.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
             }
             return spawnList;
