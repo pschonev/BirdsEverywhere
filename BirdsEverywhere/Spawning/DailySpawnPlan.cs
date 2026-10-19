@@ -25,31 +25,37 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
     public static DailySpawnPlan Empty { get; } = new(new Dictionary<string, IReadOnlyList<BirdPlacement>>());
 
     internal static DailySpawnPlan Build(IReadOnlySet<string> seenBirds, IReadOnlyDictionary<string, BirdDefinition> catalog,
-        SpawnPatternRegistry patterns, Domain.Season season, Weather weather, int day, Random random, IMonitor monitor)
+        SpawnPatternRegistry patterns, Domain.Season season, Weather weather, int day, double luck, Random random, IMonitor monitor)
     {
-        bool LocationExists(string name)
+        // Missing locations, farm types and fish areas usually belong to a mod or farm type that isn't active.
+        bool HabitatExists(Habitat habitat)
         {
-            if (Game1.getLocationFromName(name) is not null)
-            {
-                return true;
-            }
-
-            monitor.LogOnce($"Unknown location '{name}'; skipping.", LogLevel.Warn);
-            return false;
+            GameLocation? location = Game1.getLocationFromName(habitat.Location);
+            return location is not null
+                && (habitat.FarmType is null || string.Equals(habitat.FarmType, Game1.GetFarmTypeKey(), StringComparison.OrdinalIgnoreCase))
+                && (habitat.FishArea is null || location.GetData()?.FishAreas?.ContainsKey(habitat.FishArea) == true);
         }
 
         Dictionary<string, IReadOnlyList<BirdPlacement>> locations = new(StringComparer.Ordinal);
-        foreach (SpawnAssignment assignment in SpawnPlanner.Plan(catalog, seenBirds, season, weather, day, random, LocationExists))
+        bool Place(SpawnAssignment assignment)
         {
             if (!patterns.TryCreate(assignment.Rule.SpawnPattern, out Spawner? spawner))
             {
                 monitor.Log($"Unknown spawn pattern '{assignment.Rule.SpawnPattern.Value}' for {assignment.Bird.Id.Value}; skipping.", LogLevel.Warn);
-                continue;
+                return false;
             }
 
-            locations[assignment.Location] = spawner.spawnBirds(Game1.getLocationFromName(assignment.Location), assignment.Bird, assignment.Rule, random, monitor);
+            List<BirdPlacement> placements = spawner.spawnBirds(Game1.getLocationFromName(assignment.Location), assignment.Bird, assignment.Rule, assignment.Habitat.FishArea, random, monitor);
+            if (placements.Count == 0)
+            {
+                return false;
+            }
+
+            locations[assignment.Location] = placements;
+            return true;
         }
 
+        SpawnPlanner.Plan(catalog, seenBirds, season, weather, day, luck, random, HabitatExists, Place);
         return new DailySpawnPlan(locations);
     }
 }

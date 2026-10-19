@@ -58,12 +58,12 @@ public abstract class TileSpawner : Spawner
 {
     public TileSpawnCondition condition = null!;
 
-    public override List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor) =>
-        spawnBirds(new GameLocationQuery(location), data, rule, random, monitor);
+    public override List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor) =>
+        spawnBirds(new GameLocationQuery(location), data, rule, fishArea, random, monitor);
 
-    public List<BirdPlacement> spawnBirds(ILocationQuery location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
+    public List<BirdPlacement> spawnBirds(ILocationQuery location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor)
     {
-        List<BirdPlacement> spawnList = TileSelection.Tiles(location, condition, rule.GroupCount, rule.GroupSize, random)
+        List<BirdPlacement> spawnList = TileSelection.Tiles(location, Restrict(rule, fishArea), rule.GroupCount, rule.GroupSize, random)
             .Select(tile => Place(data, rule, tile, null, random))
             .ToList();
         monitor.Log($"Planned {spawnList.Count} {data.Id.Value} at {location.Name}.", LogLevel.Debug);
@@ -72,11 +72,24 @@ public abstract class TileSpawner : Spawner
 
     public override bool IsStillValid(GameLocation location, BirdPlacement placement) =>
         condition(new GameLocationQuery(location), placement.Tile);
+
+    private TileSpawnCondition Restrict(SpawnRule rule, string? fishArea)
+    {
+        IntRange? shore = rule.Params.ShoreDistance;
+        if (shore is null && fishArea is null)
+        {
+            return condition;
+        }
+
+        return (location, tile) => condition(location, tile)
+            && (fishArea is null || location.FishArea(tile) == fishArea)
+            && (shore is not IntRange range || range.Contains(ShoreDistance.From(location, tile)));
+    }
 }
 
 public abstract class Spawner
 {
-    public abstract List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor);
+    public abstract List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor);
 
     public abstract bool IsStillValid(GameLocation location, BirdPlacement placement);
 

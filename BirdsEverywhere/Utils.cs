@@ -10,15 +10,7 @@ public static class Utils
     public static List<T> shuffleByWeights<T>(Random random, List<T> items, List<double> weights)
     {
         double[] keys = weights.Select(w => Math.Pow(random.NextDouble(), 1.0 / w)).ToArray();
-        return Enumerable.Range(0, items.Count).OrderBy(i => keys[i]).Select(i => items[i]).ToList();
-    }
-
-    public static List<T> shuffleListByOrder<T>(Random random, List<T> items, double luckLevel = 2.0)
-    {
-        luckLevel = Clamp(luckLevel, 0.0, 10.0);
-        List<double> birdWeights = Enumerable.Range(1, items.Count).Select(x => (double)x).ToList();
-        birdWeights = birdWeights.Select(x => Math.Pow(x, luckLevel) / Math.Log(items.Count, 2)).ToList();
-        return shuffleByWeights(random, items, birdWeights);
+        return Enumerable.Range(0, items.Count).OrderByDescending(i => keys[i]).Select(i => items[i]).ToList();
     }
 
     public static T Clamp<T>(this T val, T min, T max) where T : IComparable<T>

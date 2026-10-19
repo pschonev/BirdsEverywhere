@@ -111,7 +111,8 @@ public class ModEntry : Mod
 
         _catalog = catalog.ToImmutableDictionary(StringComparer.Ordinal);
         _effective = effective;
-        _eligibleLocations = catalog.Values.SelectMany(bird => bird.Rules).SelectMany(rule => rule.Locations).ToHashSet(StringComparer.Ordinal);
+        _eligibleLocations = catalog.Values.SelectMany(bird => bird.Rules).SelectMany(rule => rule.Locations)
+            .Select(key => Habitat.Parse(key).Location).ToHashSet(StringComparer.Ordinal);
     }
 
     private void LogIssue(ValidationIssue issue) => Monitor.Log(issue.ToString(), issue.Severity switch
@@ -180,7 +181,7 @@ public class ModEntry : Mod
                 : Game1.isSnowing ? Weather.Snow
                 : Game1.isDebrisWeather ? Weather.Wind
                 : Game1.isRaining ? Weather.Rain : Weather.Sun;
-            _plan = DailySpawnPlan.Build(_saveData.seenBirds, _catalog, _spawnPatterns, season, weather, Game1.dayOfMonth, random, Monitor);
+            _plan = DailySpawnPlan.Build(_saveData.seenBirds, _catalog, _spawnPatterns, season, weather, Game1.dayOfMonth, Game1.player.DailyLuck, random, Monitor);
             _messages.SendToAll(MessageJson.Serialize(_plan), MessageTypes.BirdLocationsNewDay);
         }
 

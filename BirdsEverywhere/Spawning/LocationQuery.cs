@@ -10,6 +10,7 @@ public interface ILocationQuery
     bool IsGroundTile(Vector2 tile);
     bool IsWaterTile(Vector2 tile);
     bool IsSpawnableGroundTile(Vector2 tile);
+    string? FishArea(Vector2 tile);
 }
 
 public sealed class GameLocationQuery : ILocationQuery
@@ -45,6 +46,9 @@ public sealed class GameLocationQuery : ILocationQuery
             && !_location.isBehindBush(tile)
             && !_location.isBehindTree(tile);
     }
+
+    public string? FishArea(Vector2 tile) =>
+        _location.TryGetFishAreaForTile(tile, out string id, out _) ? id : null;
 
     private bool HasWater(Vector2 tile) =>
         _location.doesTileHaveProperty((int)tile.X, (int)tile.Y, "Water", "Back") != null;

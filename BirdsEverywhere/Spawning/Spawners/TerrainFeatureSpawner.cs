@@ -22,7 +22,7 @@ public class TreeTrunkSpawner : TerrainFeatureSpawner
         condition = (location, index, position) => isEligibleTree(location, index, position);
     }
 
-    public override List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
+    public override List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor)
     {
         List<TerrainFeature> features = location.terrainFeatures.Pairs.Select(pair => pair.Value).ToList();
         IEnumerable<int> trees = Enumerable.Range(0, features.Count).Where(index => isEligibleTree(location, index, Vector2.Zero));
@@ -41,7 +41,7 @@ public class BushSpawner : TerrainFeatureSpawner
         condition = (location, index, position) => straightPathToBush(location, index, position);
     }
 
-    public override List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
+    public override List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor)
     {
         IEnumerable<int> bushes = Enumerable.Range(0, location.largeTerrainFeatures.Count).Where(index => location.largeTerrainFeatures[index] is Bush);
         return Placements(TileSelection.Features(bushes, rule.GroupCount, random, (index, r) => PlaceNearBush(location, index, r)), location, data, rule, random, monitor);

@@ -146,9 +146,10 @@ A rule is one situation in which the bird can appear. `defaults` has the same fi
 | `when.weather` | `["sun" \| "rain" \| "storm" \| "snow" \| "wind" \| "greenRain"]` | today's weather at day start; festival and wedding days count as `sun`; missing = any |
 | `when.days` | `[[min, max], ...]` | day of month, 1–28, inclusive; missing = any |
 | `when.times` | `[[min, max], ...]` | game time `HHMM`, 600–2600, inclusive; gates spawning only; missing = any |
-| `locations` | `["Forest", "@coast", ...]` | location names or `@group` references, expanded at load |
+| `locations` | `["Forest", "Farm_Riverland", "Forest:River", "@coast", ...]` | location names or `@group` references, expanded at load; `Farm_<type>` = Farm on that farm type; `:Name` = fish area of the location |
 | `spawnPattern` | registry id | where birds are placed, e.g. `SpawnableGroundSpawner` |
 | `birdType` | registry id | critter class, e.g. `LandBird` |
+| `spawnParams.shoreDistance` | `[min, max]` | tiles (0–20) to the nearest opposite kind (ground for water tiles, water for ground tiles); planning-time only; missing = any |
 | `groupCount`, `groupSize` | `[min, max]` | inclusive |
 | `textures` | `{ "<variant>": weight }` | `""` is the base sprite; other keys are texture variants |
 | `weight` | number > 0 | selection weight among eligible rules; C# fallback `1` |
@@ -537,7 +538,7 @@ Goals, not designs; Phase 6 decides the implementation.
 
 - The daily roll at `DayStarted` takes `Game1.player.DailyLuck` as a planner input (multiplayer: host or average, decide later). It stays seeded per save and day: random, but reproducible.
 - Unseen birds in the main region: usually 1 per day, a small chance of 2, a tiny chance of 3. Luck raises or lowers these chances.
-- Candidates are ordered by rarity, and a bias curve favours the top unseen entries (today `Utils.shuffleListByOrder` with a fixed `luckLevel` of 2.0, currently unused; `DailySpawner` just sorts unseen first). Good luck flattens the curve (more random, less rarity-driven); bad luck steepens it.
+- Implemented: unseen count is 1, with luck-shifted chances of 2 and 3 (`SpawnPlanner.UnseenCount`). Candidates are drawn by weight (`Utils.shuffleByWeights`, heavier first); a bird's weight is the sum of its eligible rule weights raised to `clamp(1 - 5 * luck, 0.5, 1.5)`, so good luck flattens the curve and bad luck steepens it. A bird, rule or location whose placement comes back empty is skipped for the next (feasibility fallback). One bird per base location; the limit is half the distinct base locations, minimum 1.
 - Luck is one of several generic "birding modifiers"; keep room for birding experience or progression to raise the count and rarity of birds seen.
 - A bird's spawn chance combines its position in the rarity order with a per-rule weight modifier in config, e.g. very likely at peak migration and rare on the days around it.
 - Seen birds use the same rarity and weight model but have no 1-per-day limit: one or more species per area is fine when the rules fit. Groups of different species in one location keep a minimum distance; the daily plan records each group's area so placements don't overlap.

@@ -28,11 +28,20 @@ public sealed record SpawnRuleJson
     [JsonProperty("weight")]
     public int Weight { get; init; } = 1;
 
+    [JsonProperty("spawnParams")]
+    public SpawnParamsJson? SpawnParams { get; init; }
+
     [JsonProperty("routineWeights")]
     public Dictionary<string, int>? RoutineWeights { get; init; }
 
     [JsonProperty("threatResponse")]
     public string? ThreatResponse { get; init; }
+}
+
+public sealed record SpawnParamsJson
+{
+    [JsonProperty("shoreDistance")]
+    public int[]? ShoreDistance { get; init; }
 }
 
 public sealed record SpawnWhenJson

@@ -20,6 +20,7 @@ namespace BirdsEverwhyere.UnitTests
             public bool IsGroundTile(Vector2 tile) => tile.X < 20;
             public bool IsWaterTile(Vector2 tile) => tile.X >= 20;
             public bool IsSpawnableGroundTile(Vector2 tile) => IsGroundTile(tile);
+            public string? FishArea(Vector2 tile) => tile.Y < 15 ? "River" : "Lake";
         }
 
         private sealed class NullMonitor : IMonitor
@@ -31,12 +32,12 @@ namespace BirdsEverwhyere.UnitTests
             public void VerboseLog(ref StardewModdingAPI.Framework.Logging.VerboseLogStringHandler message) { }
         }
 
-        private static (BirdDefinition Bird, SpawnRule Rule) MakeBird()
+        private static (BirdDefinition Bird, SpawnRule Rule) MakeBird(string pattern = "GroundSpawner", SpawnParams? spawnParams = null)
         {
             SpawnRule rule = new("spring", new SpawnConditions(ImmutableArray<Season>.Empty, ImmutableArray<Weather>.Empty,
                 ImmutableArray<IntRange>.Empty, ImmutableArray<IntRange>.Empty), ImmutableArray.Create("Forest"),
-                new SpawnPatternId("GroundSpawner"), new BirdTypeId("LandBird"), new IntRange(2, 2), new IntRange(3, 3),
-                new Dictionary<string, int> { [""] = 1 }, 1);
+                new SpawnPatternId(pattern), new BirdTypeId("LandBird"), new IntRange(2, 2), new IntRange(3, 3),
+                new Dictionary<string, int> { [""] = 1 }, 1, spawnParams ?? SpawnParams.None);
             return (new BirdDefinition(new BirdId("blue_tit"), "Blue Tit", "Cyanistes caeruleus", "", ImmutableArray.Create(rule)), rule);
         }
 
@@ -44,9 +45,54 @@ namespace BirdsEverwhyere.UnitTests
         {
             (BirdDefinition bird, SpawnRule rule) = MakeBird();
             return new GroundSpawner()
-                .spawnBirds(new FakeLocation(), bird, rule, new Random(seed), new NullMonitor())
+                .spawnBirds(new FakeLocation(), bird, rule, null, new Random(seed), new NullMonitor())
                 .Select(p => p.Tile)
                 .ToList();
+        }
+
+        private static List<Vector2> SpawnWith(TileSpawner spawner, SpawnParams spawnParams, string? fishArea, string pattern, int seed)
+        {
+            (BirdDefinition bird, SpawnRule rule) = MakeBird(pattern, spawnParams);
+            return spawner.spawnBirds(new FakeLocation(), bird, rule, fishArea, new Random(seed), new NullMonitor()).Select(p => p.Tile).ToList();
+        }
+
+        [Test]
+        public void ShoreDistance_MeasuresToOppositeKind()
+        {
+            Assert.That(ShoreDistance.From(new FakeLocation(), new Vector2(19, 10)), Is.EqualTo(1));
+            Assert.That(ShoreDistance.From(new FakeLocation(), new Vector2(15, 10)), Is.EqualTo(5));
+            Assert.That(ShoreDistance.From(new FakeLocation(), new Vector2(22, 10)), Is.EqualTo(3));
+        }
+
+        [Test]
+        public void GroundSpawner_ShoreDistance_KeepsOnlyTilesNearWater()
+        {
+            for (int seed = 0; seed < 20; seed++)
+            {
+                List<Vector2> tiles = SpawnWith(new GroundSpawner(), new SpawnParams(new IntRange(1, 3)), null, "GroundSpawner", seed);
+
+                Assert.That(tiles.All(t => t.X >= 17 && t.X < 20), Is.True);
+            }
+        }
+
+        [Test]
+        public void WaterSpawner_FishArea_KeepsOnlyThatArea()
+        {
+            for (int seed = 0; seed < 20; seed++)
+            {
+                List<Vector2> tiles = SpawnWith(new WaterSpawner(), SpawnParams.None, "Lake", "WaterSpawner", seed);
+
+                Assert.That(tiles.All(t => t.Y >= 15 && t.X >= 20), Is.True);
+            }
+        }
+
+        [TestCase("Town", "Town", null, null)]
+        [TestCase("Farm_Forest", "Farm", "Forest", null)]
+        [TestCase("Farm_Meadowlands:River", "Farm", "Meadowlands", "River")]
+        [TestCase("Forest:Lake", "Forest", null, "Lake")]
+        public void Habitat_Parse(string key, string location, string? farmType, string? fishArea)
+        {
+            Assert.That(Habitat.Parse(key), Is.EqualTo(new Habitat(key, location, farmType, fishArea)));
         }
 
         [Test]
@@ -72,6 +118,7 @@ namespace BirdsEverwhyere.UnitTests
             public bool IsGroundTile(Vector2 tile) => true;
             public bool IsWaterTile(Vector2 tile) => false;
             public bool IsSpawnableGroundTile(Vector2 tile) => true;
+            public string? FishArea(Vector2 tile) => null;
         }
 
         [Test]
@@ -119,11 +166,13 @@ namespace BirdsEverwhyere.UnitTests
         }
 
         [Test]
-        public void ShuffleListByOrder_SameSeed_SameOrder()
+        public void ShuffleByWeights_FavoursHeavyItems()
         {
-            List<int> items = Enumerable.Range(0, 10).ToList();
+            List<int> items = new() { 0, 1 };
+            List<double> weights = new() { 1, 20 };
+            int heavyFirst = Enumerable.Range(0, 200).Count(seed => Utils.shuffleByWeights(new Random(seed), items, weights)[0] == 1);
 
-            Assert.That(Utils.shuffleListByOrder(new Random(3), items), Is.EqualTo(Utils.shuffleListByOrder(new Random(3), items)));
+            Assert.That(heavyFirst, Is.GreaterThan(150));
         }
 
         [Test]
@@ -139,11 +188,12 @@ namespace BirdsEverwhyere.UnitTests
             SpawnRule rule = new("r", new SpawnConditions(ImmutableArray.Create(season), ImmutableArray<Weather>.Empty,
                 ImmutableArray<IntRange>.Empty, ImmutableArray<IntRange>.Empty), locations.ToImmutableArray(),
                 new SpawnPatternId("GroundSpawner"), new BirdTypeId("LandBird"), new IntRange(1, 1), new IntRange(1, 1),
-                new Dictionary<string, int> { [""] = 1 }, 1);
+                new Dictionary<string, int> { [""] = 1 }, 1, SpawnParams.None);
             return new BirdDefinition(new BirdId(id), id, "", "", ImmutableArray.Create(rule));
         }
 
-        private static IReadOnlyList<SpawnAssignment> Plan(IReadOnlySet<string> seen, int seed, Func<string, bool>? exists = null)
+        private static IReadOnlyList<SpawnAssignment> Plan(IReadOnlySet<string> seen, int seed, Func<string, bool>? exists = null,
+            Func<SpawnAssignment, bool>? place = null, double luck = 0)
         {
             Dictionary<string, BirdDefinition> catalog = new[]
             {
@@ -151,7 +201,8 @@ namespace BirdsEverwhyere.UnitTests
                 PlannerBird("b", Season.Spring, "Forest", "Beach", "Mountain"),
                 PlannerBird("c", Season.Winter, "Desert", "Woods"),
             }.ToDictionary(bird => bird.Id.Value);
-            return SpawnPlanner.Plan(catalog, seen, Season.Spring, Weather.Sun, 1, new Random(seed), exists ?? (_ => true));
+            return SpawnPlanner.Plan(catalog, seen, Season.Spring, Weather.Sun, 1, luck, new Random(seed),
+                habitat => (exists ?? (_ => true))(habitat.Location), place ?? (_ => true));
         }
 
         [Test]
@@ -185,6 +236,35 @@ namespace BirdsEverwhyere.UnitTests
                 Assert.That(plan[0].Bird.Id.Value, Is.EqualTo("b"));
                 Assert.That(plan.Count(p => p.Bird.Id.Value == "b"), Is.EqualTo(1));
             }
+        }
+
+        [Test]
+        public void SpawnPlanner_InfeasibleLocation_FallsBackToNextOne()
+        {
+            for (int seed = 0; seed < 20; seed++)
+            {
+                IReadOnlyList<SpawnAssignment> plan = Plan(new HashSet<string>(), seed, place: assignment => assignment.Location == "Town");
+
+                Assert.That(plan, Has.Count.EqualTo(1));
+                Assert.That(plan[0].Location, Is.EqualTo("Town"));
+                Assert.That(plan[0].Bird.Id.Value, Is.EqualTo("a"));
+            }
+        }
+
+        [Test]
+        public void SpawnPlanner_NothingFeasible_PlansNothing()
+        {
+            Assert.That(Plan(new HashSet<string>(), 1, place: _ => false), Is.Empty);
+        }
+
+        [Test]
+        public void SpawnPlanner_UnseenCount_LuckRaisesChances()
+        {
+            double Average(double luck) => Enumerable.Range(0, 2000).Average(seed => SpawnPlanner.UnseenCount(luck, new Random(seed)));
+
+            Assert.That(Average(0), Is.InRange(1.05, 1.3));
+            Assert.That(Average(0.1), Is.GreaterThan(Average(0)));
+            Assert.That(Average(-0.1), Is.LessThan(Average(0)));
         }
 
         [Test]
