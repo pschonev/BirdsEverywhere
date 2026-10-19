@@ -47,6 +47,18 @@ public static class Utils
         return listToPickFrom[random.Next(listToPickFrom.Count)];
     }
 
+    public static List<T> Shuffle<T>(Random random, IEnumerable<T> items)
+    {
+        List<T> shuffled = items.ToList();
+        for (int i = shuffled.Count - 1; i > 0; i--)
+        {
+            int j = random.Next(i + 1);
+            (shuffled[i], shuffled[j]) = (shuffled[j], shuffled[i]);
+        }
+
+        return shuffled;
+    }
+
     public static int NextInclusive(Random random, int min, int max)
     {
         if (min > max)
