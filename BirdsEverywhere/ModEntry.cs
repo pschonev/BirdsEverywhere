@@ -10,7 +10,6 @@ using StardewValley.BellsAndWhistles;
 using BirdsEverywhere.Spawners;
 using BirdsEverywhere.BirdTypes;
 using BirdsEverywhere.BirdList;
-using Newtonsoft.Json;
 
 namespace BirdsEverywhere
 {
@@ -41,32 +40,6 @@ namespace BirdsEverywhere
             helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
 
             helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", Logging.PrintSeenBirds);
-
-            JsonConverter[] converters = { new SpawnConverter(),
-                new CustomBirdTypeConverterWriter(), new CustomBirdTypeConverterReader()};
-            JsonConvert.DefaultSettings = () => new JsonSerializerSettings
-            {
-                Converters = converters,
-                Error = OnJsonError
-            };
-        }
-
-        private static void OnJsonError(object? sender,
-Newtonsoft.Json.Serialization.ErrorEventArgs e)
-        {
-            if (e.CurrentObject is null)
-            {
-                ModEntry.modInstance.Monitor.Log($"Serialization on {e.ErrorContext.Path} generated an exception {e.ErrorContext.Error.GetType().Name} with warning {e.ErrorContext.Error.Message}",
-                LogLevel.Error);
-            }
-            else
-            {
-                ModEntry.modInstance.Monitor.Log($"Serialization on {e.CurrentObject.GetType().Name} had issues with path {e.ErrorContext.Path} and generated an exception {e.ErrorContext.Error.GetType().Name} with warning {e.ErrorContext.Error.Message}",
-                LogLevel.Error);
-            }
-
-            e.ErrorContext.Handled = true;
-
         }
 
         // ##################
@@ -124,7 +97,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                 dailySpawner.initializeBirdLocations(saveData.seenBirds, environmentData.biomes);
 
                 // send bird locations for today to any farmhands
-                this.Helper.Multiplayer.SendMessage(dailySpawner, "BirdLocationsForFarmhandsNewDay", modIDs: new[] { this.ModManifest.UniqueID });
+                this.Helper.Multiplayer.SendMessage(MessageJson.Serialize(dailySpawner), "BirdLocationsForFarmhandsNewDay", modIDs: new[] { this.ModManifest.UniqueID });
             }
 
             Logging.LogBirdSeenStatus();
@@ -142,7 +115,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                 Monitor.Log($"{Game1.player.Name} got request to send active birds.", LogLevel.Debug);
                 List<CustomBirdType> birds = Game1.currentLocation.critters.Where(x => x is CustomBirdType).Select(x => x as CustomBirdType).ToList();
 
-                this.Helper.Multiplayer.SendMessage((e.FromPlayerID, birds),
+                this.Helper.Multiplayer.SendMessage(MessageJson.Serialize((e.FromPlayerID, birds)),
                     "UpdateCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
                 foreach (CustomBirdType bird in Game1.currentLocation.critters.OfType<CustomBirdType>())
                 {
@@ -154,13 +127,12 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
             // update birds according to the previous request
             if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateCurrentBirds")
             {
-                long sendingPlayerID = e.ReadAs<(long id, List<CustomBirdType> birds)>().id;
+                (long sendingPlayerID, List<CustomBirdType> birds) = MessageJson.Deserialize<(long id, List<CustomBirdType> birds)>(e.ReadAs<string>());
                 Monitor.Log($"Player ID who received active bird data: {Game1.player.UniqueMultiplayerID} Player ID who supposedly first sent request {sendingPlayerID}. Matching? - {Game1.player.UniqueMultiplayerID == sendingPlayerID}", LogLevel.Debug);
                 if (Game1.player.UniqueMultiplayerID == sendingPlayerID)
                 {
                     Monitor.Log($"{Game1.player.Name} got active birds and updates critter list.", LogLevel.Debug);
                     Game1.currentLocation.instantiateCrittersList();
-                    List<CustomBirdType> birds = e.ReadAs<(long id, List<CustomBirdType> birds)>().birds;
                     Game1.currentLocation.critters.AddRange(birds);
                 }
 
@@ -183,7 +155,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
             {
                 // farmhand receives birds today after day starts
                 if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsNewDay")
-                    dailySpawner = e.ReadAs<DailySpawner>();
+                    dailySpawner = MessageJson.Deserialize<DailySpawner>(e.ReadAs<string>());
 
                 // farmhand receives SaveData on connect
                 if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateFarmhandSave")
@@ -196,7 +168,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                 if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsOnConnect")
                 {
                     Monitor.Log($"{Game1.player.Name} received bird data.", LogLevel.Debug);
-                    dailySpawner = e.ReadAs<DailySpawner>();
+                    dailySpawner = MessageJson.Deserialize<DailySpawner>(e.ReadAs<string>());
                 }
 
             }
@@ -210,7 +182,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                 this.Helper.Multiplayer.SendMessage(saveData, "UpdateFarmhandSave", modIDs: new[] { this.ModManifest.UniqueID });
 
                 // host sends bird locations (DailySapwner) to connected farmhand
-                this.Helper.Multiplayer.SendMessage(dailySpawner, "BirdLocationsForFarmhandsOnConnect", modIDs: new[] { this.ModManifest.UniqueID });
+                this.Helper.Multiplayer.SendMessage(MessageJson.Serialize(dailySpawner), "BirdLocationsForFarmhandsOnConnect", modIDs: new[] { this.ModManifest.UniqueID });
             }
         }
 
@@ -220,9 +192,9 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
 
         private void Player_Warped(object sender, WarpedEventArgs e)
         {
-            modInstance.Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
             if (e.NewLocation == null)
                 return;
+            modInstance.Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
             removeVanillaBirds(e.NewLocation);
 
             if (!Utils.isEligibleLocation(e.NewLocation))
@@ -265,10 +237,6 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
             if (location.critters == null)
                 return;
 
-            foreach (var x in location.critters)
-            {
-                modInstance.Monitor.Log($"Spawn {x} at {x.position.X / 64} / {x.position.Y / 64}", LogLevel.Debug);
-            }
             location.critters.RemoveAll(c => isVanillaBird(c));
         }
 
@@ -283,7 +251,7 @@ Newtonsoft.Json.Serialization.ErrorEventArgs e)
                 if (g.pages[indexOfCollectionsPage] is CollectionsPage c)
                 {
                     // converting to my custom CollectionsPage
-                    CollectionsPageWithBirds cp = new CollectionsPageWithBirds(c);
+                    CollectionsPageWithBirds cp = new CollectionsPageWithBirds(c, Helper.Reflection);
 
                     // cp adding the clickable tab
                     string iconAssetPath = $"assets/collections_tab_icon.png";

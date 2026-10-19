@@ -7,9 +7,16 @@ namespace BirdsEverywhere.BirdList
 {
     class CollectionsPageWithBirds : CollectionsPage
     {
-        public CollectionsPageWithBirds(CollectionsPage cp)
+        private readonly IReflectedField<string> _hoverText;
+        private readonly IReflectedField<int> _value;
+        private readonly IReflectedField<Item> _hoverItem;
+
+        public CollectionsPageWithBirds(CollectionsPage cp, IReflectionHelper reflection)
             : base(cp.xPositionOnScreen, cp.yPositionOnScreen, cp.width, cp.height)
         {
+            _hoverText = reflection.GetField<string>(this, "hoverText");
+            _value = reflection.GetField<int>(this, "value");
+            _hoverItem = reflection.GetField<Item>(this, "hoverItem");
             this.backButton = cp.backButton;
             this.forwardButton = cp.forwardButton;
             this.sideTabs = cp.sideTabs;
@@ -24,9 +31,9 @@ namespace BirdsEverywhere.BirdList
 
         public override void performHoverAction(int x, int y)
         {
-            IReflectedField<string> hoverText = ModEntry.modInstance.Helper.Reflection.GetField<string>(this, "hoverText");
-            IReflectedField<int> value = ModEntry.modInstance.Helper.Reflection.GetField<int>(this, "value");
-            IReflectedField<Item> hoverItem = ModEntry.modInstance.Helper.Reflection.GetField<Item>(this, "hoverItem");
+            IReflectedField<string> hoverText = _hoverText;
+            IReflectedField<int> value = _value;
+            IReflectedField<Item> hoverItem = _hoverItem;
 
             hoverText.SetValue("");
             value.SetValue(-1);
