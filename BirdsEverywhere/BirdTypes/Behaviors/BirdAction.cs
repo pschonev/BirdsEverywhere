@@ -7,6 +7,7 @@ internal enum BirdAction
     Stop,
     Sleep,
     Peck,
+    Rest,
     Hop,
     TurnAndHop,
     Walk,

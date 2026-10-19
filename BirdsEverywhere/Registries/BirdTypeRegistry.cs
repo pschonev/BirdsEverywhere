@@ -19,10 +19,10 @@ internal sealed class BirdTypeRegistry
         [new BirdTypeId("LandBird")] = (p, _, s) => new LandBird((int)p.position.X, (int)p.position.Y, p.ID, p.texture, s),
         [new BirdTypeId("WaterLandBird")] = (p, _, s) => new WaterLandBird((int)p.position.X, (int)p.position.Y, p.ID, p.texture, s),
         [new BirdTypeId("TreeTrunkBird")] = (p, l, s) => p is SingleBirdSpawnParamsTerrainFeature f
-            ? new TreeTrunkBird((int)p.position.X, (int)p.position.Y, p.ID, p.texture, s).setTerrainFeature(f.terrainFeatureIndex, l.Name)
+            ? new TreeTrunkBird((int)p.position.X, (int)p.position.Y, p.ID, p.texture, s).SetAnchor(f.terrainFeatureIndex, l.Name)
             : null,
         [new BirdTypeId("BushBird")] = (p, l, s) => p is SingleBirdSpawnParamsTerrainFeature f
-            ? new BushBird((int)p.position.X, (int)p.position.Y, p.ID, p.texture, s).setTerrainFeature(f.terrainFeatureIndex, l.Name)
+            ? new BushBird((int)p.position.X, (int)p.position.Y, p.ID, p.texture, s).SetAnchor(f.terrainFeatureIndex, l.Name)
             : null,
     });
 
