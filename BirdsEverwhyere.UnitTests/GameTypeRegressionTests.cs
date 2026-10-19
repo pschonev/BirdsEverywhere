@@ -38,16 +38,17 @@ namespace BirdsEverwhyere.UnitTests
         [Test]
         public void SpawnParams_RoundTrip_KeepsSpawnPattern()
         {
-            JsonSerializerSettings settings = JsonHelper.CreateDefaultSettings();
-            settings.Converters.Add(new SpawnConverter());
-            SingleBirdSpawnParameters original = new SingleBirdSpawnParamsTile(
-                (_, _, _, _) => true, new Vector2(4, 5), "blue_tit", "LandBird", "GroundSpawner",
-                new List<TimeRange> { new TimeRange(600, 2400) }, "blue_tit");
+            DailySpawner original = new();
+            original.LocationBirdPosition["Forest"] = new List<SingleBirdSpawnParameters>
+            {
+                new SingleBirdSpawnParamsTile(
+                    (_, _, _, _) => true, new Vector2(4, 5), "blue_tit", "LandBird", "GroundSpawner",
+                    new List<TimeRange> { new TimeRange(600, 2400) }, "blue_tit"),
+            };
 
-            string json = JsonConvert.SerializeObject(original, settings);
-            SingleBirdSpawnParameters reloaded = JsonConvert.DeserializeObject<SingleBirdSpawnParameters>(json, settings)!;
+            DailySpawner reloaded = MessageJson.Deserialize<DailySpawner>(MessageJson.Serialize(original));
 
-            Assert.That(reloaded.spawnPattern, Is.EqualTo("GroundSpawner"));
+            Assert.That(reloaded.LocationBirdPosition["Forest"].Single().spawnPattern, Is.EqualTo("GroundSpawner"));
         }
 
         [Test]

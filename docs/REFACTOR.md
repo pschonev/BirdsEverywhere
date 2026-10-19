@@ -216,10 +216,10 @@ Observed: birds without `defaultSpawnData` get global defaults (Forest, 1–2 gr
 | Template merge in `[JsonConstructor]` loads files via `ModEntry.modInstance`; `MergeDictionaries` shares list references with the template | [BirdData.cs](../BirdsEverywhere/Data/BirdData.cs#L46), [Utils.cs](../BirdsEverywhere/Utils.cs#L102) | 3 |
 | `timeOfDayRanges` never checked: `isTimeOfDayPossible` is unused, `possibleSpawnDataToday` ignores time | [SpawnData.cs](../BirdsEverywhere/Data/SpawnData.cs#L42), [DailySpawner.cs](../BirdsEverywhere/Spawning/DailySpawner.cs#L66) | 3/6 |
 | `CopyProperties` treats `0`/`false` as unset, so a bird cannot override a template value with 0 or false | [Reflection.cs](../BirdsEverywhere/Data/Reflection.cs) | 3 |
-| Process-wide `JsonConvert.DefaultSettings`; `OnJsonError` marks every error handled → silent bad data | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs#L47) | 2 |
+| ~~Process-wide `JsonConvert.DefaultSettings`; `OnJsonError` marks every error handled → silent bad data~~ (messages use `MessageJson` with explicit settings) | [MessageJson.cs](../BirdsEverywhere/MessageJson.cs) | 2 |
 | Debug output written to `assets/inspect_output/` on every save load | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs#L108) | 3 |
-| `Player_Warped` logs `e.NewLocation.Name` before the null check | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs#L223) | 2 |
-| Vanilla-bird removal logs every critter on every `TimeChanged` | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs#L263) | 2 |
+| ~~`Player_Warped` logs `e.NewLocation.Name` before the null check~~ | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs) | 2 |
+| ~~Vanilla-bird removal logs every critter on every `TimeChanged`~~ | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs) | 2 |
 | `Game1.random` used throughout spawning → not reproducible or testable | [Spawning/](../BirdsEverywhere/Spawning) | 2/6 |
 
 **Exit:** every row fixed with a regression test (or a documented in-game check where a test is impossible).
