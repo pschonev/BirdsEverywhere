@@ -439,17 +439,26 @@ classDiagram
     }
     class IBirdBehavior {
       <<interface>>
-      +Tick(BirdContext ctx) BehaviorResult
+      +Decide(BirdContext ctx) BirdAction
     }
 ```
 
 - `BirdCritter` owns identity, position, sprite, lifecycle, and an ordered behavior list. Concrete birds are `sealed` and mainly choose behaviors and anchoring.
 - Behaviors (wander, peck, hop, swim, perch, flee, despawn) are small classes behind `IBirdBehavior`. Their decision logic is a pure function over a `BirdContext` record (position, nearest farmer distance, anchor still valid, elapsed time, `Random`) so it can be tested without the game.
-- Behavior order and conflict rules live in one place (`BirdCritter.update`), not spread over overrides.
+- Behavior order and conflict rules live in one ordered list per bird type (`BirdBehaviors`); the first behavior returning an action wins. The bird applies the action (state, animation, movement).
+- Idle options and weights become data: defaults per bird type, overrides per species in JSON. An action is only listed for species whose sprite sheet has its frames, so the sheet needs a fixed frame layout per action.
 - Terrain-feature birds resolve their `TerrainAnchor` by location and tile each update. If the feature is gone or changed kind, the bird despawns cleanly.
 - Each bird owns a `Random` seeded from its placement seed, so behavior is reproducible across peers.
 
 The migration is gradual: inheritance stays where it is simple and stable; composition replaces it only where combining behaviors would otherwise need more subclasses.
+
+## Vanilla critters
+
+- Only vanilla birds that we replace are removed: `Birdie`, `Seagull`, `Owl`, `Woodpecker`. All other critters (butterflies, fireflies, rabbits, squirrels, frogs, crabs, clouds, etc.) stay untouched.
+- `Crow` stays vanilla because it is part of the crop-eating mechanic. Seeing one registers an observation of Carrion Crow (*Corvus corone*).
+- Ginger Island `PerchingBird` / `OverheadParrot` stay vanilla and are registered on observation as a real Central American species chosen to match the sprite (candidates: *Ara macao*, *Amazona autumnalis*, *Brotogeris jugularis*). Walnut and Leo's parrots are not critters and are ignored.
+- Observe-only birds are normal catalog entries (name, scientific name, description, bird-list image) with no spawn rules; validation allows this explicitly. Detection maps a vanilla critter type to a bird id and runs at the existing 200 ms / time-change cadence, never per tick.
+- Our placements keep a minimum distance from existing critters and never share their tile.
 
 ## Daily spawn flow
 
@@ -537,7 +546,13 @@ Goals, not designs; Phase 6 decides the implementation.
 
 - A small set of general spawn patterns (ground, tree trunk, tree canopy, bush, fence or other placed object, water, shore, flying), parameterized from JSON via a `spawnParams` field on `SpawnRule`.
 - Patterns search the map for the kind of spot wanted (tile properties, water body kind such as river, pond or ocean, object or feature kind, proximity, or a coarse map region such as "bottom edge"). Never hardcode coordinates; they break when the game or map mods change.
+- Candidate spots too close to vanilla critters are rejected (see [Vanilla critters](#vanilla-critters)).
 - Each pattern has a cheap feasibility check (e.g. "this location has no fences") that runs before the candidate search. On failure the planner tries the bird's next rule or location, then the next bird, so an unseen bird always spawns if any can be placed, though not necessarily the first one tried.
+
+### Behaviors: alert and foraging
+
+- Threat response has two radii instead of instant flee: inside the outer radius the bird freezes (`Alert` state, head-up frame), inside the inner radius it flees, and it resumes idling a short while after the threat leaves the outer radius. A running farmer counts as closer, so sneaking pays off. `BirdContext` carries the threat distance instead of a bool; order becomes `Flee(inner) → Alert(outer) → Wake → IdleRoutine`.
+- Rare forage events are data-selected behaviors: worm pull (e.g. blackbird), fish strike near water (e.g. egret, reusing the vanilla splash sprite), and diving while swimming (ducks, grebes: hide, then resurface on a nearby water tile).
 
 ## Out of scope for now
 
