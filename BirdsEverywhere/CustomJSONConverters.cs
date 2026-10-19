@@ -89,9 +89,9 @@ namespace BirdsEverywhere
                 case "WaterLandBird":
                     return jo.ToObject<WaterLandBird>(serializer).setAnimatedSprite(sprite);
                 case "BushBird":
-                    return jo.ToObject<BushBird>(serializer).setTerrainFeature(jo["index"].Value<int>(), jo["locationName"].Value<string>()).setAnimatedSprite(sprite);
+                    return jo.ToObject<BushBird>(serializer).SetAnchor(jo["index"].Value<int>(), jo["locationName"].Value<string>()).setAnimatedSprite(sprite);
                 case "TreeTrunkBird":
-                    return jo.ToObject<TreeTrunkBird>(serializer).setTerrainFeature(jo["index"].Value<int>(), jo["locationName"].Value<string>()).setAnimatedSprite(sprite);
+                    return jo.ToObject<TreeTrunkBird>(serializer).SetAnchor(jo["index"].Value<int>(), jo["locationName"].Value<string>()).setAnimatedSprite(sprite);
             }
             return null;
         }

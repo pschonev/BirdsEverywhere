@@ -79,14 +79,17 @@ abstract class BirdCritter : Critter
     }
 
     /// <summary>Returns a farmer or character within <paramref name="radiusTiles"/>, checked at most every 200 ms.</summary>
-    protected Character? PollThreat(GameTime time, GameLocation location, int radiusTiles)
+    protected Character? PollThreat(GameTime time, GameLocation location, int radiusTiles) =>
+        CheckIntervalElapsed(time) ? Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, radiusTiles, location) : null;
+
+    protected bool CheckIntervalElapsed(GameTime time)
     {
         characterCheckTimer -= time.ElapsedGameTime.Milliseconds;
         if (characterCheckTimer >= 0)
         {
-            return null;
+            return false;
         }
         characterCheckTimer = ThreatCheckIntervalMs;
-        return Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, radiusTiles, location);
+        return true;
     }
 }

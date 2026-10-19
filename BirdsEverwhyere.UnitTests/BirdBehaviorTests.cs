@@ -60,4 +60,37 @@ internal sealed class BirdBehaviorTests
     [TestCase(BehaviorStatus.Walking)]
     public void OtherStates_NoDecision(BehaviorStatus state) =>
         Assert.That(Decide(state), Is.EqualTo(BirdAction.None));
+
+    private static BirdAction DecideWaterLand(BehaviorStatus state, bool threat = false, bool idle = true, double roll = 0.0, int pick = 0) =>
+        BirdBehaviors.Decide(BirdBehaviors.WaterLand, new BirdContext(state, threat, idle, false, new FixedRandom(roll, pick)));
+
+    [TestCase(BehaviorStatus.Stopped)]
+    [TestCase(BehaviorStatus.Walking)]
+    [TestCase(BehaviorStatus.Swimming)]
+    public void WaterLand_ThreatFleesFirst(BehaviorStatus state) =>
+        Assert.That(DecideWaterLand(state, threat: true), Is.EqualTo(BirdAction.Flee));
+
+    [TestCase(0.0, BirdAction.Stop)]
+    [TestCase(0.5, BirdAction.None)]
+    public void WaterLand_WalkingStopsOnRoll(double roll, BirdAction expected) =>
+        Assert.That(DecideWaterLand(BehaviorStatus.Walking, roll: roll), Is.EqualTo(expected));
+
+    [TestCase(0, BirdAction.Peck)]
+    [TestCase(1, BirdAction.Rest)]
+    [TestCase(2, BirdAction.Hop)]
+    [TestCase(3, BirdAction.Walk)]
+    public void WaterLand_StoppedPicksIdleRoutine(int pick, BirdAction expected) =>
+        Assert.That(DecideWaterLand(BehaviorStatus.Stopped, pick: pick), Is.EqualTo(expected));
+
+    [Test]
+    public void WaterLand_SwimmingHasNoRoutine() =>
+        Assert.That(DecideWaterLand(BehaviorStatus.Swimming), Is.EqualTo(BirdAction.None));
+
+    [TestCase(BehaviorStatus.Pecking, true, BirdAction.Flee)]
+    [TestCase(BehaviorStatus.Stopped, true, BirdAction.Flee)]
+    [TestCase(BehaviorStatus.Stopped, false, BirdAction.None)]
+    [TestCase(BehaviorStatus.FlyingAway, true, BirdAction.None)]
+    [TestCase(BehaviorStatus.Running, true, BirdAction.None)]
+    public void FleeOnly_FleesOnceOnThreat(BehaviorStatus state, bool threat, BirdAction expected) =>
+        Assert.That(BirdBehaviors.Decide(BirdBehaviors.FleeOnly, new BirdContext(state, threat, true, false, new FixedRandom(0.0))), Is.EqualTo(expected));
 }

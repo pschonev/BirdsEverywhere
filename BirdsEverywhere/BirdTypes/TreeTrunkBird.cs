@@ -1,3 +1,4 @@
+using BirdsEverywhere.BirdTypes.Behaviors;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
@@ -5,31 +6,32 @@ using StardewValley.TerrainFeatures;
 
 namespace BirdsEverywhere.BirdTypes;
 
-class TreeTrunkBird : CustomBirdTypeTerrainFeature
+internal sealed class TreeTrunkBird : BirdCritter
 {
+    private const int ThreatRadiusTiles = 6;
+    private const float FlyingSpeed = 6f;
+
+    private Tree? _tree;
+
     public override string birdTypeName { get; } = "TreeTrunkBird";
-    public const int flyingSpeed = 6;
-    private Tree tree;
     public int index { get; set; }
-    public string locationName { get; set; }
+    public string? locationName { get; set; }
     public int peckTimer { get; set; }
 
     public TreeTrunkBird() { }
 
-    public TreeTrunkBird(int tileX, int tileY, string birdName, string texture, BirdServices services, BehaviorStatus state = BehaviorStatus.Pecking)
-            : base(0, tileX, tileY, birdName, texture, services, 16, 16)
+    public TreeTrunkBird(int tileX, int tileY, string birdName, string texture, BirdServices services)
+        : base(0, tileX, tileY, birdName, texture, services, 16, 16)
     {
-        base.position.X += 32f;
-        base.position.Y += 0f;
+        position.X += 32f;
         startingPosition = position;
     }
 
-    public override TreeTrunkBird setTerrainFeature(int index, string locationName)
+    public TreeTrunkBird SetAnchor(int index, string? locationName)
     {
         this.index = index;
         this.locationName = locationName;
-        GameLocation location = Game1.getLocationFromName(locationName);
-        this.tree = location.terrainFeatures.Pairs.ElementAt(index).Value as Tree;
+        _tree = new TerrainAnchor(locationName, index).ResolveTree();
         return this;
     }
 
@@ -43,12 +45,89 @@ class TreeTrunkBird : CustomBirdTypeTerrainFeature
         b.Draw(Game1.shadowTexture, Game1.GlobalToLocal(Game1.viewport, position + new Vector2(0f, -4f)), Game1.shadowTexture.Bounds, Color.White, 0f, new Vector2(Game1.shadowTexture.Bounds.Center.X, Game1.shadowTexture.Bounds.Center.Y), 3f + Math.Max(-3f, (yJumpOffset + yOffset) / 16f), SpriteEffects.None, (position.Y - 1f) / 10000f);
     }
 
-    private void donePecking(Farmer who)
+    public override bool update(GameTime time, GameLocation environment)
+    {
+        if (environment == null || sprite == null || _tree == null)
+        {
+            return true;
+        }
+        if (yJumpOffset < 0f && state != BehaviorStatus.FlyingAway)
+        {
+            HopDrift(environment);
+        }
+        peckTimer -= time.ElapsedGameTime.Milliseconds;
+        if (state != BehaviorStatus.FlyingAway && peckTimer <= 0 && sprite.CurrentAnimation == null)
+        {
+            StartPeck();
+        }
+
+        bool pollNow = CheckIntervalElapsed(time);
+        Character? threat = pollNow ? Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, ThreatRadiusTiles, environment) : null;
+        bool treeFelled = pollNow && _tree.stump.Value;
+        BirdContext context = new(state, threat != null || treeFelled, sprite.CurrentAnimation == null, yJumpOffset < 0f, random);
+        if (BirdBehaviors.Decide(BirdBehaviors.FleeOnly, context) == BirdAction.Flee)
+        {
+            StartFlee(threat, environment);
+        }
+
+        if (state == BehaviorStatus.FlyingAway)
+        {
+            position.X += flip ? FlyingSpeed : -FlyingSpeed;
+            yOffset -= 1f;
+        }
+        return base.update(time, environment);
+    }
+
+    private void StartPeck()
+    {
+        int nibbles = random.Next(2, 8);
+        List<FarmerSprite.AnimationFrame> anim = new();
+        for (int i = 0; i < nibbles; i++)
+        {
+            anim.Add(new FarmerSprite.AnimationFrame(baseFrame, 100));
+            anim.Add(new FarmerSprite.AnimationFrame(baseFrame + 1, 100, secondaryArm: false, flip: false, PlayPeck));
+        }
+        anim.Add(new FarmerSprite.AnimationFrame(baseFrame, 200, secondaryArm: false, flip: false, DonePecking));
+        sprite.setCurrentAnimation(anim);
+        sprite.loop = false;
+    }
+
+    private void StartFlee(Character? threat, GameLocation environment)
+    {
+        state = BehaviorStatus.FlyingAway;
+        addBirdObservation(birdName, environment.Name);
+        flip = threat == null || threat.Position.X <= position.X;
+        sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
+        {
+            new FarmerSprite.AnimationFrame((short)(baseFrame + 2), 70),
+            new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 60, secondaryArm: false, flip, PlayFlap),
+            new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 70),
+            new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 60)
+        });
+        sprite.loop = true;
+    }
+
+    private void HopDrift(GameLocation environment)
+    {
+        if (!flip && !IsBlocked(environment, -2))
+        {
+            position.X -= 2f;
+        }
+        else if (!IsBlocked(environment, 2))
+        {
+            position.X += 2f;
+        }
+    }
+
+    private bool IsBlocked(GameLocation environment, int dx) =>
+        environment.isCollidingPosition(getBoundingBox(dx, 0), Game1.viewport, isFarmer: false, 0, glider: false, null, pathfinding: false, projectile: false, ignoreCharacterRequirement: true);
+
+    private void DonePecking(Farmer who)
     {
         peckTimer = random.Next(1000, 3000);
     }
 
-    private void playFlap(Farmer who)
+    private void PlayFlap(Farmer who)
     {
         if (Utility.isOnScreen(position, 64))
         {
@@ -56,85 +135,11 @@ class TreeTrunkBird : CustomBirdTypeTerrainFeature
         }
     }
 
-    private void playPeck(Farmer who)
+    private void PlayPeck(Farmer who)
     {
         if (Utility.isOnScreen(position, 64))
         {
             Game1.playSound("Cowboy_gunshot");
         }
-    }
-
-    public override bool update(GameTime time, GameLocation environment)
-    {
-        if (environment == null || sprite == null || tree == null)
-        {
-            return true;
-        }
-        if (yJumpOffset < 0f && state != BehaviorStatus.FlyingAway)
-        {
-            if (!flip && !environment.isCollidingPosition(getBoundingBox(-2, 0), Game1.viewport, isFarmer: false, 0, glider: false, null, pathfinding: false, projectile: false, ignoreCharacterRequirement: true))
-            {
-                position.X -= 2f;
-            }
-            else if (!environment.isCollidingPosition(getBoundingBox(2, 0), Game1.viewport, isFarmer: false, 0, glider: false, null, pathfinding: false, projectile: false, ignoreCharacterRequirement: true))
-            {
-                position.X += 2f;
-            }
-        }
-        peckTimer -= time.ElapsedGameTime.Milliseconds;
-        if (state != BehaviorStatus.FlyingAway && peckTimer <= 0 && sprite.CurrentAnimation == null)
-        {
-            int nibbles = random.Next(2, 8);
-            List<FarmerSprite.AnimationFrame> anim = new List<FarmerSprite.AnimationFrame>();
-            for (int i = 0; i < nibbles; i++)
-            {
-                anim.Add(new FarmerSprite.AnimationFrame(baseFrame, 100));
-                anim.Add(new FarmerSprite.AnimationFrame(baseFrame + 1, 100, secondaryArm: false, flip: false, playPeck));
-            }
-            anim.Add(new FarmerSprite.AnimationFrame(baseFrame, 200, secondaryArm: false, flip: false, donePecking));
-            sprite.setCurrentAnimation(anim);
-            sprite.loop = false;
-        }
-        characterCheckTimer -= time.ElapsedGameTime.Milliseconds;
-        if (characterCheckTimer < 0)
-        {
-            Character f = Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, 6, environment);
-            characterCheckTimer = 200;
-            if ((f != null || (bool)tree.stump.Value) && state != BehaviorStatus.FlyingAway)
-            {
-                state = BehaviorStatus.FlyingAway;
-                addBirdObservation(this.birdName, environment.Name);
-
-                if (f != null && f.Position.X > position.X)
-                {
-                    flip = false;
-                }
-                else
-                {
-                    flip = true;
-                }
-                sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
-                {
-                    new FarmerSprite.AnimationFrame((short)(baseFrame + 2), 70),
-                    new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 60, secondaryArm: false, flip, playFlap),
-                    new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 70),
-                    new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 60)
-                });
-                sprite.loop = true;
-            }
-        }
-        if (state == BehaviorStatus.FlyingAway)
-        {
-            if (!flip)
-            {
-                position.X -= 6f;
-            }
-            else
-            {
-                position.X += 6f;
-            }
-            yOffset -= 1f;
-        }
-        return base.update(time, environment);
     }
 }
