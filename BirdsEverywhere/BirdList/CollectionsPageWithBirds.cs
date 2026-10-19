@@ -1,3 +1,4 @@
+using BirdsEverywhere.Domain;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Menus;
@@ -9,10 +10,10 @@ class CollectionsPageWithBirds : CollectionsPage
     private readonly IReflectedField<string> _hoverText;
     private readonly IReflectedField<int> _value;
     private readonly IReflectedField<Item> _hoverItem;
-    private readonly IReadOnlyDictionary<string, BirdData> _catalog;
+    private readonly IReadOnlyDictionary<string, BirdDefinition> _catalog;
     private readonly SaveData _saveData;
 
-    public CollectionsPageWithBirds(CollectionsPage cp, IReflectionHelper reflection, IReadOnlyDictionary<string, BirdData> catalog, SaveData saveData)
+    public CollectionsPageWithBirds(CollectionsPage cp, IReflectionHelper reflection, IReadOnlyDictionary<string, BirdDefinition> catalog, SaveData saveData)
         : base(cp.xPositionOnScreen, cp.yPositionOnScreen, cp.width, cp.height)
     {
         _catalog = catalog;
@@ -103,8 +104,8 @@ class CollectionsPageWithBirds : CollectionsPage
 
     private string getBirdHoverText(string id)
     {
-        BirdData data = _catalog[id];
+        BirdDefinition data = _catalog[id];
         ObservationData obsData = _saveData.birdObservations[id];
-        return $"{data.name}\n{data.scName}\n\n{data.description}\n\nFirst seen by {obsData.playerName}\n{obsData.observationLocation} on {obsData.observationDate}";
+        return $"{data.Name}\n{data.ScientificName}\n\n{data.Description}\n\nFirst seen by {obsData.playerName}\n{obsData.observationLocation} on {obsData.observationDate}";
     }
 }

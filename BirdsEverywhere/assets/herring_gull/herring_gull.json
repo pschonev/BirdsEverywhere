@@ -4,9 +4,10 @@
   "scName": "Larus argentatus",
   "description": "Common gull.",
   "template": "all_year_garden",
-
-  "defaultSpawnData": {
-    "locations": [ "Beach" ],
+  "defaults": {
+    "locations": [
+      "@coast"
+    ],
     "spawnPattern": "WaterOrGroundSpawner",
     "birdType": "WaterLandBird"
   }

@@ -1,12 +1,13 @@
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewValley;
+using BirdsEverywhere.Domain;
 
 namespace BirdsEverywhere.Spawners;
 
 public class SingleBirdSpawnParamsTile : SingleBirdSpawnParameters
 {
-    public SingleBirdSpawnParamsTile(Vector2 position, string id, string birdType, string spawnPattern, List<TimeRange> possibleTimesOfDay, string texture)
+    public SingleBirdSpawnParamsTile(Vector2 position, string id, string birdType, string spawnPattern, List<IntRange> possibleTimesOfDay, string texture)
         : base(position, id, birdType, spawnPattern, possibleTimesOfDay, texture)
     {
         this.className = "SingleBirdSpawnParamsTile";
@@ -27,7 +28,7 @@ public class SingleBirdSpawnParamsTerrainFeature : SingleBirdSpawnParameters
 {
     public int terrainFeatureIndex { get; set; }
 
-    public SingleBirdSpawnParamsTerrainFeature(int terrainFeatureIndex, Vector2 position, string id, string birdType, string spawnPattern, List<TimeRange> possibleTimesOfDay, string texture)
+    public SingleBirdSpawnParamsTerrainFeature(int terrainFeatureIndex, Vector2 position, string id, string birdType, string spawnPattern, List<IntRange> possibleTimesOfDay, string texture)
         : base(position, id, birdType, spawnPattern, possibleTimesOfDay, texture)
     {
         this.terrainFeatureIndex = terrainFeatureIndex;
@@ -52,9 +53,9 @@ public abstract class SingleBirdSpawnParameters
     public string ID { get; set; } // id of the bird
     public string BirdType { get; set; } // type of bird (behavior)
     public string spawnPattern { get; set; }
-    public List<TimeRange> possibleTimesOfDay { get; set; }
+    public List<IntRange> possibleTimesOfDay { get; set; }
     public string texture { get; set; }
-    public SingleBirdSpawnParameters(Vector2 position, string id, string birdType, string spawnPattern, List<TimeRange> possibleTimesOfDay, string texture)
+    public SingleBirdSpawnParameters(Vector2 position, string id, string birdType, string spawnPattern, List<IntRange> possibleTimesOfDay, string texture)
     {
         this.position = position;
         this.ID = id;
@@ -71,5 +72,5 @@ public abstract class SingleBirdSpawnParameters
         monitor.LogOnce($"Bird '{ID}' has unknown spawn pattern '{spawnPattern}'; keeping it in place.", LogLevel.Warn);
         return true;
     }
-    public bool stillValidTime(int time) => possibleTimesOfDay.Any(x => x.isInRange(time));
+    public bool stillValidTime(int time) => possibleTimesOfDay.Count == 0 || possibleTimesOfDay.Any(range => range.Contains(time));
 }

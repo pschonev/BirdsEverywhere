@@ -3,6 +3,7 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewValley.TerrainFeatures;
 using static BirdsEverywhere.Spawners.Condition;
+using BirdsEverywhere.Domain;
 
 namespace BirdsEverywhere.Spawners;
 /// <summary>
@@ -21,14 +22,14 @@ public class TreeTrunkSpawner : TerrainFeatureSpawner
         condition = (location, index, position) => isEligibleTree(location, index, position);
     }
 
-    public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, Random random, IMonitor monitor)
+    public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
     {
         List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
         int featureCount = location.terrainFeatures.Count();
         List<int> shuffledIndices = Shuffle(random, featureCount);
 
-        int groupCount = Utils.NextInclusive(random, Math.Max(1, data.currentSpawnData.minGroupCount), data.currentSpawnData.maxGroupCount);
-        monitor.Log($" Attempting to spawn {groupCount} {data.name}s.", LogLevel.Debug);
+        int groupCount = Utils.NextInclusive(random, rule.GroupCount.Min, rule.GroupCount.Max);
+        monitor.Log($" Attempting to spawn {groupCount} {data.Name}s.", LogLevel.Debug);
 
         int attempts = Math.Min(MaxAttempts, featureCount);
         for (int i = 0; i < attempts; i++)
@@ -38,8 +39,8 @@ public class TreeTrunkSpawner : TerrainFeatureSpawner
             if (isEligibleTree(location, index, new Vector2()))
             {
                 Vector2 position = location.terrainFeatures.Pairs.ElementAt(index).Value.Tile;
-                spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.id, data.currentSpawnData.birdType, data.currentSpawnData.spawnPattern, data.currentSpawnData.timeOfDayRanges, data.currentSpawnData.getNextTexture(data.id)));
-                monitor.Log($"Added {data.id} to tree at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
+                spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.Id.Value, rule.BirdType.Value, rule.SpawnPattern.Value, rule.When.Times.ToList(), rule.PickTexture(data.Id, random)));
+                monitor.Log($"Added {data.Id.Value} to tree at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
 
                 groupCount--;
                 if (groupCount <= 0)
@@ -63,14 +64,14 @@ public class BushSpawner : TerrainFeatureSpawner
         condition = (location, index, position) => straightPathToBush(location, index, position);
     }
 
-    public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, Random random, IMonitor monitor)
+    public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
     {
         List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
         int featureCount = location.largeTerrainFeatures.Count;
         List<int> shuffledIndices = Shuffle(random, featureCount);
 
-        int groupCount = Utils.NextInclusive(random, Math.Max(1, data.currentSpawnData.minGroupCount), data.currentSpawnData.maxGroupCount);
-        monitor.Log($" Attempting to spawn {groupCount} {data.name}s.", LogLevel.Debug);
+        int groupCount = Utils.NextInclusive(random, rule.GroupCount.Min, rule.GroupCount.Max);
+        monitor.Log($" Attempting to spawn {groupCount} {data.Name}s.", LogLevel.Debug);
 
         int attempts = Math.Min(MaxAttempts, featureCount);
         for (int i = 0; i < attempts; i++)
@@ -87,8 +88,8 @@ public class BushSpawner : TerrainFeatureSpawner
 
                 if (straightPathToBush(location, index, position))
                 {
-                    spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.id, data.currentSpawnData.birdType, data.currentSpawnData.spawnPattern, data.currentSpawnData.timeOfDayRanges, data.currentSpawnData.getNextTexture(data.id)));
-                    monitor.Log($"Added {data.id} to bush at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
+                    spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.Id.Value, rule.BirdType.Value, rule.SpawnPattern.Value, rule.When.Times.ToList(), rule.PickTexture(data.Id, random)));
+                    monitor.Log($"Added {data.Id.Value} to bush at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
 
                     groupCount--;
                     if (groupCount <= 0)

@@ -1,5 +1,6 @@
 using StardewModdingAPI;
 using StardewValley;
+using BirdsEverywhere.Domain;
 
 namespace BirdsEverywhere.Spawners;
 /// <summary>
@@ -20,11 +21,11 @@ public static class SpawnerFactory
 
     public static IReadOnlyCollection<string> KnownPatterns => spawnerTypes.Keys;
 
-    public static Spawner createSpawner(GameLocation location, BirdData data, IMonitor monitor)
+    public static Spawner createSpawner(GameLocation location, BirdDefinition data, SpawnRule rule, IMonitor monitor)
     {
-        string pattern = data.currentSpawnData.spawnPattern;
-        monitor.Log($"For location {location} {data.name}s will be created with {pattern}", LogLevel.Debug);
-        return createSpawner(pattern) ?? throw new KeyNotFoundException($"Unknown spawn pattern '{pattern}' for bird '{data.id}'.");
+        string pattern = rule.SpawnPattern.Value;
+        monitor.Log($"For location {location} {data.Name}s will be created with {pattern}", LogLevel.Debug);
+        return createSpawner(pattern) ?? throw new KeyNotFoundException($"Unknown spawn pattern '{pattern}' for bird '{data.Id.Value}'.");
     }
 
     public static Spawner? createSpawner(string? pattern)

@@ -1,0 +1,33 @@
+{
+    "defaults": {
+        "when": {
+            "weather": [
+                "sun",
+                "rain"
+            ],
+            "days": [
+                [
+                    1,
+                    28
+                ]
+            ],
+            "times": [
+                [
+                    600,
+                    2600
+                ]
+            ]
+        },
+        "groupCount": [
+            1,
+            2
+        ],
+        "groupSize": [
+            1,
+            5
+        ],
+        "textures": {
+            "": 1
+        }
+    }
+}

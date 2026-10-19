@@ -4,10 +4,12 @@
   "scName": "Perdix perdix",
   "description": "Kinda like a chicken.",
   "template": "all_year_garden",
-
-  "defaultSpawnData": {
+  "defaults": {
     "spawnPattern": "BushSpawner",
     "birdType": "BushBird",
-    "maxGroupCount": 3
+    "groupCount": [
+      1,
+      3
+    ]
   }
 }

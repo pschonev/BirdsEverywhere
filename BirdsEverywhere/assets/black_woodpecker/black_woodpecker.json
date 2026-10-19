@@ -4,10 +4,12 @@
   "scName": "Dryocopus martius",
   "description": "The biggest Eurasian woodpecker.",
   "template": "all_year_garden",
-
-  "defaultSpawnData": {
+  "defaults": {
     "spawnPattern": "TreeTrunkSpawner",
     "birdType": "TreeTrunkBird",
-    "maxGroupCount": 4
+    "groupCount": [
+      1,
+      4
+    ]
   }
 }
