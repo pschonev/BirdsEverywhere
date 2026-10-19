@@ -39,19 +39,20 @@ namespace BirdsEverwhyere.UnitTests
         }
 
         [Test]
-        public void SpawnParams_RoundTrip_KeepsSpawnPattern()
+        public void DailySpawnPlan_RoundTrip_KeepsPlacements()
         {
-            DailySpawner original = new();
-            original.LocationBirdPosition["Forest"] = new List<SingleBirdSpawnParameters>
-            {
-                new SingleBirdSpawnParamsTile(
-                    new Vector2(4, 5), "blue_tit", "LandBird", "GroundSpawner",
-                    new List<IntRange> { new IntRange(600, 2400) }, "blue_tit"),
-            };
+            BirdPlacement tile = new("blue_tit", "spring", "LandBird", "GroundSpawner", new Vector2(4, 5), null,
+                new List<IntRange> { new IntRange(600, 2400) }, "blue_tit", 42);
+            BirdPlacement tree = tile with { BirdType = "TreeTrunkBird", SpawnPattern = "TreeTrunkSpawner", FeatureIndex = 3, Times = new List<IntRange>() };
+            DailySpawnPlan original = new(new Dictionary<string, IReadOnlyList<BirdPlacement>> { ["Forest"] = new[] { tile, tree } });
 
-            DailySpawner reloaded = MessageJson.Deserialize<DailySpawner>(MessageJson.Serialize(original));
+            DailySpawnPlan reloaded = MessageJson.Deserialize<DailySpawnPlan>(MessageJson.Serialize(original));
+            IReadOnlyList<BirdPlacement> placements = reloaded.Locations["Forest"];
 
-            Assert.That(reloaded.LocationBirdPosition["Forest"].Single().spawnPattern, Is.EqualTo("GroundSpawner"));
+            Assert.That(placements[0] with { Times = tile.Times }, Is.EqualTo(tile));
+            Assert.That(placements[0].Times, Is.EqualTo(tile.Times));
+            Assert.That(placements[1] with { Times = tree.Times }, Is.EqualTo(tree));
+            Assert.That(placements[1].IsActiveAt(100), Is.True);
         }
 
         [Test]

@@ -7,7 +7,7 @@ internal static class MessageJson
 {
     public static JsonSerializerSettings CreateSettings() => new()
     {
-        Converters = { new SpawnConverter(), new CustomBirdTypeConverterWriter(), new CustomBirdTypeConverterReader() },
+        Converters = { new CustomBirdTypeConverterWriter(), new CustomBirdTypeConverterReader() },
     };
 
     public static string Serialize<T>(T value) => JsonConvert.SerializeObject(value, CreateSettings());

@@ -58,21 +58,29 @@ public abstract class TileSpawner : Spawner
 {
     public TileSpawnCondition condition = null!;
 
-    public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor) =>
+    public override List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor) =>
         spawnBirds(new GameLocationQuery(location), data, rule, random, monitor);
 
-    public List<SingleBirdSpawnParameters> spawnBirds(ILocationQuery location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
+    public List<BirdPlacement> spawnBirds(ILocationQuery location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
     {
-        List<SingleBirdSpawnParameters> spawnList = TileSelection.Tiles(location, condition, rule.GroupCount, rule.GroupSize, random)
-            .Select(tile => (SingleBirdSpawnParameters)new SingleBirdSpawnParamsTile(tile, data.Id.Value, rule.BirdType.Value, rule.SpawnPattern.Value, rule.When.Times.ToList(), rule.PickTexture(data.Id, random)))
+        List<BirdPlacement> spawnList = TileSelection.Tiles(location, condition, rule.GroupCount, rule.GroupSize, random)
+            .Select(tile => Place(data, rule, tile, null, random))
             .ToList();
         monitor.Log($"Planned {spawnList.Count} {data.Id.Value} at {location.Name}.", LogLevel.Debug);
         return spawnList;
     }
+
+    public override bool IsStillValid(GameLocation location, BirdPlacement placement) =>
+        condition(new GameLocationQuery(location), placement.Tile);
 }
 
 public abstract class Spawner
 {
-    public abstract List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor);
+    public abstract List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor);
+
+    public abstract bool IsStillValid(GameLocation location, BirdPlacement placement);
+
+    protected static BirdPlacement Place(BirdDefinition data, SpawnRule rule, Vector2 tile, int? featureIndex, Random random) =>
+        new(data.Id.Value, rule.Id, rule.BirdType.Value, rule.SpawnPattern.Value, tile, featureIndex, rule.When.Times, rule.PickTexture(data.Id, random), random.Next());
 }
 

@@ -20,7 +20,8 @@ public class ModEntry : Mod
     private const string SaveKey = "bird-save";
 
     private SaveData _saveData = new();
-    private DailySpawner _dailySpawner = new();
+    private DailySpawnPlan _plan = DailySpawnPlan.Empty;
+    private LocationSpawner _locationSpawner = null!;
     private HashSet<string> _eligibleLocations = new();
     private IReadOnlyDictionary<string, BirdDefinition> _catalog = new Dictionary<string, BirdDefinition>();
     private IReadOnlyDictionary<string, (JObject Effective, IReadOnlyDictionary<string, string> Sources)> _effective =
@@ -35,6 +36,7 @@ public class ModEntry : Mod
     {
         _messages = new MessageSender(helper.Multiplayer, ModManifest.UniqueID);
         _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation);
+        _locationSpawner = new LocationSpawner(_spawnPatterns, _birdTypes, _birdServices);
 
         helper.Events.GameLoop.DayStarted += OnDayStarted;
         helper.Events.Player.Warped += OnWarped;
@@ -172,15 +174,14 @@ public class ModEntry : Mod
         if (Context.IsMainPlayer)
         {
             Random random = new(Utils.StableHash($"{Game1.uniqueIDForThisGame}|{Game1.stats.DaysPlayed}|day"));
-            _dailySpawner = new DailySpawner();
             Domain.Season season = Enum.Parse<Domain.Season>(Game1.currentSeason, ignoreCase: true);
             Weather weather = Game1.isGreenRain ? Weather.GreenRain
                 : Game1.isLightning ? Weather.Storm
                 : Game1.isSnowing ? Weather.Snow
                 : Game1.isDebrisWeather ? Weather.Wind
                 : Game1.isRaining ? Weather.Rain : Weather.Sun;
-            _dailySpawner.InitializeBirdLocations(_saveData.seenBirds, _catalog, _spawnPatterns, season, weather, Game1.dayOfMonth, random, Monitor);
-            _messages.SendToAll(MessageJson.Serialize(_dailySpawner), MessageTypes.BirdLocationsNewDay);
+            _plan = DailySpawnPlan.Build(_saveData.seenBirds, _catalog, _spawnPatterns, season, weather, Game1.dayOfMonth, random, Monitor);
+            _messages.SendToAll(MessageJson.Serialize(_plan), MessageTypes.BirdLocationsNewDay);
         }
 
         Logging.LogBirdSeenStatus(Monitor, _saveData, _catalog);
@@ -212,7 +213,7 @@ public class ModEntry : Mod
                 Game1.showGlobalMessage(e.ReadAs<string>());
                 break;
             case MessageTypes.BirdLocationsNewDay when !Context.IsMainPlayer:
-                _dailySpawner = MessageJson.Deserialize<DailySpawner>(e.ReadAs<string>());
+                _plan = MessageJson.Deserialize<DailySpawnPlan>(e.ReadAs<string>());
                 break;
             case MessageTypes.UpdateFarmhandSave when !Context.IsMainPlayer:
                 Monitor.Log($"{Game1.player.Name} received save data.", LogLevel.Debug);
@@ -220,7 +221,7 @@ public class ModEntry : Mod
                 break;
             case MessageTypes.BirdLocationsOnConnect when !Context.IsMainPlayer:
                 Monitor.Log($"{Game1.player.Name} received bird data.", LogLevel.Debug);
-                _dailySpawner = MessageJson.Deserialize<DailySpawner>(e.ReadAs<string>());
+                _plan = MessageJson.Deserialize<DailySpawnPlan>(e.ReadAs<string>());
                 break;
         }
     }
@@ -262,7 +263,7 @@ public class ModEntry : Mod
         }
 
         _messages.SendToPeer(_saveData, MessageTypes.UpdateFarmhandSave, e.Peer.PlayerID);
-        _messages.SendToPeer(MessageJson.Serialize(_dailySpawner), MessageTypes.BirdLocationsOnConnect, e.Peer.PlayerID);
+        _messages.SendToPeer(MessageJson.Serialize(_plan), MessageTypes.BirdLocationsOnConnect, e.Peer.PlayerID);
     }
 
     private void RecordObservation(string birdName, string location)
@@ -301,12 +302,12 @@ public class ModEntry : Mod
             return;
         }
 
-        _dailySpawner.BeginVisit();
+        _locationSpawner.BeginVisit();
         Farmer? farmer = Game1.getOnlineFarmers().FirstOrDefault(f => f.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID && f.currentLocation == e.NewLocation);
         _populatesCurrentVisit = farmer is null;
         if (farmer == null)
         {
-            _dailySpawner.Populate(e.NewLocation, _birdServices, _spawnPatterns, _birdTypes);
+            _locationSpawner.Populate(e.NewLocation, _plan);
             return;
         }
 
@@ -321,7 +322,7 @@ public class ModEntry : Mod
             VanillaBirds.Remove(Game1.currentLocation);
             if (_populatesCurrentVisit && _eligibleLocations.Contains(Game1.currentLocation.Name))
             {
-                _dailySpawner.Populate(Game1.currentLocation, _birdServices, _spawnPatterns, _birdTypes);
+                _locationSpawner.Populate(Game1.currentLocation, _plan);
             }
         }
     }

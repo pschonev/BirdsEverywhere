@@ -201,7 +201,7 @@ Split today's `DailySpawner` / spawners / `SingleBirdSpawnParameters` into:
 
 **Exit:** spawn planning fully unit-tested with seeded `Random` and a fake `ILocationQuery`; in-game spawn frequency matches baseline.
 
-**Progress:** `SpawnPlanner.Plan` (pure bird/rule/location assignment, deterministic bird order) is extracted from `DailySpawner` and tested. `TileSelection` (unique tiles from random walks, empty result on tiny maps; seeded `Utils.Shuffle` over feature candidates, empty candidates give nothing) now backs all spawners. Still to do: `LocationSpawner`, the plan record with seeds, `spawnParams` and fish-area habitats, and luck/feasibility.
+**Progress:** `SpawnPlanner.Plan` (pure bird/rule/location assignment, deterministic bird order) is extracted from `DailySpawner` and tested. `TileSelection` (unique tiles from random walks, empty result on tiny maps; seeded `Utils.Shuffle` over feature candidates, empty candidates give nothing) now backs all spawners. `DailySpawnPlan` (location → `BirdPlacement` records with rule id, texture, times, optional feature index, and seed) replaces `DailySpawner`/`SingleBirdSpawnParameters`/`SpawnConverter`; `LocationSpawner` creates critters from it (time window, pattern re-check via `Spawner.IsStillValid`, registry) and seeds each bird from its placement. Still to do: `spawnParams` and fish-area habitats, and luck/feasibility.
 
 ---
 
@@ -225,16 +225,16 @@ Observed: birds without `defaultSpawnData` get global defaults (Forest, 1–2 gr
 |---|---|---|
 | ~~Animation never serialized: constructor checks the uninitialized field `currentAnimation` instead of `sprite.CurrentAnimation`, and a local shadows the field~~ | [CurrentAnimatedSprite.cs](../BirdsEverywhere/CurrentAnimatedSprite.cs#L28) | 7 (early fix OK) |
 | ~~`WaterSpawner` declares `protected new TileSpawnCondition condition`, hiding the base field; base `condition` stays null → NRE~~ | [TileSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TileSpawner.cs#L37) | 7 (early fix OK) |
-| ~~Farmhands never set `currentSpawnData`; `stillValidSpawnPosition` reads it from the global catalog → crash on farmhand~~ (spawn params now carry `spawnPattern`) | [SingleBirdSpawnParams.cs](../BirdsEverywhere/Spawning/SingleBirdSpawnParams.cs#L21) | 6 |
+| ~~Farmhands never set `currentSpawnData`; `stillValidSpawnPosition` reads it from the global catalog → crash on farmhand~~ (placements carry `SpawnPattern`) | [DailySpawnPlan.cs](../BirdsEverywhere/Spawning/DailySpawnPlan.cs) | 6 |
 | ~~`getRandomElementFromList` uses `Next(0, Count - 1)`: never picks the last element~~ | [Utils.cs](../BirdsEverywhere/Utils.cs#L43) | 6 (early fix OK) |
 | ~~`shuffleByWeights` draws a new random value inside the `Sort` comparator: biased order, and `List.Sort` may throw on the inconsistent comparer~~ (keys drawn once per item) | [Utils.cs](../BirdsEverywhere/Utils.cs#L12) | 6 (early fix OK) |
 | ~~Group count/size use exclusive `Next(min, max)`: never reach configured max~~ (now inclusive) | [TileSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TileSpawner.cs#L85), [TerrainFeatureSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TerrainFeatureSpawner.cs#L37) | 6 (gameplay decision) |
 | Tree birds stored by `terrainFeatures.Pairs.ElementAt(index)` (unstable dictionary order), unchecked `as Tree` | [TreeTrunkBird.cs](../BirdsEverywhere/BirdTypes/TreeTrunkBird.cs#L36) | 5/7 |
 | Bush birds stored by `largeTerrainFeatures[index]`, unchecked `as Bush` | [BushBird.cs](../BirdsEverywhere/BirdTypes/BushBird.cs#L34) | 5/7 |
 | Any peer broadcasts the whole `SaveData`; every receiver (incl. host) replaces its copy → last writer wins, lost discoveries | [CustomBirdType.cs](../BirdsEverywhere/BirdTypes/CustomBirdType.cs#L97), [ModEntry.cs](../BirdsEverywhere/ModEntry.cs#L171) | 8 |
-| `chooseOneSpawnData` result written into shared `BirdData.currentSpawnData` (runtime state on config) | [DailySpawner.cs](../BirdsEverywhere/Spawning/DailySpawner.cs#L70) | 3/6 |
+| ~~`chooseOneSpawnData` result written into shared `BirdData.currentSpawnData` (runtime state on config)~~ (`SpawnPlanner` returns assignments) | [SpawnPlanner.cs](../BirdsEverywhere/Spawning/SpawnPlanner.cs) | 3/6 |
 | Template merge in `[JsonConstructor]` loads files via `ModEntry.modInstance`; `MergeDictionaries` shares list references with the template | [BirdData.cs](../BirdsEverywhere/Data/BirdData.cs#L46), [Utils.cs](../BirdsEverywhere/Utils.cs#L102) | 3 |
-| `timeOfDayRanges` never checked: `isTimeOfDayPossible` is unused, `possibleSpawnDataToday` ignores time | [SpawnData.cs](../BirdsEverywhere/Data/SpawnData.cs#L42), [DailySpawner.cs](../BirdsEverywhere/Spawning/DailySpawner.cs#L66) | 3/6 |
+| `timeOfDayRanges` never checked: `isTimeOfDayPossible` is unused, `possibleSpawnDataToday` ignores time | [SpawnData.cs](../BirdsEverywhere/Data/SpawnData.cs#L42), [LocationSpawner.cs](../BirdsEverywhere/Spawning/LocationSpawner.cs) | 3/6 |
 | `CopyProperties` treats `0`/`false` as unset, so a bird cannot override a template value with 0 or false | [Reflection.cs](../BirdsEverywhere/Data/Reflection.cs) | 3 |
 | ~~Process-wide `JsonConvert.DefaultSettings`; `OnJsonError` marks every error handled → silent bad data~~ (messages use `MessageJson` with explicit settings) | [MessageJson.cs](../BirdsEverywhere/MessageJson.cs) | 2 |
 | Debug output written to `assets/inspect_output/` on every save load | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs#L108) | 3 |
