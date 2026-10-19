@@ -181,9 +181,12 @@ public static class ContentValidator
 
             ImmutableArray<IntRange> days = ValidateRanges(when.Days, path + ".when.days", 1, 28, Report);
             ImmutableArray<IntRange> times = ValidateRanges(when.Times, path + ".when.times", 600, 2600, Report);
+            IntRange? shoreDistance = rule.SpawnParams?.ShoreDistance is int[] shore
+                ? ValidateRange(shore, path + ".spawnParams.shoreDistance", 0, SpawnParams.MaxShoreDistance, Report)
+                : null;
             rules.Add(new SpawnRule(entry.Key, new SpawnConditions(seasons.ToImmutable(), weather.ToImmutable(), days, times),
                 locations.Distinct(StringComparer.Ordinal).ToImmutableArray(), new SpawnPatternId(rule.SpawnPattern), new BirdTypeId(rule.BirdType),
-                count, size, textures.ToImmutableDictionary(StringComparer.Ordinal), rule.Weight));
+                count, size, textures.ToImmutableDictionary(StringComparer.Ordinal), rule.Weight, new SpawnParams(shoreDistance)));
         }
 
         foreach (Season season in Enum.GetValues<Season>())

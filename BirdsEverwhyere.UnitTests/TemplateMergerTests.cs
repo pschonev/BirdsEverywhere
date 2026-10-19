@@ -152,6 +152,8 @@ public class TemplateMergerTests
     [TestCase("{\"defaults\":{\"textures\":{\"missing\":1}}}", "$.rules.spring.textures.missing")]
     [TestCase("{\"rules\":{\"spring\":{\"when\":{\"seasons\":[\"invalid\"]}}}}", "$.rules.spring.when.seasons")]
     [TestCase("{\"rules\":{\"spring\":{\"weight\":0}}}", "$.rules.spring.weight")]
+    [TestCase("{\"defaults\":{\"spawnParams\":{\"shoreDistance\":[5,2]}}}", "$.rules.spring.spawnParams.shoreDistance")]
+    [TestCase("{\"defaults\":{\"spawnParams\":{\"shoreDistance\":[0,99]}}}", "$.rules.spring.spawnParams.shoreDistance")]
     public void LoadBird_InvalidOverride_ReportsBirdSource(string overrideJson, string expectedPath)
     {
         const string root = "/virtual/assets";
