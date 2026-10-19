@@ -1,317 +1,259 @@
-using System.Linq;
-using System.Collections.Generic;
+using BirdsEverywhere.BirdList;
+using BirdsEverywhere.BirdTypes;
+using BirdsEverywhere.Multiplayer;
+using BirdsEverywhere.Spawners;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+using StardewModdingAPI.Utilities;
 using StardewValley;
 using StardewValley.Menus;
-using StardewValley.BellsAndWhistles;
-using BirdsEverywhere.Spawners;
-using BirdsEverywhere.BirdTypes;
-using BirdsEverywhere.BirdList;
 
-namespace BirdsEverywhere
+namespace BirdsEverywhere;
+
+public class ModEntry : Mod
 {
-    /// <summary>The mod entry point.</summary>
-    public class ModEntry : Mod
+    private const string SaveKey = "bird-save";
+
+    private EnvironmentData _environment = new();
+    private SaveData _saveData = new();
+    private DailySpawner _dailySpawner = new();
+    private HashSet<string> _eligibleLocations = new();
+    private Dictionary<string, BirdData> _catalog = new();
+    private MessageSender _messages = null!;
+    private BirdServices _birdServices = null!;
+
+    public override void Entry(IModHelper helper)
     {
-        public static Mod modInstance;
-        const string saveKey = "bird-save";
+        _messages = new MessageSender(helper.Multiplayer, ModManifest.UniqueID);
+        _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation);
 
-        public static EnvironmentData environmentData;
-        public static SaveData saveData;
-        public static DailySpawner dailySpawner;
+        helper.Events.GameLoop.DayStarted += OnDayStarted;
+        helper.Events.Player.Warped += OnWarped;
+        helper.Events.GameLoop.Saving += OnSaving;
+        helper.Events.GameLoop.SaveLoaded += OnLoaded;
+        helper.Events.GameLoop.TimeChanged += OnTimeChanged;
+        helper.Events.Display.MenuChanged += OnMenuChanged;
+        helper.Events.Multiplayer.ModMessageReceived += OnModMessageReceived;
+        helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
 
-        public static HashSet<string> eligibleLocations;
-        public static Dictionary<string, BirdData> birdDataCollection;
+        helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.",
+            (_, _) => Logging.LogBirdSeenStatus(Monitor, _environment, _saveData, _catalog));
+    }
 
-        public override void Entry(IModHelper helper)
+    // ##################
+    // # Game Load/Save #
+    // ##################
+
+    private void OnLoaded(object? sender, SaveLoadedEventArgs e)
+    {
+        _environment = Helper.ModContent.Load<EnvironmentData>("assets/environmentData.json");
+        if (Context.IsMainPlayer)
         {
-            modInstance = this;
-
-            helper.Events.GameLoop.DayStarted += GameLoop_DayStarted;
-            helper.Events.Player.Warped += Player_Warped;
-            helper.Events.GameLoop.Saving += OnSaving;
-            helper.Events.GameLoop.SaveLoaded += OnLoaded;
-            helper.Events.GameLoop.TimeChanged += TimeChanged;
-            helper.Events.Display.MenuChanged += OnMenuChanged;
-            helper.Events.Multiplayer.ModMessageReceived += OnModMessageReceived;
-            helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
-
-            helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.", Logging.PrintSeenBirds);
+            _saveData = Helper.Data.ReadSaveData<SaveData>(SaveKey) ?? new SaveData();
         }
 
-        // ##################
-        // # Game Load/Save #
-        // ##################
-
-        private void OnLoaded(object sender, SaveLoadedEventArgs e)
+        _eligibleLocations = new HashSet<string>();
+        foreach (Biome biome in _environment.biomes)
         {
-            environmentData = modInstance.Helper.ModContent.Load<EnvironmentData>("assets/environmentData.json");
-            if (Context.IsMainPlayer)
-                saveData = Helper.Data.ReadSaveData<SaveData>(saveKey) ?? new SaveData();
-
-            setEligibleLocations();
-            loadAllBirdData();
+            _eligibleLocations.UnionWith(biome.locations);
         }
 
-        private void OnSaving(object sender, SavingEventArgs e)
-        {
-            if (Context.IsMainPlayer)
-                Helper.Data.WriteSaveData(saveKey, saveData);
+        LoadCatalog();
+    }
 
+    private void OnSaving(object? sender, SavingEventArgs e)
+    {
+        if (Context.IsMainPlayer)
+        {
+            Helper.Data.WriteSaveData(SaveKey, _saveData);
         }
+    }
 
-        private void setEligibleLocations()
+    private void LoadCatalog()
+    {
+        Dictionary<string, BirdTemplate> templates = new();
+        BirdTemplate ResolveTemplate(string name)
         {
-            eligibleLocations = new HashSet<string>();
-            foreach (Biome biome in environmentData.biomes)
-                eligibleLocations.UnionWith(biome.locations);
-        }
-
-        private void loadAllBirdData()
-        {
-            birdDataCollection = new Dictionary<string, BirdData>();
-            foreach (Biome biome in environmentData.biomes)
+            if (templates.TryGetValue(name, out BirdTemplate? cached))
             {
-                foreach (string birdName in biome.birds)
-                {
-                    birdDataCollection[birdName] = this.Helper.ModContent.Load<BirdData>($"assets/{birdName}/{birdName}.json");
-                    this.Helper.Data.WriteJsonFile($"assets/inspect_output/{birdName}.json", birdDataCollection[birdName]);
-                }
+                return cached;
             }
 
+            BirdTemplate template = Helper.ModContent.Load<BirdTemplate>($"assets/templates/{name}.json");
+            template.ApplyTemplate(ResolveTemplate);
+            templates[name] = template;
+            return template;
         }
 
-        // #############
-        // # Day Start #
-        // #############
-
-        private void GameLoop_DayStarted(object sender, DayStartedEventArgs e)
+        _catalog = new Dictionary<string, BirdData>();
+        foreach (Biome biome in _environment.biomes)
         {
-            if (Context.IsMainPlayer)
+            foreach (string birdName in biome.birds)
             {
-                // ADD ISLAND AND DESERT BIRDS TO VALID BIRDS FOR SPAWNING ONCE THEY ARE ACCESSIBLE
-                dailySpawner = new DailySpawner();
-                dailySpawner.initializeBirdLocations(saveData.seenBirds, environmentData.biomes);
-
-                // send bird locations for today to any farmhands
-                this.Helper.Multiplayer.SendMessage(MessageJson.Serialize(dailySpawner), "BirdLocationsForFarmhandsNewDay", modIDs: new[] { this.ModManifest.UniqueID });
-            }
-
-            Logging.LogBirdSeenStatus();
-        }
-
-        // ###############
-        // # Multiplayer #
-        // ###############
-
-        private void OnModMessageReceived(object sender, ModMessageReceivedEventArgs e)
-        {
-            // a specific player at a location receives a request from entering player to send them the bird objects there
-            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "RequestCurrentBirds" && Game1.player.UniqueMultiplayerID == e.ReadAs<long>())
-            {
-                Monitor.Log($"{Game1.player.Name} got request to send active birds.", LogLevel.Debug);
-                List<CustomBirdType> birds = Game1.currentLocation.critters.Where(x => x is CustomBirdType).Select(x => x as CustomBirdType).ToList();
-
-                this.Helper.Multiplayer.SendMessage(MessageJson.Serialize((e.FromPlayerID, birds)),
-                    "UpdateCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
-                foreach (CustomBirdType bird in Game1.currentLocation.critters.OfType<CustomBirdType>())
-                {
-                    bird.seedRandom();
-                }
-            }
-
-
-            // update birds according to the previous request
-            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateCurrentBirds")
-            {
-                (long sendingPlayerID, List<CustomBirdType> birds) = MessageJson.Deserialize<(long id, List<CustomBirdType> birds)>(e.ReadAs<string>());
-                Monitor.Log($"Player ID who received active bird data: {Game1.player.UniqueMultiplayerID} Player ID who supposedly first sent request {sendingPlayerID}. Matching? - {Game1.player.UniqueMultiplayerID == sendingPlayerID}", LogLevel.Debug);
-                if (Game1.player.UniqueMultiplayerID == sendingPlayerID)
-                {
-                    Monitor.Log($"{Game1.player.Name} got active birds and updates critter list.", LogLevel.Debug);
-                    Game1.currentLocation.instantiateCrittersList();
-                    Game1.currentLocation.critters.AddRange(birds);
-                }
-
-            }
-
-
-            // any player receives updated observation data (SaveData)
-            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "SaveNewObservation")
-                saveData = e.ReadAs<SaveData>();
-
-            // any player receives global message of bird observation to show
-            if (e.FromModID == this.ModManifest.UniqueID && e.Type == "GlobalObservationMessage")
-            {
-                string ObservationMessage = e.ReadAs<string>();
-                Game1.showGlobalMessage(ObservationMessage);
-            }
-
-            // farmhand
-            if (!Context.IsMainPlayer)
-            {
-                // farmhand receives birds today after day starts
-                if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsNewDay")
-                    dailySpawner = MessageJson.Deserialize<DailySpawner>(e.ReadAs<string>());
-
-                // farmhand receives SaveData on connect
-                if (e.FromModID == this.ModManifest.UniqueID && e.Type == "UpdateFarmhandSave")
-                {
-                    Monitor.Log($"{Game1.player.Name} received save data.", LogLevel.Debug);
-                    saveData = e.ReadAs<SaveData>();
-                }
-
-                // farmhand receives birds today after connecting
-                if (e.FromModID == this.ModManifest.UniqueID && e.Type == "BirdLocationsForFarmhandsOnConnect")
-                {
-                    Monitor.Log($"{Game1.player.Name} received bird data.", LogLevel.Debug);
-                    dailySpawner = MessageJson.Deserialize<DailySpawner>(e.ReadAs<string>());
-                }
-
+                BirdData data = Helper.ModContent.Load<BirdData>($"assets/{birdName}/{birdName}.json");
+                data.ApplyTemplate(ResolveTemplate);
+                _catalog[birdName] = data;
+                Helper.Data.WriteJsonFile($"assets/inspect_output/{birdName}.json", data);
             }
         }
+    }
 
-        private void OnPeerConnected(object sender, PeerConnectedEventArgs e)
+    // #############
+    // # Day Start #
+    // #############
+
+    private void OnDayStarted(object? sender, DayStartedEventArgs e)
+    {
+        if (Context.IsMainPlayer)
         {
-            if (Context.IsMainPlayer)
-            {
-                // host sends SaveData to newly connected farmhand
-                this.Helper.Multiplayer.SendMessage(saveData, "UpdateFarmhandSave", modIDs: new[] { this.ModManifest.UniqueID });
-
-                // host sends bird locations (DailySapwner) to connected farmhand
-                this.Helper.Multiplayer.SendMessage(MessageJson.Serialize(dailySpawner), "BirdLocationsForFarmhandsOnConnect", modIDs: new[] { this.ModManifest.UniqueID });
-            }
+            Random random = new(Utils.StableHash($"{Game1.uniqueIDForThisGame}|{Game1.stats.DaysPlayed}|day"));
+            _dailySpawner = new DailySpawner();
+            _dailySpawner.initializeBirdLocations(_saveData.seenBirds, _environment.biomes, _catalog, random, Monitor);
+            _messages.SendToAll(MessageJson.Serialize(_dailySpawner), MessageTypes.BirdLocationsNewDay);
         }
 
-        // #############################
-        // # Spawning / Removing Birds #
-        // #############################
+        Logging.LogBirdSeenStatus(Monitor, _environment, _saveData, _catalog);
+    }
 
-        private void Player_Warped(object sender, WarpedEventArgs e)
+    // ###############
+    // # Multiplayer #
+    // ###############
+
+    private void OnModMessageReceived(object? sender, ModMessageReceivedEventArgs e)
+    {
+        if (e.FromModID != ModManifest.UniqueID)
         {
-            if (e.NewLocation == null)
-                return;
-            modInstance.Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
-            removeVanillaBirds(e.NewLocation);
-
-            if (!Utils.isEligibleLocation(e.NewLocation))
-                return;
-
-            var farmer = Game1.getOnlineFarmers().FirstOrDefault(f => f.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID && f.currentLocation == e.NewLocation);
-            if (farmer == null)
-            {
-                dailySpawner.Populate(e.NewLocation);
-            }
-            else
-            {
-                Monitor.Log($"{Game1.player.Name} request active birds at {farmer.currentLocation}.", LogLevel.Debug);
-                this.Helper.Multiplayer.SendMessage(farmer.UniqueMultiplayerID, "RequestCurrentBirds", modIDs: new[] { this.ModManifest.UniqueID });
-            }
+            return;
         }
 
-        private void TimeChanged(object sender, TimeChangedEventArgs e)
+        switch (e.Type)
         {
-            if (Game1.currentLocation == null)
-                return;
-            removeVanillaBirds(Game1.currentLocation);
+            case MessageTypes.RequestCurrentBirds when Game1.player.UniqueMultiplayerID == e.ReadAs<long>():
+                SendCurrentBirds(e.FromPlayerID);
+                break;
+            case MessageTypes.UpdateCurrentBirds:
+                ReceiveCurrentBirds(e.ReadAs<string>());
+                break;
+            case MessageTypes.SaveNewObservation:
+                _saveData = e.ReadAs<SaveData>();
+                break;
+            case MessageTypes.GlobalObservationMessage:
+                Game1.showGlobalMessage(e.ReadAs<string>());
+                break;
+            case MessageTypes.BirdLocationsNewDay when !Context.IsMainPlayer:
+                _dailySpawner = MessageJson.Deserialize<DailySpawner>(e.ReadAs<string>());
+                break;
+            case MessageTypes.UpdateFarmhandSave when !Context.IsMainPlayer:
+                Monitor.Log($"{Game1.player.Name} received save data.", LogLevel.Debug);
+                _saveData = e.ReadAs<SaveData>();
+                break;
+            case MessageTypes.BirdLocationsOnConnect when !Context.IsMainPlayer:
+                Monitor.Log($"{Game1.player.Name} received bird data.", LogLevel.Debug);
+                _dailySpawner = MessageJson.Deserialize<DailySpawner>(e.ReadAs<string>());
+                break;
+        }
+    }
+
+    private void SendCurrentBirds(long requestingPlayerId)
+    {
+        Monitor.Log($"{Game1.player.Name} got request to send active birds.", LogLevel.Debug);
+        List<CustomBirdType> birds = Game1.currentLocation.critters.OfType<CustomBirdType>().ToList();
+        _messages.SendToPeer(MessageJson.Serialize((requestingPlayerId, birds)), MessageTypes.UpdateCurrentBirds, requestingPlayerId);
+        foreach (CustomBirdType bird in birds)
+        {
+            bird.seedRandom();
+        }
+    }
+
+    private void ReceiveCurrentBirds(string json)
+    {
+        (long targetPlayerId, List<CustomBirdType> birds) = MessageJson.Deserialize<(long, List<CustomBirdType>)>(json);
+        if (Game1.player.UniqueMultiplayerID != targetPlayerId)
+        {
+            return;
         }
 
-        private bool isVanillaBird(Critter critter)
+        Monitor.Log($"{Game1.player.Name} got active birds and updates critter list.", LogLevel.Debug);
+        foreach (CustomBirdType bird in birds)
         {
-            if (critter is Birdie)
-                return true;
-            if (critter is Seagull)
-                return true;
-            if (critter is Owl)
-                return true;
-            if (critter is Woodpecker)
-                return true;
-            return false;
+            bird.services = _birdServices;
         }
 
-        private void removeVanillaBirds(GameLocation location)
-        {
-            if (location.critters == null)
-                return;
+        Game1.currentLocation.instantiateCrittersList();
+        Game1.currentLocation.critters.AddRange(birds);
+    }
 
-            location.critters.RemoveAll(c => isVanillaBird(c));
+    private void OnPeerConnected(object? sender, PeerConnectedEventArgs e)
+    {
+        if (!Context.IsMainPlayer)
+        {
+            return;
         }
 
-        // ##################
-        // # Bird List Menu #
-        // ##################
-        private void OnMenuChanged(object sender, MenuChangedEventArgs args)
+        _messages.SendToPeer(_saveData, MessageTypes.UpdateFarmhandSave, e.Peer.PlayerID);
+        _messages.SendToPeer(MessageJson.Serialize(_dailySpawner), MessageTypes.BirdLocationsOnConnect, e.Peer.PlayerID);
+    }
+
+    private void RecordObservation(string birdName, string location)
+    {
+        if (!_saveData.seenBirds.Add(birdName))
         {
-            if (args.NewMenu is GameMenu g)
-            {
-                int indexOfCollectionsPage = g.pages.FindIndex(x => x is CollectionsPage);
-                if (g.pages[indexOfCollectionsPage] is CollectionsPage c)
-                {
-                    // converting to my custom CollectionsPage
-                    CollectionsPageWithBirds cp = new CollectionsPageWithBirds(c, Helper.Reflection);
+            return;
+        }
 
-                    // cp adding the clickable tab
-                    string iconAssetPath = $"assets/collections_tab_icon.png";
-                    Texture2D birdTabIconTexture = modInstance.Helper.ModContent.Load<Texture2D>(iconAssetPath);
+        _saveData.birdObservations[birdName] = new ObservationData(location, new SDate(Game1.dayOfMonth, Game1.currentSeason), Game1.timeOfDay, Game1.player.Name);
+        Monitor.Log("New bird was added to seen birds:", LogLevel.Debug);
+        Utils.logObservation(Monitor, _catalog, _saveData, birdName);
+        _messages.SendToAll(_saveData, MessageTypes.SaveNewObservation);
 
-                    cp.sideTabs.Add(8, new ClickableTextureComponent(string.Concat(8),
-                        new Rectangle(cp.xPositionOnScreen - 48, cp.yPositionOnScreen + 64 * (2 + cp.sideTabs.Count), 64, 64), "",
-                        "Birds", birdTabIconTexture, new Rectangle(0, 0, 16, 16), 4f)
-                    {
-                        myID = 7009,
-                        upNeighborID = -99998,
-                        downNeighborID = -99998,
-                        rightNeighborID = 0
-                    });
-                    cp.collections.Add(8, new List<List<ClickableTextureComponent>>());
+        string message = $"{Game1.player.Name} discovered a new bird: {_catalog[birdName].name}!";
+        Game1.showGlobalMessage(message);
+        _messages.SendToAll(message, MessageTypes.GlobalObservationMessage);
+    }
 
-                    // addings the bird icons
-                    int widthUsed = 0;
-                    int baseX = cp.xPositionOnScreen + IClickableMenu.borderWidth + IClickableMenu.spaceToClearSideBorder;
-                    int baseY = cp.yPositionOnScreen + IClickableMenu.borderWidth + IClickableMenu.spaceToClearTopBorder - 16;
-                    int collectionWidth = 10;
-                    int whichCollection2 = 8;
+    // #############################
+    // # Spawning / Removing Birds #
+    // #############################
 
-                    foreach (KeyValuePair<string, BirdData> kvp2 in birdDataCollection)
-                    {
-                        bool farmerHas2 = saveData.seenBirds.Contains(kvp2.Value.id);
-                        string birdAssetPath = $"assets/{kvp2.Value.id}/{kvp2.Value.id}_icon.png";
-                        Texture2D birdTexture = modInstance.Helper.ModContent.Load<Texture2D>(birdAssetPath);
+    private void OnWarped(object? sender, WarpedEventArgs e)
+    {
+        if (e.NewLocation == null)
+        {
+            return;
+        }
 
-                        int xPos4 = baseX + widthUsed % collectionWidth * 68;
-                        int yPos4 = baseY + widthUsed / collectionWidth * 68;
-                        if (yPos4 > cp.yPositionOnScreen + cp.height - 128)
-                        {
-                            cp.collections[whichCollection2].Add(new List<ClickableTextureComponent>());
-                            widthUsed = 0;
-                            xPos4 = baseX;
-                            yPos4 = baseY;
-                        }
-                        if (cp.collections[whichCollection2].Count == 0)
-                        {
-                            cp.collections[whichCollection2].Add(new List<ClickableTextureComponent>());
-                        }
-                        cp.collections[whichCollection2].Last().
-                            Add(new ClickableTextureComponent(kvp2.Value.id + " " + farmerHas2.ToString(),
-                            new Rectangle(xPos4, yPos4, 64, 64), null, "", birdTexture,
-                            new Rectangle(0, 0, 16, 16), 4f, farmerHas2)
-                            {
-                                myID = cp.collections[whichCollection2].Last().Count,
-                                rightNeighborID = (((cp.collections[whichCollection2].Last().Count + 1) % collectionWidth == 0) ? (-1) : (cp.collections[whichCollection2].Last().Count + 1)),
-                                leftNeighborID = ((cp.collections[whichCollection2].Last().Count % collectionWidth == 0) ? 7001 : (cp.collections[whichCollection2].Last().Count - 1)),
-                                downNeighborID = ((yPos4 + 68 > cp.yPositionOnScreen + cp.height - 128) ? (-7777) : (cp.collections[whichCollection2].Last().Count + collectionWidth)),
-                                upNeighborID = ((cp.collections[whichCollection2].Last().Count < collectionWidth) ? 12345 : (cp.collections[whichCollection2].Last().Count - collectionWidth)),
-                                fullyImmutable = true
-                            });
-                        widthUsed++;
-                    }
+        Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
+        VanillaBirds.Remove(e.NewLocation);
 
-                    g.pages[indexOfCollectionsPage] = cp;
-                }
-            }
+        if (!_eligibleLocations.Contains(e.NewLocation.Name))
+        {
+            return;
+        }
+
+        Farmer? farmer = Game1.getOnlineFarmers().FirstOrDefault(f => f.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID && f.currentLocation == e.NewLocation);
+        if (farmer == null)
+        {
+            _dailySpawner.Populate(e.NewLocation, _birdServices);
+            return;
+        }
+
+        Monitor.Log($"{Game1.player.Name} request active birds at {farmer.currentLocation}.", LogLevel.Debug);
+        _messages.SendToPeer(farmer.UniqueMultiplayerID, MessageTypes.RequestCurrentBirds, farmer.UniqueMultiplayerID);
+    }
+
+    private void OnTimeChanged(object? sender, TimeChangedEventArgs e)
+    {
+        if (Game1.currentLocation != null)
+        {
+            VanillaBirds.Remove(Game1.currentLocation);
+        }
+    }
+
+    private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
+    {
+        if (e.NewMenu is GameMenu menu)
+        {
+            BirdCollectionsTab.Install(menu, Helper.ModContent, Helper.Reflection, _catalog, _saveData);
         }
     }
 }

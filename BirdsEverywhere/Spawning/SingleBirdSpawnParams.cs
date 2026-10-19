@@ -12,17 +12,17 @@ namespace BirdsEverywhere.Spawners
 {
     public class SingleBirdSpawnParamsTile : SingleBirdSpawnParameters
     {
-        public SingleBirdSpawnParamsTile(Condition.TileSpawnCondition condition, Vector2 position, string id, string birdType, string spawnPattern, List<TimeRange> possibleTimesOfDay, string texture)
+        public SingleBirdSpawnParamsTile(Vector2 position, string id, string birdType, string spawnPattern, List<TimeRange> possibleTimesOfDay, string texture)
             : base(position, id, birdType, spawnPattern, possibleTimesOfDay, texture)
         {
             this.className = "SingleBirdSpawnParamsTile";
         }
 
-        public override bool stillValidSpawnPosition(GameLocation location)
+        public override bool stillValidSpawnPosition(GameLocation location, IMonitor monitor)
         {
             if (SpawnerFactory.createSpawner(spawnPattern) is not TileSpawner spawner)
-                return logUnknownPattern();
-            return spawner.condition(location, position, (int)position.X, (int)position.Y);
+                return logUnknownPattern(monitor);
+            return spawner.condition(new GameLocationQuery(location), position);
         }
     }
 
@@ -37,10 +37,10 @@ namespace BirdsEverywhere.Spawners
             this.className = "SingleBirdSpawnParamsTerrainFeature";
         }
 
-        public override bool stillValidSpawnPosition(GameLocation location)
+        public override bool stillValidSpawnPosition(GameLocation location, IMonitor monitor)
         {
             if (SpawnerFactory.createSpawner(spawnPattern) is not TerrainFeatureSpawner spawner)
-                return logUnknownPattern();
+                return logUnknownPattern(monitor);
             return spawner.condition(location, terrainFeatureIndex, position);
         }
     }
@@ -64,11 +64,11 @@ namespace BirdsEverywhere.Spawners
             this.texture = texture;
         }
 
-        public abstract bool stillValidSpawnPosition(GameLocation location);
+        public abstract bool stillValidSpawnPosition(GameLocation location, IMonitor monitor);
 
-        protected bool logUnknownPattern()
+        protected bool logUnknownPattern(IMonitor monitor)
         {
-            ModEntry.modInstance.Monitor.LogOnce($"Bird '{ID}' has unknown spawn pattern '{spawnPattern}'; keeping it in place.", LogLevel.Warn);
+            monitor.LogOnce($"Bird '{ID}' has unknown spawn pattern '{spawnPattern}'; keeping it in place.", LogLevel.Warn);
             return true;
         }
         public bool stillValidTime(int time) => possibleTimesOfDay.Any(x => x.isInRange(time));

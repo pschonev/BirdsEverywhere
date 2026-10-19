@@ -1,33 +1,22 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.Xna.Framework;
-using StardewValley;
 using StardewModdingAPI;
 
-namespace BirdsEverywhere
-{
-    public static class Logging
-    {
-        public static void PrintSeenBirds(string command, string[] args)
-        {
-            LogBirdSeenStatus();
-        }
-        public static void LogBirdSeenStatus()
-        {
-            foreach (Biome biome in ModEntry.environmentData.biomes)
-            {
-                ModEntry.modInstance.Monitor.Log($"{biome.name}:", LogLevel.Debug);
-                List<string> unseenBirds = biome.birds.Where(x => !ModEntry.saveData.seenBirds.Contains(x)).ToList();
-                //unseenBirds = unseenBirds.Select(x => birdDataCollection[x].name).ToList();
-                ModEntry.modInstance.Monitor.Log($" Unseen Birds: {String.Join(", ", unseenBirds)}.", LogLevel.Debug);
-            }
+namespace BirdsEverywhere;
 
-            ModEntry.modInstance.Monitor.Log($"Seen Birds:", LogLevel.Debug);
-            foreach (var kvp in ModEntry.saveData.birdObservations)
-            {
-                Utils.logObservation(kvp.Key);
-            }
+public static class Logging
+{
+    public static void LogBirdSeenStatus(IMonitor monitor, EnvironmentData environment, SaveData saveData, IReadOnlyDictionary<string, BirdData> catalog)
+    {
+        foreach (Biome biome in environment.biomes)
+        {
+            monitor.Log($"{biome.name}:", LogLevel.Debug);
+            IEnumerable<string> unseenBirds = biome.birds.Where(x => !saveData.seenBirds.Contains(x));
+            monitor.Log($" Unseen Birds: {string.Join(", ", unseenBirds)}.", LogLevel.Debug);
+        }
+
+        monitor.Log($"Seen Birds:", LogLevel.Debug);
+        foreach (string birdName in saveData.birdObservations.Keys)
+        {
+            Utils.logObservation(monitor, catalog, saveData, birdName);
         }
     }
 }

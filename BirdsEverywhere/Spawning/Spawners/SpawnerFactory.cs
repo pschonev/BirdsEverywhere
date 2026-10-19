@@ -26,10 +26,10 @@ namespace BirdsEverywhere.Spawners
 
         public static IReadOnlyCollection<string> KnownPatterns => spawnerTypes.Keys;
 
-        public static Spawner createSpawner(GameLocation location, BirdData data)
+        public static Spawner createSpawner(GameLocation location, BirdData data, IMonitor monitor)
         {
             string pattern = data.currentSpawnData.spawnPattern;
-            ModEntry.modInstance.Monitor.Log($"For location {location} {data.name}s will be created with {pattern}", LogLevel.Debug);
+            monitor.Log($"For location {location} {data.name}s will be created with {pattern}", LogLevel.Debug);
             return createSpawner(pattern) ?? throw new KeyNotFoundException($"Unknown spawn pattern '{pattern}' for bird '{data.id}'.");
         }
 
