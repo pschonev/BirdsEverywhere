@@ -24,32 +24,9 @@ public class TreeTrunkSpawner : TerrainFeatureSpawner
 
     public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
     {
-        List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
-        int featureCount = location.terrainFeatures.Count();
-        List<int> shuffledIndices = Shuffle(random, featureCount);
-
-        int groupCount = Utils.NextInclusive(random, rule.GroupCount.Min, rule.GroupCount.Max);
-        monitor.Log($" Attempting to spawn {groupCount} {data.Name}s.", LogLevel.Debug);
-
-        int attempts = Math.Min(MaxAttempts, featureCount);
-        for (int i = 0; i < attempts; i++)
-        {
-            int index = shuffledIndices[i];
-
-            if (isEligibleTree(location, index, new Vector2()))
-            {
-                Vector2 position = location.terrainFeatures.Pairs.ElementAt(index).Value.Tile;
-                spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.Id.Value, rule.BirdType.Value, rule.SpawnPattern.Value, rule.When.Times.ToList(), rule.PickTexture(data.Id, random)));
-                monitor.Log($"Added {data.Id.Value} to tree at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
-
-                groupCount--;
-                if (groupCount <= 0)
-                {
-                    break;
-                }
-            }
-        }
-        return spawnList;
+        List<TerrainFeature> features = location.terrainFeatures.Pairs.Select(pair => pair.Value).ToList();
+        IEnumerable<int> trees = Enumerable.Range(0, features.Count).Where(index => isEligibleTree(location, index, Vector2.Zero));
+        return Placements(TileSelection.Features(trees, rule.GroupCount, random, (index, _) => features[index].Tile), location, data, rule, random, monitor);
     }
 }
 
@@ -66,58 +43,31 @@ public class BushSpawner : TerrainFeatureSpawner
 
     public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
     {
-        List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
-        int featureCount = location.largeTerrainFeatures.Count;
-        List<int> shuffledIndices = Shuffle(random, featureCount);
+        IEnumerable<int> bushes = Enumerable.Range(0, location.largeTerrainFeatures.Count).Where(index => location.largeTerrainFeatures[index] is Bush);
+        return Placements(TileSelection.Features(bushes, rule.GroupCount, random, (index, r) => PlaceNearBush(location, index, r)), location, data, rule, random, monitor);
+    }
 
-        int groupCount = Utils.NextInclusive(random, rule.GroupCount.Min, rule.GroupCount.Max);
-        monitor.Log($" Attempting to spawn {groupCount} {data.Name}s.", LogLevel.Debug);
-
-        int attempts = Math.Min(MaxAttempts, featureCount);
-        for (int i = 0; i < attempts; i++)
-        {
-            int index = shuffledIndices[i];
-
-            if (location.largeTerrainFeatures[index] is Bush)
-            {
-                Vector2 bushPosition = location.largeTerrainFeatures[index].Tile;
-                int distance = random.Next(5, 12);
-                bool flip = random.NextDouble() < 0.5;
-
-                Vector2 position = new Vector2(bushPosition.X + (flip ? distance : (-distance)), bushPosition.Y);
-
-                if (straightPathToBush(location, index, position))
-                {
-                    spawnList.Add(new SingleBirdSpawnParamsTerrainFeature(index, position, data.Id.Value, rule.BirdType.Value, rule.SpawnPattern.Value, rule.When.Times.ToList(), rule.PickTexture(data.Id, random)));
-                    monitor.Log($"Added {data.Id.Value} to bush at {(int)position.X} - {(int)position.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
-
-                    groupCount--;
-                    if (groupCount <= 0)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-        return spawnList;
+    private static Vector2? PlaceNearBush(GameLocation location, int index, Random random)
+    {
+        Vector2 bush = location.largeTerrainFeatures[index].Tile;
+        int distance = random.Next(5, 12);
+        Vector2 position = new(bush.X + (random.NextDouble() < 0.5 ? distance : -distance), bush.Y);
+        return straightPathToBush(location, index, position) ? position : null;
     }
 }
 
 public abstract class TerrainFeatureSpawner : Spawner
 {
-    protected const int MaxAttempts = 100;
-
     public TerrainSpawnCondition condition = null!;
 
-    protected static List<int> Shuffle(Random random, int count)
+    protected static List<SingleBirdSpawnParameters> Placements(List<(int Index, Vector2 Position)> placed, GameLocation location,
+        BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
     {
-        List<int> indices = Enumerable.Range(0, count).ToList();
-        for (int i = count - 1; i > 0; i--)
-        {
-            int j = random.Next(i + 1);
-            (indices[i], indices[j]) = (indices[j], indices[i]);
-        }
-        return indices;
+        List<SingleBirdSpawnParameters> spawnList = placed
+            .Select(p => (SingleBirdSpawnParameters)new SingleBirdSpawnParamsTerrainFeature(p.Index, p.Position, data.Id.Value, rule.BirdType.Value, rule.SpawnPattern.Value, rule.When.Times.ToList(), rule.PickTexture(data.Id, random)))
+            .ToList();
+        monitor.Log($"Planned {spawnList.Count} {data.Id.Value} at {location.Name}.", LogLevel.Debug);
+        return spawnList;
     }
 }
 

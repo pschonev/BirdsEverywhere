@@ -61,43 +61,12 @@ public abstract class TileSpawner : Spawner
     public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor) =>
         spawnBirds(new GameLocationQuery(location), data, rule, random, monitor);
 
-    public List<SingleBirdSpawnParameters> spawnBirds(ILocationQuery location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor, int attemptsStartTile = 100, int attemptsPerBird = 20)
+    public List<SingleBirdSpawnParameters> spawnBirds(ILocationQuery location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)
     {
-        List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
-        Point mapSize = location.MapSize;
-
-        int groupCount = Utils.NextInclusive(random, rule.GroupCount.Min, rule.GroupCount.Max);
-
-        for (int k = 0; k < groupCount; k++)
-        {
-            int groupSize = Utils.NextInclusive(random, rule.GroupSize.Min, rule.GroupSize.Max);
-            monitor.Log($" Attempting to spawn one of {groupCount} group(s) with {groupSize} {data.Name}s.", LogLevel.Debug);
-            int groupTarget = spawnList.Count + groupSize;
-
-            for (int j = 0; j < attemptsStartTile; j++)
-            {
-                Vector2 initialTile = new Vector2(random.Next(3, mapSize.X - 4), random.Next(3, mapSize.Y - 4));
-                if (!condition(location, initialTile))
-                {
-                    continue;
-                }
-
-                foreach (Vector2 tile in Utils.getRandomPositionsStartingFromThisTile(random, initialTile, mapSize, groupSize * attemptsPerBird, branchChance: 0.5))
-                {
-                    if (condition(location, tile))
-                    {
-                        spawnList.Add(new SingleBirdSpawnParamsTile(tile, data.Id.Value, rule.BirdType.Value, rule.SpawnPattern.Value, rule.When.Times.ToList(), rule.PickTexture(data.Id, random)));
-                        monitor.Log($"Added {data.Id.Value} at {(int)tile.X} - {(int)tile.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
-                    }
-                    if (spawnList.Count >= groupTarget)
-                    {
-                        break;
-                    }
-                }
-                break;
-            }
-        }
-
+        List<SingleBirdSpawnParameters> spawnList = TileSelection.Tiles(location, condition, rule.GroupCount, rule.GroupSize, random)
+            .Select(tile => (SingleBirdSpawnParameters)new SingleBirdSpawnParamsTile(tile, data.Id.Value, rule.BirdType.Value, rule.SpawnPattern.Value, rule.When.Times.ToList(), rule.PickTexture(data.Id, random)))
+            .ToList();
+        monitor.Log($"Planned {spawnList.Count} {data.Id.Value} at {location.Name}.", LogLevel.Debug);
         return spawnList;
     }
 }

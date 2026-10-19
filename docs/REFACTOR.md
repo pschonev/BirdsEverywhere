@@ -201,6 +201,8 @@ Split today's `DailySpawner` / spawners / `SingleBirdSpawnParameters` into:
 
 **Exit:** spawn planning fully unit-tested with seeded `Random` and a fake `ILocationQuery`; in-game spawn frequency matches baseline.
 
+**Progress:** `SpawnPlanner.Plan` (pure bird/rule/location assignment, deterministic bird order) is extracted from `DailySpawner` and tested. `TileSelection` (unique tiles from random walks, empty result on tiny maps; seeded `Utils.Shuffle` over feature candidates, empty candidates give nothing) now backs all spawners. Still to do: `LocationSpawner`, the plan record with seeds, `spawnParams` and fish-area habitats, and luck/feasibility.
+
 ---
 
 ## 7. Fix known stability and data-integrity risks
