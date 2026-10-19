@@ -129,30 +129,41 @@ public static class ContentLoader
         return false;
     }
 
-    public static (IReadOnlyDictionary<string, IReadOnlyList<string>> Groups, IReadOnlyList<ValidationIssue> Issues) LoadGroups(string root, Func<string, string?> read)
+    public static (IReadOnlyDictionary<string, IReadOnlyList<string>> Groups, IReadOnlyList<ValidationIssue> Issues) LoadGroups(
+        string root,
+        IEnumerable<string> compatModIds,
+        Func<string, string?> read)
     {
-        string file = Path.Combine(root, "locationGroups.json");
         List<ValidationIssue> issues = new();
-        Dictionary<string, IReadOnlyList<string>> groups = new(StringComparer.Ordinal);
-        try
+        Dictionary<string, List<string>> groups = new(StringComparer.Ordinal);
+        foreach (string file in compatModIds.Select(modId => ContentPaths.CompatGroups(root, modId)).Prepend(ContentPaths.Groups(root)))
         {
-            JObject document = JObject.Parse(read(file) ?? throw new FileNotFoundException("Location groups missing.", file));
-            foreach (JProperty property in document.Properties())
+            try
             {
-                if (property.Value is not JArray locations || locations.Count == 0 || locations.Any(location => location.Type != JTokenType.String || string.IsNullOrWhiteSpace(location.Value<string>()) || location.Value<string>()!.StartsWith('@')))
+                JObject document = JObject.Parse(read(file) ?? throw new FileNotFoundException("Location groups missing.", file));
+                foreach (JProperty property in document.Properties())
                 {
-                    issues.Add(new ValidationIssue(IssueSeverity.Error, file, property.Name, "$." + property.Name, file, "Expected a nonempty array of location names (no nested groups)."));
-                    continue;
-                }
+                    if (property.Value is not JArray locations || locations.Count == 0 || locations.Any(location => location.Type != JTokenType.String || string.IsNullOrWhiteSpace(location.Value<string>()) || location.Value<string>()!.StartsWith('@')))
+                    {
+                        issues.Add(new ValidationIssue(IssueSeverity.Error, file, property.Name, "$." + property.Name, file, "Expected a nonempty array of location names (no nested groups)."));
+                        continue;
+                    }
 
-                groups[property.Name] = locations.Values<string>().Select(location => location!).ToArray();
+                    if (!groups.TryGetValue(property.Name, out List<string>? members))
+                    {
+                        members = new List<string>();
+                        groups.Add(property.Name, members);
+                    }
+
+                    members.AddRange(locations.Values<string>().Select(location => location!).Except(members, StringComparer.Ordinal));
+                }
+            }
+            catch (Exception exception) when (exception is JsonException or FileNotFoundException)
+            {
+                issues.Add(new ValidationIssue(IssueSeverity.Error, file, "", "$", file, exception.Message));
             }
         }
-        catch (Exception exception) when (exception is JsonException or FileNotFoundException)
-        {
-            issues.Add(new ValidationIssue(IssueSeverity.Error, file, "", "$", file, exception.Message));
-        }
 
-        return (groups, issues);
+        return (groups.ToDictionary(group => group.Key, group => (IReadOnlyList<string>)group.Value, StringComparer.Ordinal), issues);
     }
 }

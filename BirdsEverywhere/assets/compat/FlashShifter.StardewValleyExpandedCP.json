@@ -1,0 +1,22 @@
+{
+    "valley_gardens": [
+        "Custom_ForestWest",
+        "Custom_Garden"
+    ],
+    "coast": [
+        "Custom_BlueMoonVineyard",
+        "Custom_FableReef"
+    ],
+    "river": [
+        "Custom_ForestWest",
+        "Custom_ShearwaterBridge",
+        "Custom_GrampletonSuburbs"
+    ],
+    "mountain_lake": [
+        "Custom_Highlands"
+    ],
+    "forest_lake": [
+        "Custom_JunimoWoods",
+        "Custom_SpriteSpring2"
+    ]
+}

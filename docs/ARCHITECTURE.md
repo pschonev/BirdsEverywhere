@@ -131,7 +131,8 @@ Goal: a new species that behaves like an existing group of birds is a file with 
 |---|---|---|
 | `assets/templates/<id>.json` | optional `template`, `defaults`, `rules` | identity fields |
 | `assets/<bird_id>/<bird_id>.json` | `id` (equals file name), `name`, `scName`, `description`, optional `template`, `defaults`, `rules` | — |
-| `assets/locationGroups.json` | `{ "<group>": ["<GameLocationName>", ...] }` | bird ids, nested groups |
+| `assets/locationGroups.json` | `{ "<group>": ["<GameLocationName>", ...] }`, vanilla locations only | bird ids, nested groups, mod locations |
+| `assets/compat/<modUniqueId>.json` | same format; members appended to (or creating) groups when that mod is loaded | bird ids, nested groups |
 
 Only templates can be parents. Location groups are the only place that lists locations in bulk; birds are not listed per area anywhere (no second source of truth).
 
@@ -545,7 +546,25 @@ Goals, not designs; Phase 6 decides the implementation.
 ### Config-driven placement
 
 - A small set of general spawn patterns (ground, tree trunk, tree canopy, bush, fence or other placed object, water, shore, flying), parameterized from JSON via a `spawnParams` field on `SpawnRule`.
-- Patterns search the map for the kind of spot wanted (tile properties, water body kind such as river, pond or ocean, object or feature kind, proximity, or a coarse map region such as "bottom edge"). Never hardcode coordinates; they break when the game or map mods change.
+- Patterns search the map for the kind of spot wanted (tile properties, object or feature kind, proximity, or a coarse map region such as "bottom edge"). Never hardcode coordinates; they break when the game or map mods change.
+- Water habitat comes from game data, not map geometry. A habitat key is a location, a farm type, or either plus a fish area: `Town`, `Farm_Riverland`, `Farm_Meadowlands:River`. All farms are the `Farm` location at runtime, but each farm type has its own `Data/Locations` entry `Farm_<type key or ID>` (the game falls back to `Farm_Standard`), which is the habitat key. Fish areas are the `FishAreas` of a `Data/Locations` entry: named areas with tile rectangles that the game uses for fish and crab pots. Map mods maintain them, so a tile's area is a rectangle lookup with no coordinates in our code. Unverified: which entries define areas, and their ids (expected: `Forest` with `River`/`Lake`, Meadowlands with separate lake and river). Check with a `birds_fishareas` console command before relying on them. A location without areas is one habitat. Fallback if an area is missing: the pond is the water body whose tiles are not connected to the map edge.
+- Location groups name habitats and are the extension point for map mods (SVE, Deep Woods) and future farm types: a new area joins `@forest_lake` or `@big_lake` instead of every bird file listing it. Group by species-relevant habitat, not by water in general. Starting set:
+
+  | Group | Members |
+  |---|---|
+  | `@river` | `Town`, `Farm_Hilltop`, `Farm_Meadowlands:River` |
+  | `@mountain_lake` | `Mountain` |
+  | `@forest_lake` | `Woods`, `Farm_Forest` |
+  | `@big_lake` | `Farm_Wilderness`, SVE Immersive Farm |
+  | `@farm_pond` | `Farm_Standard`, `Farm_Meadowlands:Lake` (mallard only) |
+  | `@rich_wetland` | `Forest`, `Farm_Riverland` (many species, easiest place for otherwise rare birds) |
+  | `@coast` | `Beach`, `Farm_Beach` |
+
+  A group with one member is fine when map mods are expected to add to it. Within `Forest` all water counts as one habitat.
+- Popular map mods without their own patch get a shipped compat file, `assets/compat/<modUniqueId>.json`, merged only when `ModRegistry.IsLoaded(modUniqueId)`.
+- Groups live in a game asset, `Mods/<ModId>/LocationGroups`, loaded from `assets/locationGroups.json` via `AssetRequested`. Other mods add their areas with a Content Patcher `EditData` patch in their own content pack (or `IAssetEditor` code); compat files are only for mods that don't. Because Content Patcher conditions can depend on the save, groups are read at `SaveLoaded` and re-read on `AssetsInvalidated`; `@group` references are validated at load but expanded per day. Members for locations or areas that don't exist are ignored silently, because they usually come from a mod that isn't installed.
+- Distance to shore is the one geometric filter: `shoreDistance: [min, max]` in tiles from the nearest walkable ground (for water tiles) or nearest water (for ground tiles). It splits the beach into sand, shore land, shallow water and open sea, and keeps water birds within sight of walkable ground: the deep sea in the middle of the Beach and the whole sea along the bottom of the Forest are excluded.
+- Remote areas players rarely visit early (e.g. the southern Forest, selected as a coarse map region) get a low weight that rises with birding progression, so unseen birds don't spawn where players won't look.
 - Candidate spots too close to vanilla critters are rejected (see [Vanilla critters](#vanilla-critters)).
 - Each pattern has a cheap feasibility check (e.g. "this location has no fences") that runs before the candidate search. On failure the planner tries the bird's next rule or location, then the next bird, so an unseen bird always spawns if any can be placed, though not necessarily the first one tried.
 
@@ -556,7 +575,7 @@ Goals, not designs; Phase 6 decides the implementation.
 
 ## Out of scope for now
 
-- Public mod API for other mods, Content Patcher integration, JSON schema files.
+- Public mod API for other mods, Content Patcher integration beyond the `LocationGroups` asset, JSON schema files.
 - Spatial indexing or other performance work without a profile showing the need.
 
 These are tracked as Phase 10 in [REFACTOR.md](REFACTOR.md#10-nice-to-haves-and-future-improvements).

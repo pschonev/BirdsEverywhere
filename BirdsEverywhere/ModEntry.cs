@@ -48,6 +48,7 @@ public class ModEntry : Mod
         helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.",
             (_, _) => Logging.LogBirdSeenStatus(Monitor, _saveData, _catalog));
         helper.ConsoleCommands.Add("birds_dump", "Print effective rules and sources for a bird. Usage: birds_dump <id>", DumpBird);
+        helper.ConsoleCommands.Add("birds_fishareas", "List fish areas in Data/Locations. Usage: birds_fishareas [here]", DumpFishAreas);
     }
 
     // ##################
@@ -76,7 +77,11 @@ public class ModEntry : Mod
     {
         string root = Path.Combine(Helper.DirectoryPath, "assets");
         string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
-        (IReadOnlyDictionary<string, IReadOnlyList<string>> groups, IReadOnlyList<ValidationIssue> groupIssues) = ContentLoader.LoadGroups(root, Read);
+        string compatDirectory = ContentPaths.CompatDirectory(root);
+        IEnumerable<string> compatModIds = Directory.Exists(compatDirectory)
+            ? Directory.GetFiles(compatDirectory, "*.json").Select(Path.GetFileNameWithoutExtension).Select(modId => modId!).Where(Helper.ModRegistry.IsLoaded)
+            : Enumerable.Empty<string>();
+        (IReadOnlyDictionary<string, IReadOnlyList<string>> groups, IReadOnlyList<ValidationIssue> groupIssues) = ContentLoader.LoadGroups(root, compatModIds, Read);
         foreach (ValidationIssue issue in groupIssues)
         {
             LogIssue(issue);
@@ -84,9 +89,8 @@ public class ModEntry : Mod
 
         Dictionary<string, BirdDefinition> catalog = new(StringComparer.Ordinal);
         Dictionary<string, (JObject Effective, IReadOnlyDictionary<string, string> Sources)> effective = new(StringComparer.Ordinal);
-        foreach (string directory in Directory.GetDirectories(root).Where(path => Path.GetFileName(path) != "templates"))
+        foreach (string id in ContentPaths.BirdIds(root))
         {
-            string id = Path.GetFileName(directory);
             (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, JObject? document, IReadOnlyDictionary<string, string> sources) =
                 ContentLoader.LoadBird(root, id, groups, _spawnPatterns.Ids, _birdTypes.Ids, Read, File.Exists);
             foreach (ValidationIssue issue in issues)
@@ -129,6 +133,32 @@ public class ModEntry : Mod
             foreach (KeyValuePair<string, string> source in entry.Sources.Where(source => source.Key.StartsWith($"$.rules.{rule.Name}.", StringComparison.Ordinal)))
             {
                 Monitor.Log($"  {source.Key}: {source.Value}", LogLevel.Info);
+            }
+        }
+    }
+
+    private void DumpFishAreas(string command, string[] args)
+    {
+        if (!Context.IsWorldReady)
+        {
+            Monitor.Log("Load a save first.", LogLevel.Info);
+            return;
+        }
+
+        if (args.Length == 1 && args[0] == "here")
+        {
+            GameLocation location = Game1.currentLocation;
+            string? area = location.TryGetFishAreaForTile(Game1.player.Tile, out string id, out _) ? id : null;
+            Monitor.Log($"{location.Name} (farm type {Game1.GetFarmTypeKey()}) tile {Game1.player.Tile}: fish area {area ?? "<none>"}", LogLevel.Info);
+            return;
+        }
+
+        foreach ((string key, StardewValley.GameData.Locations.LocationData data) in Game1.locationData.Where(entry => entry.Value.FishAreas?.Count > 0))
+        {
+            foreach ((string id, StardewValley.GameData.Locations.FishAreaData area) in data.FishAreas)
+            {
+                string crabPot = area.CrabPotFishTypes is null ? "" : string.Join(",", area.CrabPotFishTypes);
+                Monitor.Log($"{key}:{id} position={area.Position?.ToString() ?? "<whole map>"} crabPot=[{crabPot}]", LogLevel.Info);
             }
         }
     }

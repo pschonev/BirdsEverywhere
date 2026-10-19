@@ -17,17 +17,15 @@ namespace BirdsEverwhyere.UnitTests
         internal static readonly BirdTypeId[] BirdTypes = new[] { "LandBird", "WaterLandBird", "TreeTrunkBird", "BushBird" }
             .Select(id => new BirdTypeId(id)).ToArray();
 
-        private static IEnumerable<string> BirdIds() =>
-            Directory.GetDirectories(AssetsDir)
-                .Select(Path.GetFileName)
-                .Where(name => name != "templates")
-                .Select(name => name!)
-                .OrderBy(name => name);
+        private static IEnumerable<string> BirdIds() => ContentPaths.BirdIds(AssetsDir).OrderBy(name => name);
+
+        private static IEnumerable<string> CompatModIds() =>
+            Directory.GetFiles(ContentPaths.CompatDirectory(AssetsDir), "*.json").Select(Path.GetFileNameWithoutExtension).Select(name => name!);
 
         internal static BirdDefinition LoadBird(string id)
         {
             string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
-            var (groups, groupIssues) = ContentLoader.LoadGroups(AssetsDir, Read);
+            var (groups, groupIssues) = ContentLoader.LoadGroups(AssetsDir, System.Array.Empty<string>(), Read);
             var (bird, issues, _, _) = ContentLoader.LoadBird(AssetsDir, id, groups, Patterns, BirdTypes, Read, File.Exists);
             Assert.That(groupIssues.Concat(issues).Where(issue => issue.Severity != IssueSeverity.Info), Is.Empty);
             Assert.That(bird, Is.Not.Null);
@@ -61,9 +59,23 @@ namespace BirdsEverwhyere.UnitTests
         [Test]
         public void LocationGroups_HaveLocations()
         {
-            var (groups, issues) = ContentLoader.LoadGroups(AssetsDir, File.ReadAllText);
+            var (groups, issues) = ContentLoader.LoadGroups(AssetsDir, CompatModIds(), File.ReadAllText);
             Assert.That(issues, Is.Empty);
             Assert.That(groups.Values.SelectMany(locations => locations), Is.Not.Empty);
+        }
+
+        [Test]
+        public void LocationGroups_MergeCompatFiles()
+        {
+            Dictionary<string, string> files = new()
+            {
+                [ContentPaths.Groups("/a")] = @"{""coast"":[""Beach""]}",
+                [ContentPaths.CompatGroups("/a", "Some.Mod")] = @"{""coast"":[""Beach"",""Custom_Reef""],""river"":[""Custom_River""]}",
+            };
+            var (groups, issues) = ContentLoader.LoadGroups("/a", new[] { "Some.Mod" }, path => files.GetValueOrDefault(path));
+            Assert.That(issues, Is.Empty);
+            Assert.That(groups["coast"], Is.EqualTo(new[] { "Beach", "Custom_Reef" }));
+            Assert.That(groups["river"], Is.EqualTo(new[] { "Custom_River" }));
         }
 
         [TestCase("black_woodpecker", "TreeTrunkSpawner", "TreeTrunkBird", "Forest,Farm,Backwoods", 1, 4, 1, 7)]
