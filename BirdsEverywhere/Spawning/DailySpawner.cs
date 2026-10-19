@@ -86,7 +86,7 @@ public sealed class DailySpawner
                 continue;
             }
 
-            if (!birdTypes.TryCreate(new BirdTypeId(placement.BirdType), placement, location, services, out CustomBirdType? bird))
+            if (!birdTypes.TryCreate(new BirdTypeId(placement.BirdType), placement, location, services, out BirdCritter? bird))
             {
                 services.Monitor.LogOnce($"Bird '{placement.ID}' has unknown bird type '{placement.BirdType}' for its placement; skipping.", LogLevel.Warn);
                 continue;

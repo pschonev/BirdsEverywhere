@@ -8,13 +8,13 @@ namespace BirdsEverywhere.Registries;
 
 internal sealed class BirdTypeRegistry
 {
-    private readonly IReadOnlyDictionary<BirdTypeId, Func<SingleBirdSpawnParameters, GameLocation, BirdServices, CustomBirdType?>> _factories;
+    private readonly IReadOnlyDictionary<BirdTypeId, Func<SingleBirdSpawnParameters, GameLocation, BirdServices, BirdCritter?>> _factories;
 
-    public BirdTypeRegistry(IReadOnlyDictionary<BirdTypeId, Func<SingleBirdSpawnParameters, GameLocation, BirdServices, CustomBirdType?>> factories) => _factories = factories;
+    public BirdTypeRegistry(IReadOnlyDictionary<BirdTypeId, Func<SingleBirdSpawnParameters, GameLocation, BirdServices, BirdCritter?>> factories) => _factories = factories;
 
     public IReadOnlyCollection<BirdTypeId> Ids => _factories.Keys.ToArray();
 
-    public static BirdTypeRegistry CreateDefault() => new(new Dictionary<BirdTypeId, Func<SingleBirdSpawnParameters, GameLocation, BirdServices, CustomBirdType?>>
+    public static BirdTypeRegistry CreateDefault() => new(new Dictionary<BirdTypeId, Func<SingleBirdSpawnParameters, GameLocation, BirdServices, BirdCritter?>>
     {
         [new BirdTypeId("LandBird")] = (p, _, s) => new LandBird((int)p.position.X, (int)p.position.Y, p.ID, p.texture, s),
         [new BirdTypeId("WaterLandBird")] = (p, _, s) => new WaterLandBird((int)p.position.X, (int)p.position.Y, p.ID, p.texture, s),
@@ -26,7 +26,7 @@ internal sealed class BirdTypeRegistry
             : null,
     });
 
-    public bool TryCreate(BirdTypeId id, SingleBirdSpawnParameters placement, GameLocation location, BirdServices services, [NotNullWhen(true)] out CustomBirdType? bird)
+    public bool TryCreate(BirdTypeId id, SingleBirdSpawnParameters placement, GameLocation location, BirdServices services, [NotNullWhen(true)] out BirdCritter? bird)
     {
         bird = _factories.TryGetValue(id, out var create) ? create(placement, location, services) : null;
         return bird is not null;

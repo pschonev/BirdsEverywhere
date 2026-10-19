@@ -80,7 +80,7 @@ namespace BirdsEverwhyere.UnitTests
         [Test]
         public void BirdTypeRegistry_UnknownType_ReturnsFalse()
         {
-            Assert.That(BirdTypeRegistry.CreateDefault().TryCreate(new BirdTypeId("NoSuchBird"), null!, null!, null!, out CustomBirdType? bird), Is.False);
+            Assert.That(BirdTypeRegistry.CreateDefault().TryCreate(new BirdTypeId("NoSuchBird"), null!, null!, null!, out BirdCritter? bird), Is.False);
             Assert.That(bird, Is.Null);
         }
     }

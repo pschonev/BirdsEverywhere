@@ -198,9 +198,9 @@ public class ModEntry : Mod
     private void SendCurrentBirds(long requestingPlayerId)
     {
         Monitor.Log($"{Game1.player.Name} got request to send active birds.", LogLevel.Debug);
-        List<CustomBirdType> birds = Game1.currentLocation.critters.OfType<CustomBirdType>().ToList();
+        List<BirdCritter> birds = Game1.currentLocation.critters.OfType<BirdCritter>().ToList();
         _messages.SendToPeer(MessageJson.Serialize((requestingPlayerId, birds)), MessageTypes.UpdateCurrentBirds, requestingPlayerId);
-        foreach (CustomBirdType bird in birds)
+        foreach (BirdCritter bird in birds)
         {
             bird.seedRandom();
         }
@@ -208,14 +208,14 @@ public class ModEntry : Mod
 
     private void ReceiveCurrentBirds(string json)
     {
-        (long targetPlayerId, List<CustomBirdType> birds) = MessageJson.Deserialize<(long, List<CustomBirdType>)>(json);
+        (long targetPlayerId, List<BirdCritter> birds) = MessageJson.Deserialize<(long, List<BirdCritter>)>(json);
         if (Game1.player.UniqueMultiplayerID != targetPlayerId)
         {
             return;
         }
 
         Monitor.Log($"{Game1.player.Name} got active birds and updates critter list.", LogLevel.Debug);
-        foreach (CustomBirdType bird in birds)
+        foreach (BirdCritter bird in birds)
         {
             bird.services = _birdServices;
         }

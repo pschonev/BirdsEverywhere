@@ -7,7 +7,7 @@ using StardewValley.BellsAndWhistles;
 
 namespace BirdsEverywhere.BirdTypes;
 
-abstract class CustomBirdType : Critter
+abstract class BirdCritter : Critter
 {
     public enum BehaviorStatus
     {
@@ -44,9 +44,9 @@ abstract class CustomBirdType : Critter
     [JsonIgnore]
     public BirdServices? services { get; set; }
 
-    public CustomBirdType() { }
+    public BirdCritter() { }
 
-    protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, string texture, BirdServices services, int spriteWidth = 32, int spriteHeight = 32)
+    protected BirdCritter(int baseFrame, int tileX, int tileY, string birdName, string texture, BirdServices services, int spriteWidth = 32, int spriteHeight = 32)
         : base(baseFrame, new Vector2(tileX * 64, tileY * 64))
     {
         this.birdName = birdName;
@@ -56,7 +56,7 @@ abstract class CustomBirdType : Critter
         this.birdID = services.NewId();
     }
 
-    public CustomBirdType setAnimatedSprite(AnimatedSprite sprite)
+    public BirdCritter setAnimatedSprite(AnimatedSprite sprite)
     {
         this.sprite = sprite;
         return this;
