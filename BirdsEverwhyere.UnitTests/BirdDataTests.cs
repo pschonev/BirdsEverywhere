@@ -10,15 +10,12 @@ namespace BirdsEverwhyere.UnitTests
 {
     public class BirdDataTests
     {
-        private static string projectDir =
-    Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-
         private BirdData testBirdData;
 
         [SetUp]
         public void Setup()
         {
-            string in_path = Path.Combine(projectDir, "test_bird.json");
+            string in_path = Path.Combine(AppContext.BaseDirectory, "test_bird.json");
             string jsonFileContent = File.ReadAllText(in_path);
             testBirdData = JsonSerializer.Deserialize<MockBirdData>(jsonFileContent);
         }

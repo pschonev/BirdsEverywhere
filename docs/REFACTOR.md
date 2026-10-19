@@ -104,6 +104,8 @@ Avoid a single `IBirdService` that exposes everything; tests should only fake wh
 
 **Exit:** no `ModEntry.` references outside `ModEntry`; no `Game1.random` in spawning or selection; planner and content code constructible in tests.
 
+**Done:** `ModEntry` statics removed; state is private and passed in. Seams: `ILocationQuery`/`GameLocationQuery`, `MessageSender` (interface dropped until a fake needs it), `BirdServices` (monitor, content, id source, observation callback) for birds. Day `Random` seeded from `StableHash(uniqueIDForThisGame|DaysPlayed)`. Extracted `VanillaBirds`, `BirdCollectionsTab`, `MessageTypes`; `CollectionsPageWithBirds` takes its dependencies. Host→peer messages on connect are targeted at that peer. Behavior changes: spawnable check is deterministic (no random 10% behind-tree), `WaterOrGround` is ground ∪ water, `TileSpawner` group target is per group. Tests: `SpawningTests` (fake `ILocationQuery`: seeded determinism, ground-only placements, shuffle determinism, pinned `StableHash`).
+
 ---
 
 ## 3. Make configuration DRY, explicit, and validated
@@ -207,7 +209,7 @@ Observed: birds without `defaultSpawnData` get global defaults (Forest, 1–2 gr
 | ~~`WaterSpawner` declares `protected new TileSpawnCondition condition`, hiding the base field; base `condition` stays null → NRE~~ | [TileSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TileSpawner.cs#L37) | 7 (early fix OK) |
 | ~~Farmhands never set `currentSpawnData`; `stillValidSpawnPosition` reads it from the global catalog → crash on farmhand~~ (spawn params now carry `spawnPattern`) | [SingleBirdSpawnParams.cs](../BirdsEverywhere/Spawning/SingleBirdSpawnParams.cs#L21) | 6 |
 | ~~`getRandomElementFromList` uses `Next(0, Count - 1)`: never picks the last element~~ | [Utils.cs](../BirdsEverywhere/Utils.cs#L43) | 6 (early fix OK) |
-| `shuffleByWeights` draws a new random value inside the `Sort` comparator: biased order, and `List.Sort` may throw on the inconsistent comparer | [Utils.cs](../BirdsEverywhere/Utils.cs#L17) | 6 (early fix OK) |
+| ~~`shuffleByWeights` draws a new random value inside the `Sort` comparator: biased order, and `List.Sort` may throw on the inconsistent comparer~~ (keys drawn once per item) | [Utils.cs](../BirdsEverywhere/Utils.cs#L12) | 6 (early fix OK) |
 | ~~Group count/size use exclusive `Next(min, max)`: never reach configured max~~ (now inclusive) | [TileSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TileSpawner.cs#L85), [TerrainFeatureSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TerrainFeatureSpawner.cs#L37) | 6 (gameplay decision) |
 | Tree birds stored by `terrainFeatures.Pairs.ElementAt(index)` (unstable dictionary order), unchecked `as Tree` | [TreeTrunkBird.cs](../BirdsEverywhere/BirdTypes/TreeTrunkBird.cs#L36) | 5/7 |
 | Bush birds stored by `largeTerrainFeatures[index]`, unchecked `as Bush` | [BushBird.cs](../BirdsEverywhere/BirdTypes/BushBird.cs#L34) | 5/7 |
@@ -220,7 +222,7 @@ Observed: birds without `defaultSpawnData` get global defaults (Forest, 1–2 gr
 | Debug output written to `assets/inspect_output/` on every save load | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs#L108) | 3 |
 | ~~`Player_Warped` logs `e.NewLocation.Name` before the null check~~ | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs) | 2 |
 | ~~Vanilla-bird removal logs every critter on every `TimeChanged`~~ | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs) | 2 |
-| `Game1.random` used throughout spawning → not reproducible or testable | [Spawning/](../BirdsEverywhere/Spawning) | 2/6 |
+| ~~`Game1.random` used throughout spawning → not reproducible or testable~~ (seeded `Random` passed in) | [Spawning/](../BirdsEverywhere/Spawning) | 2/6 |
 
 **Exit:** every row fixed with a regression test (or a documented in-game check where a test is impossible).
 

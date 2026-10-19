@@ -3,9 +3,6 @@ using Microsoft.Xna.Framework.Graphics;
 using StardewValley.BellsAndWhistles;
 using StardewValley;
 using StardewModdingAPI;
-using StardewModdingAPI.Utilities;
-using System;
-using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace BirdsEverywhere.BirdTypes
@@ -37,27 +34,26 @@ namespace BirdsEverywhere.BirdTypes
             set
             {
                 _birdID = value;
-                ModEntry.modInstance.Monitor.Log($"Setting random generator", LogLevel.Debug);
                 seedRandom();
-                ModEntry.modInstance.Monitor.Log($"Done setting random generator", LogLevel.Debug);
             }
         }
-
-
 
         [JsonIgnore]
         protected Random random;
 
+        [JsonIgnore]
+        public BirdServices? services { get; set; }
+
         public CustomBirdType() { }
 
-        protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, string texture, int spriteWidth = 32, int spriteHeight = 32)
+        protected CustomBirdType(int baseFrame, int tileX, int tileY, string birdName, string texture, BirdServices services, int spriteWidth = 32, int spriteHeight = 32)
             : base(baseFrame, new Vector2(tileX * 64, tileY * 64))
         {
             this.birdName = birdName;
             this.texture = texture;
-            string textureKey = getTextureName();
-            this.sprite = new AnimatedSprite(textureKey, baseFrame, spriteWidth, spriteHeight);
-            this.birdID = ModEntry.modInstance.Helper.Multiplayer.GetNewID();
+            this.services = services;
+            this.sprite = new AnimatedSprite(getTextureName(services.Content), baseFrame, spriteWidth, spriteHeight);
+            this.birdID = services.NewId();
         }
 
         public CustomBirdType setAnimatedSprite(AnimatedSprite sprite)
@@ -71,11 +67,11 @@ namespace BirdsEverywhere.BirdTypes
             this.random = new Random((int)(this.birdID % Int32.MaxValue));
         }
 
-        private string getTextureName()
+        private string getTextureName(IModContentHelper content)
         {
             string assetPath = $"assets/{this.birdName}/{this.texture}.png";
-            Texture2D texture = ModEntry.modInstance.Helper.ModContent.Load<Texture2D>(assetPath);
-            return ModEntry.modInstance.Helper.ModContent.GetInternalAssetName(assetPath).Name;
+            content.Load<Texture2D>(assetPath);
+            return content.GetInternalAssetName(assetPath).Name;
         }
 
         public override void drawAboveFrontLayer(SpriteBatch b)
@@ -88,21 +84,7 @@ namespace BirdsEverywhere.BirdTypes
 
         public void addBirdObservation(string birdName, string location)
         {
-            if (ModEntry.saveData.seenBirds.Add(birdName))
-            {
-                // create observation and add to save file
-                ObservationData observation = new ObservationData(location, new SDate(Game1.dayOfMonth, Game1.currentSeason), Game1.timeOfDay, Game1.player.Name);
-                ModEntry.saveData.birdObservations[birdName] = observation;
-                // log observation
-                ModEntry.modInstance.Monitor.Log($"New bird was added to seen birds:", LogLevel.Debug);
-                Utils.logObservation(birdName);
-                // send observation multiplayer
-                ModEntry.modInstance.Helper.Multiplayer.SendMessage(ModEntry.saveData, "SaveNewObservation", modIDs: new[] { ModEntry.modInstance.ModManifest.UniqueID });
-                // show global message
-                string ObservationMessage = $"{Game1.player.Name} discovered a new bird: {ModEntry.birdDataCollection[birdName].name}!";
-                Game1.showGlobalMessage(ObservationMessage);
-                ModEntry.modInstance.Helper.Multiplayer.SendMessage(ObservationMessage, "GlobalObservationMessage", modIDs: new[] { ModEntry.modInstance.ModManifest.UniqueID });
-            }
+            services?.Observe(birdName, location);
         }
     }
 }

@@ -1,8 +1,4 @@
 using Newtonsoft.Json;
-using StardewModdingAPI;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 
 namespace BirdsEverywhere
 {
@@ -24,7 +20,7 @@ namespace BirdsEverywhere
             { "spring", new List<SpawnData>() {new SpawnData() } }
         }; // all spawn patterns that the bird has in the form season : SpawnData
 
-        public static SpawnData globalDefaultSpawndata = SpawnData.getDefaultSpawnData();
+        public static readonly SpawnData globalDefaultSpawndata = SpawnData.getDefaultSpawnData();
 
         public BirdData() { }
 
@@ -39,16 +35,21 @@ namespace BirdsEverywhere
             {
                 defaultSpawnData = SpawnData.getDefaultSpawnData();
             }
+            this.defaultSpawnData = defaultSpawnData;
+            this.allSpawnData = allSpawnData;
+            this.template = template ?? "";
+        }
+
+        public void ApplyTemplate(Func<string, BirdTemplate> resolvedTemplate)
+        {
             if (!string.IsNullOrEmpty(template))
             {
-                BirdTemplate templateData = ModEntry.modInstance.Helper.ModContent.Load<BirdTemplate>($"assets/templates/{template}.json");
+                BirdTemplate templateData = resolvedTemplate(template);
                 templateData.defaultSpawnData.CopyProperties(defaultSpawnData);
                 allSpawnData.MergeDictionaries(templateData.allSpawnData);
             }
-
-            this.defaultSpawnData = defaultSpawnData;
-            this.allSpawnData = SpawnData.insertDefaults(this.defaultSpawnData, allSpawnData);
-            this.allSpawnData = SpawnData.insertDefaults(globalDefaultSpawndata, this.allSpawnData);
+            allSpawnData = SpawnData.insertDefaults(defaultSpawnData, allSpawnData);
+            allSpawnData = SpawnData.insertDefaults(globalDefaultSpawndata, allSpawnData);
         }
 
         public List<SpawnData> possibleSpawnDataToday(string season, bool isRaining, int day)
@@ -73,9 +74,9 @@ namespace BirdsEverywhere
 
         }
 
-        public static SpawnData chooseOneSpawnData(List<SpawnData> allPossibleSpawnData)
+        public static SpawnData chooseOneSpawnData(Random random, List<SpawnData> allPossibleSpawnData)
         {
-            SpawnData spawnData = Utils.getRandomElementFromList(StardewValley.Game1.random, allPossibleSpawnData);
+            SpawnData spawnData = Utils.getRandomElementFromList(random, allPossibleSpawnData);
             spawnData.initTextureList();
             return spawnData;
         }

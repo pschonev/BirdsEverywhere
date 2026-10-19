@@ -10,10 +10,14 @@ namespace BirdsEverywhere.BirdList
         private readonly IReflectedField<string> _hoverText;
         private readonly IReflectedField<int> _value;
         private readonly IReflectedField<Item> _hoverItem;
+        private readonly IReadOnlyDictionary<string, BirdData> _catalog;
+        private readonly SaveData _saveData;
 
-        public CollectionsPageWithBirds(CollectionsPage cp, IReflectionHelper reflection)
+        public CollectionsPageWithBirds(CollectionsPage cp, IReflectionHelper reflection, IReadOnlyDictionary<string, BirdData> catalog, SaveData saveData)
             : base(cp.xPositionOnScreen, cp.yPositionOnScreen, cp.width, cp.height)
         {
+            _catalog = catalog;
+            _saveData = saveData;
             _hoverText = reflection.GetField<string>(this, "hoverText");
             _value = reflection.GetField<int>(this, "value");
             _hoverItem = reflection.GetField<Item>(this, "hoverItem");
@@ -100,8 +104,8 @@ namespace BirdsEverywhere.BirdList
 
         private string getBirdHoverText(string id)
         {
-            var data = ModEntry.birdDataCollection[id];
-            var obsData = ModEntry.saveData.birdObservations[id];
+            BirdData data = _catalog[id];
+            ObservationData obsData = _saveData.birdObservations[id];
             return $"{data.name}\n{data.scName}\n\n{data.description}\n\nFirst seen by {obsData.playerName}\n{obsData.observationLocation} on {obsData.observationDate}";
         }
     }

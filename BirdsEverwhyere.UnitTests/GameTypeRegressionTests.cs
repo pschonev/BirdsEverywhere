@@ -42,7 +42,7 @@ namespace BirdsEverwhyere.UnitTests
             original.LocationBirdPosition["Forest"] = new List<SingleBirdSpawnParameters>
             {
                 new SingleBirdSpawnParamsTile(
-                    (_, _, _, _) => true, new Vector2(4, 5), "blue_tit", "LandBird", "GroundSpawner",
+                    new Vector2(4, 5), "blue_tit", "LandBird", "GroundSpawner",
                     new List<TimeRange> { new TimeRange(600, 2400) }, "blue_tit"),
             };
 

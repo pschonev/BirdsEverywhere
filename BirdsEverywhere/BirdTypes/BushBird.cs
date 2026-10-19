@@ -18,8 +18,8 @@ namespace BirdsEverywhere.BirdTypes
         public int flightDistance { get; set; }
 
         public BushBird() { }
-        public BushBird(int tileX, int tileY, string birdName, string texture)
-            : base(0, tileX, tileY, birdName, texture)
+        public BushBird(int tileX, int tileY, string birdName, string texture, BirdServices services)
+            : base(0, tileX, tileY, birdName, texture, services)
         {
             position.Y += 48f;
             sprite.loop = true;
@@ -35,8 +35,6 @@ namespace BirdsEverywhere.BirdTypes
             flip = bush.Tile.X < (position.X / 64);
             startingPosition = position;
             flightDistance = (int)Math.Abs(bush.Tile.X - (position.X / 64f)) - 1;
-
-            ModEntry.modInstance.Monitor.Log($"BushBird at {position.X / 64} - {position.Y / 64} will attempt to run to bush at {bush.Tile.X} - {bush.Tile.Y} (status flipped: {flip}).", LogLevel.Debug);
             return this;
         }
 
