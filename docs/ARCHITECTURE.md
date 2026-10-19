@@ -519,6 +519,26 @@ No mocking library. Stardew types (`GameLocation`, `Farmer`, `Tree`) are concret
 
 Tests assert observable outcomes (a bird flees when a farmer is near), not class names or private state. NUnit with `[TestCase]` / `TestCaseSource` tables.
 
+## Future design goals
+
+Goals, not designs; Phase 6 decides the implementation.
+
+### Spawn selection: luck, rarity, experience
+
+- The daily roll at `DayStarted` takes `Game1.player.DailyLuck` as a planner input (multiplayer: host or average, decide later). It stays seeded per save and day: random, but reproducible.
+- Unseen birds in the main region: usually 1 per day, a small chance of 2, a tiny chance of 3. Luck raises or lowers these chances.
+- Candidates are ordered by rarity, and a bias curve favours the top unseen entries (today `Utils.shuffleListByOrder` with a fixed `luckLevel` of 2.0, currently unused; `DailySpawner` just sorts unseen first). Good luck flattens the curve (more random, less rarity-driven); bad luck steepens it.
+- Luck is one of several generic "birding modifiers"; keep room for birding experience or progression to raise the count and rarity of birds seen.
+- A bird's spawn chance combines its position in the rarity order with a per-rule weight modifier in config, e.g. very likely at peak migration and rare on the days around it.
+- Seen birds use the same rarity and weight model but have no 1-per-day limit: one or more species per area is fine when the rules fit. Groups of different species in one location keep a minimum distance; the daily plan records each group's area so placements don't overlap.
+- Special spawn events (e.g. migrations) can be triggered like TV weather forecasts, or by dialogue or quests. Events are data-defined and act by changing rule weights or eligibility.
+
+### Config-driven placement
+
+- A small set of general spawn patterns (ground, tree trunk, tree canopy, bush, fence or other placed object, water, shore, flying), parameterized from JSON via a `spawnParams` field on `SpawnRule`.
+- Patterns search the map for the kind of spot wanted (tile properties, water body kind such as river, pond or ocean, object or feature kind, proximity, or a coarse map region such as "bottom edge"). Never hardcode coordinates; they break when the game or map mods change.
+- Each pattern has a cheap feasibility check (e.g. "this location has no fences") that runs before the candidate search. On failure the planner tries the bird's next rule or location, then the next bird, so an unseen bird always spawns if any can be placed, though not necessarily the first one tried.
+
 ## Out of scope for now
 
 - Public mod API for other mods, Content Patcher integration, JSON schema files.

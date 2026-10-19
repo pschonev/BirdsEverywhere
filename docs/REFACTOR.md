@@ -4,7 +4,7 @@ Modernize the mod without changing its intended gameplay: make it safe to refact
 
 > First protect existing behavior with tests; then improve the architecture in small, verified steps.
 
-Feature work (new species, bird types, progression) stays in [TODO.md](../TODO.md). This roadmap covers structure and correctness only.
+Phases 0–10 cover structure and correctness. Feature work and observed bugs not yet tied to a phase live in the [Backlog](#backlog).
 
 ## Phase order
 
@@ -140,7 +140,7 @@ Replace constructor-time merging and reflection-based default filling with a loa
 
 - `BirdTypeRegistry` and `SpawnPatternRegistry`: `IReadOnlyDictionary<TId, factory>` built in `ModEntry`. No static dictionaries, reflection, or attributes.
 - Typed ids (`BirdTypeId`, `SpawnPatternId`) instead of raw strings.
-- Content validation checks every referenced id against registry keys before gameplay.
+- Content validation checks every referenced id against registry keys before gameplay, including each pattern's `spawnParams` ([future placement goals](ARCHITECTURE.md#config-driven-placement)).
 - `TryCreate` instead of indexing that throws or `null` returns; unknown ids log a warning and skip.
 - Delete the string `switch` in `CustomBirdTypeConverterReader`, the static maps in `BirdFactory` and `SpawnerFactory`, and the `className` discriminator strings once Phase 7 serialization lands.
 
@@ -186,6 +186,7 @@ Split today's `DailySpawner` / spawners / `SingleBirdSpawnParameters` into:
 - Empty candidate lists return no placement instead of throwing.
 - Replace index-based shuffles (`Enumerable.Range(...).OrderBy(Game1.random...)`) with a seeded shuffle over candidates.
 - Remove the unused `stillValidTime` and the unused `state` in `WaterOrGroundSpawner`, or wire them in deliberately.
+- Design the planner for [luck, rarity, and experience inputs](ARCHITECTURE.md#spawn-selection-luck-rarity-experience) and per-rule weight modifiers, and fall back to the next rule, location, or bird when a pattern's [feasibility check](ARCHITECTURE.md#config-driven-placement) fails.
 
 **Exit:** spawn planning fully unit-tested with seeded `Random` and a fake `ILocationQuery`; in-game spawn frequency matches baseline.
 
@@ -281,3 +282,43 @@ After phases 0–9.
 - **Content tooling:** console command or CI job that validates all content and reports ids, templates, spawn patterns, locations, unresolved references, and inheritance chains; optional JSON schema for editor feedback.
 - **Lifecycle audit:** event subscriptions, cached references, and long-lived collections cleaned up on save change and location unload. `IDisposable` only where the code owns subscriptions or unmanaged resources.
 - **Docs:** keep [ARCHITECTURE.md](ARCHITECTURE.md) current for merge rules, save format, and multiplayer ownership.
+
+---
+
+## Backlog
+
+Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md → Future design goals](ARCHITECTURE.md#future-design-goals).
+
+**Observed bugs** (verify in game, then fix with Phase 5 behaviors or earlier with a regression test)
+
+- Bush birds sometimes misbehave when running into bushes: possibly skip small bushes, and accept any bush on the path, not only the anchored one, so they don't run out of bounds.
+- Bush birds idle before running into the bush; flight distance is off.
+
+**Bird types and behaviors** (as Phase 5 behaviors where possible; a new bird class only when anchoring or drawing differs)
+
+- Birds flying into trees.
+- Water birds that swim away.
+- Visible birds in tree canopies that fly off when the tree is shaken.
+- Shore birds.
+- Flyovers: migrating birds passing through, predators circling.
+- Birds that relocate to another spot instead of fleeing the location.
+- Tame birds that don't flee.
+- Special animations, e.g. hunting or display dances.
+- Cattle egrets on farm animals (moving anchor).
+
+**Spawning content**
+
+- Couples (breeding season) and juveniles.
+- Species that often appear together (affinity between species).
+- Bird feeder: birds appear in nearby trees and fly to it.
+
+**Progression and story**
+
+- Seeing more birds unlocks benefits: rarer birds, new locations or biomes, other features (see the birding-experience modifier).
+- Letters, events, and dialogue around birding with Demetrius and Professor Snail.
+
+**Release**
+
+- Translation (i18n).
+- Sounds.
+- First release.
