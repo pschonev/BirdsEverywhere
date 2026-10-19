@@ -241,11 +241,10 @@ public class TemplateMergerTests
     {
         string root = Path.Combine(System.AppContext.BaseDirectory, "assets");
         string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
-        var (groups, groupIssues) = ContentLoader.LoadGroups(root, Read);
+        var (groups, groupIssues) = ContentLoader.LoadGroups(root, Array.Empty<string>(), Read);
         List<ValidationIssue> issues = groupIssues.ToList();
-        foreach (string directory in Directory.GetDirectories(root).Where(path => Path.GetFileName(path) != "templates"))
+        foreach (string id in ContentPaths.BirdIds(root))
         {
-            string id = Path.GetFileName(directory);
             var (bird, birdIssues, _, _) = ContentLoader.LoadBird(root, id, groups, ContentTests.Patterns, ContentTests.BirdTypes, Read, File.Exists);
             issues.AddRange(birdIssues.Where(issue => issue.Severity != IssueSeverity.Info));
             Assert.That(bird, Is.Not.Null, id + ": " + string.Join("; ", birdIssues));

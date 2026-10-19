@@ -196,6 +196,7 @@ Split today's `DailySpawner` / spawners / `SingleBirdSpawnParameters` into:
 - Empty candidate lists return no placement instead of throwing.
 - Replace index-based shuffles (`Enumerable.Range(...).OrderBy(Game1.random...)`) with a seeded shuffle over candidates.
 - Remove the unused `stillValidTime` and the unused `state` in `WaterOrGroundSpawner`, or wire them in deliberately.
+- General patterns with `spawnParams` (first: water and ground with `shoreDistance`); water kind via location groups, not river detection. See [Config-driven placement](ARCHITECTURE.md#config-driven-placement).
 - Design the planner for [luck, rarity, and experience inputs](ARCHITECTURE.md#spawn-selection-luck-rarity-experience) and per-rule weight modifiers, and fall back to the next rule, location, or bird when a pattern's [feasibility check](ARCHITECTURE.md#config-driven-placement) fails.
 
 **Exit:** spawn planning fully unit-tested with seeded `Random` and a fake `ILocationQuery`; in-game spawn frequency matches baseline.
