@@ -146,6 +146,10 @@ Replace constructor-time merging and reflection-based default filling with a loa
 
 **Exit:** adding a bird type or spawn pattern touches one implementation file and one registration line.
 
+**Implemented (code and tests):** `Registries/SpawnPatternRegistry` and `Registries/BirdTypeRegistry` wrap id-keyed factory dictionaries, are created once in `ModEntry`, and expose `Ids` (content validation) and `TryCreate`. `DailySpawner` takes them as method parameters because it is serialized for multiplayer. Unknown patterns or types at runtime warn and skip the bird. A terrain bird type paired with a tile placement also fails `TryCreate`. `BirdFactory` and `SpawnerFactory` are deleted. Still open until Phase 7: the `className` switch in `CustomBirdTypeConverterReader` and the string fields on `SingleBirdSpawnParameters`. `spawnParams` validation waits for parameterised patterns.
+
+**Verification:** compile-only Debug and full x64 tests pass (69 tests). Spawning still needs in-game verification via SMAPI.
+
 ---
 
 ## 5. Move toward composition-based bird logic

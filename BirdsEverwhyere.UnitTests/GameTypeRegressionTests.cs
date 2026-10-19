@@ -4,6 +4,7 @@ using BirdsEverywhere;
 using BirdsEverywhere.BirdTypes;
 using BirdsEverywhere.Content;
 using BirdsEverywhere.Domain;
+using BirdsEverywhere.Registries;
 using BirdsEverywhere.Spawners;
 using Microsoft.Xna.Framework;
 using Newtonsoft.Json;
@@ -54,21 +55,33 @@ namespace BirdsEverwhyere.UnitTests
         }
 
         [Test]
-        public void ShippedBirds_UseKnownPatternsAndTypes()
+        public void DefaultRegistries_MatchContentTestIds()
         {
-            var spawns = new[] { "black_woodpecker", "blue_tit", "coal_tit", "great_tit", "grey_partridge", "herring_gull" }
-                .SelectMany(id => ContentTests.LoadBird(id).Rules)
-                .ToList();
+            Assert.That(SpawnPatternRegistry.CreateDefault().Ids, Is.EquivalentTo(ContentTests.Patterns));
+            Assert.That(BirdTypeRegistry.CreateDefault().Ids, Is.EquivalentTo(ContentTests.BirdTypes));
+        }
 
-            Assert.That(SpawnerFactory.KnownPatterns, Is.SupersetOf(spawns.Select(s => s.SpawnPattern.Value).Distinct()));
-            Assert.That(BirdFactory.KnownBirdTypes, Is.SupersetOf(spawns.Select(s => s.BirdType.Value).Distinct()));
+        [Test]
+        public void SpawnPatternRegistry_CreatesEveryRegisteredPattern()
+        {
+            SpawnPatternRegistry registry = SpawnPatternRegistry.CreateDefault();
+
+            Assert.That(registry.Ids.All(id => registry.TryCreate(id, out _)), Is.True);
         }
 
         [TestCase(null)]
         [TestCase("NoSuchSpawner")]
-        public void SpawnerFactory_UnknownPattern_ReturnsNull(string? pattern)
+        public void SpawnPatternRegistry_UnknownPattern_ReturnsFalse(string? pattern)
         {
-            Assert.That(SpawnerFactory.createSpawner(pattern), Is.Null);
+            Assert.That(SpawnPatternRegistry.CreateDefault().TryCreate(new SpawnPatternId(pattern!), out Spawner? spawner), Is.False);
+            Assert.That(spawner, Is.Null);
+        }
+
+        [Test]
+        public void BirdTypeRegistry_UnknownType_ReturnsFalse()
+        {
+            Assert.That(BirdTypeRegistry.CreateDefault().TryCreate(new BirdTypeId("NoSuchBird"), null!, null!, null!, out CustomBirdType? bird), Is.False);
+            Assert.That(bird, Is.Null);
         }
     }
 }

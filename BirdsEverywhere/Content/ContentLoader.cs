@@ -13,8 +13,8 @@ public static class ContentLoader
         string root,
         string id,
         IReadOnlyDictionary<string, IReadOnlyList<string>> groups,
-        IReadOnlyCollection<string> patterns,
-        IReadOnlyCollection<string> birdTypes,
+        IReadOnlyCollection<SpawnPatternId> patterns,
+        IReadOnlyCollection<BirdTypeId> birdTypes,
         Func<string, string?> read,
         Func<string, bool> textureExists)
     {

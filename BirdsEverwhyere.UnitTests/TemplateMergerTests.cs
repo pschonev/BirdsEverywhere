@@ -136,7 +136,7 @@ public class TemplateMergerTests
         };
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), new[] { "GroundSpawner" }, new[] { "LandBird" },
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes,
             path => files.GetValueOrDefault(path), _ => true);
 
         Assert.Multiple(() =>
@@ -167,7 +167,7 @@ public class TemplateMergerTests
         files[birdFile] = bird.ToString();
 
         (var loaded, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), new[] { "GroundSpawner" }, new[] { "LandBird" },
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes,
             path => files.GetValueOrDefault(path), path => !path.EndsWith("missing.png", System.StringComparison.Ordinal));
 
         Assert.Multiple(() =>
@@ -188,7 +188,7 @@ public class TemplateMergerTests
         string text = $"{{\"id\":\"test\",\"name\":\"Test\",\"scName\":\"Testus\",\"description\":\"Test bird\",\"{field}\":{value}}}";
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), new[] { "GroundSpawner" }, new[] { "LandBird" },
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes,
             path => path == birdFile ? text : null, _ => true);
 
         Assert.Multiple(() =>
@@ -211,7 +211,7 @@ public class TemplateMergerTests
         };
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), new[] { "GroundSpawner" }, new[] { "LandBird" },
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes,
             path => files.GetValueOrDefault(path), _ => true);
 
         Assert.Multiple(() =>
@@ -229,7 +229,7 @@ public class TemplateMergerTests
         string text = @"{""id"":""test"",""name"":""Test"",""scName"":""Testus"",""description"":""Test bird"",""rules"":{""spring"":{""when"":{},""locations"":[""Forest""],""spawnPattern"":""GroundSpawner"",""birdType"":""LandBird"",""groupCount"":[1,2],""groupSize"":[1,2],""textures"":{"""":1},""typo"":true}}}";
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), new[] { "GroundSpawner" }, new[] { "LandBird" },
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes,
             path => path == birdFile ? text : null, _ => true);
 
         Assert.That(bird, Is.Null);
@@ -246,9 +246,7 @@ public class TemplateMergerTests
         foreach (string directory in Directory.GetDirectories(root).Where(path => Path.GetFileName(path) != "templates"))
         {
             string id = Path.GetFileName(directory);
-            var (bird, birdIssues, _, _) = ContentLoader.LoadBird(root, id, groups,
-                new[] { "GroundSpawner", "WaterSpawner", "WaterOrGroundSpawner", "SpawnableGroundSpawner", "TreeTrunkSpawner", "BushSpawner" },
-                new[] { "LandBird", "WaterLandBird", "TreeTrunkBird", "BushBird" }, Read, File.Exists);
+            var (bird, birdIssues, _, _) = ContentLoader.LoadBird(root, id, groups, ContentTests.Patterns, ContentTests.BirdTypes, Read, File.Exists);
             issues.AddRange(birdIssues.Where(issue => issue.Severity != IssueSeverity.Info));
             Assert.That(bird, Is.Not.Null, id + ": " + string.Join("; ", birdIssues));
         }
