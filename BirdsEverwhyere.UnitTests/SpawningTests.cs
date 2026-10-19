@@ -45,7 +45,7 @@ namespace BirdsEverwhyere.UnitTests
             (BirdDefinition bird, SpawnRule rule) = MakeBird();
             return new GroundSpawner()
                 .spawnBirds(new FakeLocation(), bird, rule, new Random(seed), new NullMonitor())
-                .Select(p => p.position)
+                .Select(p => p.Tile)
                 .ToList();
         }
 
