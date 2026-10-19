@@ -169,6 +169,10 @@ Replace constructor-time merging and reflection-based default filling with a loa
 
 **Exit:** new species reusing existing behaviors are JSON-only; a new capability is one behavior class.
 
+**Implemented (step 1, LandBird):** `CustomBirdType` renamed to `BirdCritter`. `BehaviorStatus` is now a top-level enum, and `PollThreat` holds the shared 200 ms threat check. `BirdTypes/Behaviors/` contains the pure `IBirdBehavior.Decide(in BirdContext) -> BirdAction` contract, `Flee`, `Wake` and `IdleRoutine` behaviors, and `BirdBehaviors.Land`, the single ordered list where the first non-`None` result wins. `LandBird` is sealed, builds a `BirdContext` each tick, and applies the action it gets back. Animation and movement stay in the bird. The behaviors keep the legacy random-call order. Still open: `WaterLandBird`, `TreeTrunkBird`, `BushBird`, the `TerrainAnchor` component, and JSON-selected behavior lists.
+
+**Verification:** compile-only Debug and full x64 tests pass (88 tests, including the pure `BirdBehaviorTests`). LandBird behavior (flee, sleep/wake, peck, hop, walk) still needs in-game verification via SMAPI.
+
 ---
 
 ## 6. Refactor spawning into clear responsibilities
@@ -309,8 +313,19 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 - Tame birds that don't flee.
 - Special animations, e.g. hunting or display dances.
 - Cattle egrets on farm animals (moving anchor).
+- Alert behavior: freeze in an outer radius, flee in an inner one ([design](ARCHITECTURE.md#behaviors-alert-and-foraging)).
+- Data-driven idle routines: per-type defaults, per-species weights in JSON.
+- Rare forage behaviors: worm pull, fish strike, diving.
+
+**Vanilla critters** ([policy](ARCHITECTURE.md#vanilla-critters))
+
+- Register vanilla `Crow` as Carrion Crow (*Corvus corone*) on observation; needs observe-only bird data and a bird-list image.
+- Register Ginger Island parrots as a matching Central American species on observation.
+- Keep spawn placements away from existing critters.
 
 **Spawning content**
+
+- Ginger Island: mostly Central American, Colombian and Caribbean species, ideally many that migrate to North America (warblers, Baltimore Oriole, Ruby-throated Hummingbird, Swainson's Hawk).
 
 - Couples (breeding season) and juveniles.
 - Species that often appear together (affinity between species).
