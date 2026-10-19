@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewValley;
 using static BirdsEverywhere.Spawners.Condition;
+using BirdsEverywhere.Domain;
 
 namespace BirdsEverywhere.Spawners;
 /// <summary>
@@ -57,21 +58,20 @@ public abstract class TileSpawner : Spawner
 {
     public TileSpawnCondition condition = null!;
 
-    public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, Random random, IMonitor monitor) =>
-        spawnBirds(new GameLocationQuery(location), data, random, monitor);
+    public override List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor) =>
+        spawnBirds(new GameLocationQuery(location), data, rule, random, monitor);
 
-    public List<SingleBirdSpawnParameters> spawnBirds(ILocationQuery location, BirdData data, Random random, IMonitor monitor, int attemptsStartTile = 100, int attemptsPerBird = 20)
+    public List<SingleBirdSpawnParameters> spawnBirds(ILocationQuery location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor, int attemptsStartTile = 100, int attemptsPerBird = 20)
     {
         List<SingleBirdSpawnParameters> spawnList = new List<SingleBirdSpawnParameters>();
-        SpawnData spawnData = data.currentSpawnData;
         Point mapSize = location.MapSize;
 
-        int groupCount = Utils.NextInclusive(random, Math.Max(1, spawnData.minGroupCount), spawnData.maxGroupCount);
+        int groupCount = Utils.NextInclusive(random, rule.GroupCount.Min, rule.GroupCount.Max);
 
         for (int k = 0; k < groupCount; k++)
         {
-            int groupSize = Utils.NextInclusive(random, Math.Max(1, spawnData.minGroupSize), spawnData.maxGroupSize);
-            monitor.Log($" Attempting to spawn one of {groupCount} group(s) with {groupSize} {data.name}s.", LogLevel.Debug);
+            int groupSize = Utils.NextInclusive(random, rule.GroupSize.Min, rule.GroupSize.Max);
+            monitor.Log($" Attempting to spawn one of {groupCount} group(s) with {groupSize} {data.Name}s.", LogLevel.Debug);
             int groupTarget = spawnList.Count + groupSize;
 
             for (int j = 0; j < attemptsStartTile; j++)
@@ -86,8 +86,8 @@ public abstract class TileSpawner : Spawner
                 {
                     if (condition(location, tile))
                     {
-                        spawnList.Add(new SingleBirdSpawnParamsTile(tile, data.id, spawnData.birdType, spawnData.spawnPattern, spawnData.timeOfDayRanges, spawnData.getNextTexture(data.id)));
-                        monitor.Log($"Added {data.id} at {(int)tile.X} - {(int)tile.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
+                        spawnList.Add(new SingleBirdSpawnParamsTile(tile, data.Id.Value, rule.BirdType.Value, rule.SpawnPattern.Value, rule.When.Times.ToList(), rule.PickTexture(data.Id, random)));
+                        monitor.Log($"Added {data.Id.Value} at {(int)tile.X} - {(int)tile.Y} to LocationBirdPosition at location {location.Name}.", LogLevel.Debug);
                     }
                     if (spawnList.Count >= groupTarget)
                     {
@@ -104,6 +104,6 @@ public abstract class TileSpawner : Spawner
 
 public abstract class Spawner
 {
-    public abstract List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdData data, Random random, IMonitor monitor);
+    public abstract List<SingleBirdSpawnParameters> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor);
 }
 

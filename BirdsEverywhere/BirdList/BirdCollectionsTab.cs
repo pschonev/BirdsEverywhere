@@ -1,3 +1,4 @@
+using BirdsEverywhere.Domain;
 using System.Globalization;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -11,7 +12,7 @@ public static class BirdCollectionsTab
     private const int TabId = 8;
     private const int CollectionWidth = 10;
 
-    public static void Install(GameMenu menu, IModContentHelper content, IReflectionHelper reflection, IReadOnlyDictionary<string, BirdData> catalog, SaveData saveData)
+    public static void Install(GameMenu menu, IModContentHelper content, IReflectionHelper reflection, IReadOnlyDictionary<string, BirdDefinition> catalog, SaveData saveData)
     {
         int pageIndex = menu.pages.FindIndex(x => x is CollectionsPage);
         if (pageIndex < 0 || menu.pages[pageIndex] is not CollectionsPage original)
@@ -39,10 +40,10 @@ public static class BirdCollectionsTab
         int baseX = cp.xPositionOnScreen + IClickableMenu.borderWidth + IClickableMenu.spaceToClearSideBorder;
         int baseY = cp.yPositionOnScreen + IClickableMenu.borderWidth + IClickableMenu.spaceToClearTopBorder - 16;
 
-        foreach (BirdData bird in catalog.Values)
+        foreach (BirdDefinition bird in catalog.Values)
         {
-            bool seen = saveData.seenBirds.Contains(bird.id);
-            Texture2D birdTexture = content.Load<Texture2D>($"assets/{bird.id}/{bird.id}_icon.png");
+            bool seen = saveData.seenBirds.Contains(bird.Id.Value);
+            Texture2D birdTexture = content.Load<Texture2D>($"assets/{bird.Id.Value}/{bird.Id.Value}_icon.png");
 
             int x = baseX + widthUsed % CollectionWidth * 68;
             int y = baseY + widthUsed / CollectionWidth * 68;
@@ -60,7 +61,7 @@ public static class BirdCollectionsTab
 
             List<ClickableTextureComponent> page = pages[^1];
             int count = page.Count;
-            page.Add(new ClickableTextureComponent($"{bird.id} {seen}",
+            page.Add(new ClickableTextureComponent($"{bird.Id.Value} {seen}",
                 new Rectangle(x, y, 64, 64), null, "", birdTexture,
                 new Rectangle(0, 0, 16, 16), 4f, seen)
             {

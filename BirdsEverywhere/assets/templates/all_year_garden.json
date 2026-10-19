@@ -1,20 +1,48 @@
 {
-  "defaultSpawnData": {
+  "template": "base_bird",
+  "defaults": {
     "spawnPattern": "SpawnableGroundSpawner",
     "birdType": "LandBird",
     "locations": [
-      "Forest",
-      "Farm",
-      "Backwoods"
+      "@valley_gardens"
     ],
-    "maxGroupCount": 3,
-    "maxGroupSize": 7
+    "groupCount": [
+      1,
+      3
+    ],
+    "groupSize": [
+      1,
+      7
+    ]
   },
-
-  "allSpawnData": {
-    "spring": [ {} ],
-    "summer": [ {} ],
-    "fall": [ {} ],
-    "winter": [ {} ]
+  "rules": {
+    "spring": {
+      "when": {
+        "seasons": [
+          "spring"
+        ]
+      }
+    },
+    "summer": {
+      "when": {
+        "seasons": [
+          "summer"
+        ]
+      }
+    },
+    "fall": {
+      "when": {
+        "seasons": [
+          "fall"
+        ]
+      }
+    },
+    "winter": {
+      "when": {
+        "seasons": [
+          "winter"
+        ]
+      }
+    }
   }
 }

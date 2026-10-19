@@ -1,0 +1,10 @@
+{
+    "valley_gardens": [
+        "Forest",
+        "Farm",
+        "Backwoods"
+    ],
+    "coast": [
+        "Beach"
+    ]
+}

@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using BirdsEverywhere;
 using BirdsEverywhere.BirdTypes;
+using BirdsEverywhere.Content;
+using BirdsEverywhere.Domain;
 using BirdsEverywhere.Spawners;
 using Microsoft.Xna.Framework;
 using Newtonsoft.Json;
@@ -43,7 +45,7 @@ namespace BirdsEverwhyere.UnitTests
             {
                 new SingleBirdSpawnParamsTile(
                     new Vector2(4, 5), "blue_tit", "LandBird", "GroundSpawner",
-                    new List<TimeRange> { new TimeRange(600, 2400) }, "blue_tit"),
+                    new List<IntRange> { new IntRange(600, 2400) }, "blue_tit"),
             };
 
             DailySpawner reloaded = MessageJson.Deserialize<DailySpawner>(MessageJson.Serialize(original));
@@ -54,12 +56,12 @@ namespace BirdsEverwhyere.UnitTests
         [Test]
         public void ShippedBirds_UseKnownPatternsAndTypes()
         {
-            List<SpawnData> spawns = new[] { "black_woodpecker", "blue_tit", "coal_tit", "great_tit", "grey_partridge", "herring_gull" }
-                .SelectMany(id => ContentTests.LoadBird(id).allSpawnData.Values.SelectMany(list => list))
+            var spawns = new[] { "black_woodpecker", "blue_tit", "coal_tit", "great_tit", "grey_partridge", "herring_gull" }
+                .SelectMany(id => ContentTests.LoadBird(id).Rules)
                 .ToList();
 
-            Assert.That(SpawnerFactory.KnownPatterns, Is.SupersetOf(spawns.Select(s => s.spawnPattern).Distinct()));
-            Assert.That(BirdFactory.KnownBirdTypes, Is.SupersetOf(spawns.Select(s => s.birdType).Distinct()));
+            Assert.That(SpawnerFactory.KnownPatterns, Is.SupersetOf(spawns.Select(s => s.SpawnPattern.Value).Distinct()));
+            Assert.That(BirdFactory.KnownBirdTypes, Is.SupersetOf(spawns.Select(s => s.BirdType.Value).Distinct()));
         }
 
         [TestCase(null)]

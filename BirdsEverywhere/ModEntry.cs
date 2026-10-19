@@ -1,7 +1,11 @@
+using System.Collections.Immutable;
 using BirdsEverywhere.BirdList;
 using BirdsEverywhere.BirdTypes;
+using BirdsEverywhere.Content;
+using BirdsEverywhere.Domain;
 using BirdsEverywhere.Multiplayer;
 using BirdsEverywhere.Spawners;
+using Newtonsoft.Json.Linq;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
@@ -14,13 +18,15 @@ public class ModEntry : Mod
 {
     private const string SaveKey = "bird-save";
 
-    private EnvironmentData _environment = new();
     private SaveData _saveData = new();
     private DailySpawner _dailySpawner = new();
     private HashSet<string> _eligibleLocations = new();
-    private Dictionary<string, BirdData> _catalog = new();
+    private IReadOnlyDictionary<string, BirdDefinition> _catalog = new Dictionary<string, BirdDefinition>();
+    private IReadOnlyDictionary<string, (JObject Effective, IReadOnlyDictionary<string, string> Sources)> _effective =
+        new Dictionary<string, (JObject, IReadOnlyDictionary<string, string>)>();
     private MessageSender _messages = null!;
     private BirdServices _birdServices = null!;
+    private bool _populatesCurrentVisit = true;
 
     public override void Entry(IModHelper helper)
     {
@@ -37,7 +43,8 @@ public class ModEntry : Mod
         helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
 
         helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.",
-            (_, _) => Logging.LogBirdSeenStatus(Monitor, _environment, _saveData, _catalog));
+            (_, _) => Logging.LogBirdSeenStatus(Monitor, _saveData, _catalog));
+        helper.ConsoleCommands.Add("birds_dump", "Print effective rules and sources for a bird. Usage: birds_dump <id>", DumpBird);
     }
 
     // ##################
@@ -46,16 +53,9 @@ public class ModEntry : Mod
 
     private void OnLoaded(object? sender, SaveLoadedEventArgs e)
     {
-        _environment = Helper.ModContent.Load<EnvironmentData>("assets/environmentData.json");
         if (Context.IsMainPlayer)
         {
             _saveData = Helper.Data.ReadSaveData<SaveData>(SaveKey) ?? new SaveData();
-        }
-
-        _eligibleLocations = new HashSet<string>();
-        foreach (Biome biome in _environment.biomes)
-        {
-            _eligibleLocations.UnionWith(biome.locations);
         }
 
         LoadCatalog();
@@ -71,29 +71,61 @@ public class ModEntry : Mod
 
     private void LoadCatalog()
     {
-        Dictionary<string, BirdTemplate> templates = new();
-        BirdTemplate ResolveTemplate(string name)
+        string root = Path.Combine(Helper.DirectoryPath, "assets");
+        string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
+        (IReadOnlyDictionary<string, IReadOnlyList<string>> groups, IReadOnlyList<ValidationIssue> groupIssues) = ContentLoader.LoadGroups(root, Read);
+        foreach (ValidationIssue issue in groupIssues)
         {
-            if (templates.TryGetValue(name, out BirdTemplate? cached))
-            {
-                return cached;
-            }
-
-            BirdTemplate template = Helper.ModContent.Load<BirdTemplate>($"assets/templates/{name}.json");
-            template.ApplyTemplate(ResolveTemplate);
-            templates[name] = template;
-            return template;
+            LogIssue(issue);
         }
 
-        _catalog = new Dictionary<string, BirdData>();
-        foreach (Biome biome in _environment.biomes)
+        Dictionary<string, BirdDefinition> catalog = new(StringComparer.Ordinal);
+        Dictionary<string, (JObject Effective, IReadOnlyDictionary<string, string> Sources)> effective = new(StringComparer.Ordinal);
+        foreach (string directory in Directory.GetDirectories(root).Where(path => Path.GetFileName(path) != "templates"))
         {
-            foreach (string birdName in biome.birds)
+            string id = Path.GetFileName(directory);
+            (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, JObject? document, IReadOnlyDictionary<string, string> sources) =
+                ContentLoader.LoadBird(root, id, groups, SpawnerFactory.KnownPatterns, BirdFactory.KnownBirdTypes.ToArray(), Read, File.Exists);
+            foreach (ValidationIssue issue in issues)
             {
-                BirdData data = Helper.ModContent.Load<BirdData>($"assets/{birdName}/{birdName}.json");
-                data.ApplyTemplate(ResolveTemplate);
-                _catalog[birdName] = data;
-                Helper.Data.WriteJsonFile($"assets/inspect_output/{birdName}.json", data);
+                LogIssue(issue);
+            }
+
+            if (bird is null || document is null)
+            {
+                continue;
+            }
+
+            catalog.Add(id, bird);
+            effective.Add(id, (document, sources));
+        }
+
+        _catalog = catalog.ToImmutableDictionary(StringComparer.Ordinal);
+        _effective = effective;
+        _eligibleLocations = catalog.Values.SelectMany(bird => bird.Rules).SelectMany(rule => rule.Locations).ToHashSet(StringComparer.Ordinal);
+    }
+
+    private void LogIssue(ValidationIssue issue) => Monitor.Log(issue.ToString(), issue.Severity switch
+    {
+        IssueSeverity.Error => LogLevel.Error,
+        IssueSeverity.Warn => LogLevel.Warn,
+        _ => LogLevel.Info,
+    });
+
+    private void DumpBird(string command, string[] args)
+    {
+        if (args.Length != 1 || !_effective.TryGetValue(args[0], out var entry))
+        {
+            Monitor.Log("Usage: birds_dump <loaded bird id>", LogLevel.Info);
+            return;
+        }
+
+        foreach (JProperty rule in ((JObject?)entry.Effective["rules"] ?? new JObject()).Properties())
+        {
+            Monitor.Log($"{args[0]} / {rule.Name}: {rule.Value.ToString(Newtonsoft.Json.Formatting.None)}", LogLevel.Info);
+            foreach (KeyValuePair<string, string> source in entry.Sources.Where(source => source.Key.StartsWith($"$.rules.{rule.Name}.", StringComparison.Ordinal)))
+            {
+                Monitor.Log($"  {source.Key}: {source.Value}", LogLevel.Info);
             }
         }
     }
@@ -108,11 +140,17 @@ public class ModEntry : Mod
         {
             Random random = new(Utils.StableHash($"{Game1.uniqueIDForThisGame}|{Game1.stats.DaysPlayed}|day"));
             _dailySpawner = new DailySpawner();
-            _dailySpawner.initializeBirdLocations(_saveData.seenBirds, _environment.biomes, _catalog, random, Monitor);
+            Domain.Season season = Enum.Parse<Domain.Season>(Game1.currentSeason, ignoreCase: true);
+            Weather weather = Game1.isGreenRain ? Weather.GreenRain
+                : Game1.isLightning ? Weather.Storm
+                : Game1.isSnowing ? Weather.Snow
+                : Game1.isDebrisWeather ? Weather.Wind
+                : Game1.isRaining ? Weather.Rain : Weather.Sun;
+            _dailySpawner.InitializeBirdLocations(_saveData.seenBirds, _catalog, season, weather, Game1.dayOfMonth, random, Monitor);
             _messages.SendToAll(MessageJson.Serialize(_dailySpawner), MessageTypes.BirdLocationsNewDay);
         }
 
-        Logging.LogBirdSeenStatus(Monitor, _environment, _saveData, _catalog);
+        Logging.LogBirdSeenStatus(Monitor, _saveData, _catalog);
     }
 
     // ###############
@@ -206,7 +244,7 @@ public class ModEntry : Mod
         Utils.logObservation(Monitor, _catalog, _saveData, birdName);
         _messages.SendToAll(_saveData, MessageTypes.SaveNewObservation);
 
-        string message = $"{Game1.player.Name} discovered a new bird: {_catalog[birdName].name}!";
+        string message = $"{Game1.player.Name} discovered a new bird: {_catalog[birdName].Name}!";
         Game1.showGlobalMessage(message);
         _messages.SendToAll(message, MessageTypes.GlobalObservationMessage);
     }
@@ -230,7 +268,9 @@ public class ModEntry : Mod
             return;
         }
 
+        _dailySpawner.BeginVisit();
         Farmer? farmer = Game1.getOnlineFarmers().FirstOrDefault(f => f.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID && f.currentLocation == e.NewLocation);
+        _populatesCurrentVisit = farmer is null;
         if (farmer == null)
         {
             _dailySpawner.Populate(e.NewLocation, _birdServices);
@@ -246,6 +286,10 @@ public class ModEntry : Mod
         if (Game1.currentLocation != null)
         {
             VanillaBirds.Remove(Game1.currentLocation);
+            if (_populatesCurrentVisit && _eligibleLocations.Contains(Game1.currentLocation.Name))
+            {
+                _dailySpawner.Populate(Game1.currentLocation, _birdServices);
+            }
         }
     }
 

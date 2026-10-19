@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using BirdsEverywhere;
+using BirdsEverywhere.Domain;
 using BirdsEverywhere.Spawners;
 using Microsoft.Xna.Framework;
 using NUnit.Framework;
@@ -29,24 +31,23 @@ namespace BirdsEverwhyere.UnitTests
             public void VerboseLog(ref StardewModdingAPI.Framework.Logging.VerboseLogStringHandler message) { }
         }
 
-        private static BirdData MakeBird()
+        private static (BirdDefinition Bird, SpawnRule Rule) MakeBird()
         {
-            SpawnData spawn = SpawnData.getDefaultSpawnData();
-            spawn.birdType = "LandBird";
-            spawn.spawnPattern = "GroundSpawner";
-            spawn.minGroupCount = 2;
-            spawn.maxGroupCount = 2;
-            spawn.minGroupSize = 3;
-            spawn.maxGroupSize = 3;
-            spawn.initTextureList();
-            return new BirdData { id = "blue_tit", name = "Blue Tit", currentSpawnData = spawn };
+            SpawnRule rule = new("spring", new SpawnConditions(ImmutableArray<Season>.Empty, ImmutableArray<Weather>.Empty,
+                ImmutableArray<IntRange>.Empty, ImmutableArray<IntRange>.Empty), ImmutableArray.Create("Forest"),
+                new SpawnPatternId("GroundSpawner"), new BirdTypeId("LandBird"), new IntRange(2, 2), new IntRange(3, 3),
+                new Dictionary<string, int> { [""] = 1 }, 1);
+            return (new BirdDefinition(new BirdId("blue_tit"), "Blue Tit", "Cyanistes caeruleus", "", ImmutableArray.Create(rule)), rule);
         }
 
-        private static List<Vector2> Spawn(int seed) =>
-            new GroundSpawner()
-                .spawnBirds(new FakeLocation(), MakeBird(), new Random(seed), new NullMonitor())
+        private static List<Vector2> Spawn(int seed)
+        {
+            (BirdDefinition bird, SpawnRule rule) = MakeBird();
+            return new GroundSpawner()
+                .spawnBirds(new FakeLocation(), bird, rule, new Random(seed), new NullMonitor())
                 .Select(p => p.position)
                 .ToList();
+        }
 
         [Test]
         public void GroundSpawner_SameSeed_SamePositions()
