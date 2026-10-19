@@ -4,6 +4,7 @@ using BirdsEverywhere.BirdTypes;
 using BirdsEverywhere.Content;
 using BirdsEverywhere.Domain;
 using BirdsEverywhere.Multiplayer;
+using BirdsEverywhere.Registries;
 using BirdsEverywhere.Spawners;
 using Newtonsoft.Json.Linq;
 using StardewModdingAPI;
@@ -27,6 +28,8 @@ public class ModEntry : Mod
     private MessageSender _messages = null!;
     private BirdServices _birdServices = null!;
     private bool _populatesCurrentVisit = true;
+    private readonly SpawnPatternRegistry _spawnPatterns = SpawnPatternRegistry.CreateDefault();
+    private readonly BirdTypeRegistry _birdTypes = BirdTypeRegistry.CreateDefault();
 
     public override void Entry(IModHelper helper)
     {
@@ -85,7 +88,7 @@ public class ModEntry : Mod
         {
             string id = Path.GetFileName(directory);
             (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, JObject? document, IReadOnlyDictionary<string, string> sources) =
-                ContentLoader.LoadBird(root, id, groups, SpawnerFactory.KnownPatterns, BirdFactory.KnownBirdTypes.ToArray(), Read, File.Exists);
+                ContentLoader.LoadBird(root, id, groups, _spawnPatterns.Ids, _birdTypes.Ids, Read, File.Exists);
             foreach (ValidationIssue issue in issues)
             {
                 LogIssue(issue);
@@ -146,7 +149,7 @@ public class ModEntry : Mod
                 : Game1.isSnowing ? Weather.Snow
                 : Game1.isDebrisWeather ? Weather.Wind
                 : Game1.isRaining ? Weather.Rain : Weather.Sun;
-            _dailySpawner.InitializeBirdLocations(_saveData.seenBirds, _catalog, season, weather, Game1.dayOfMonth, random, Monitor);
+            _dailySpawner.InitializeBirdLocations(_saveData.seenBirds, _catalog, _spawnPatterns, season, weather, Game1.dayOfMonth, random, Monitor);
             _messages.SendToAll(MessageJson.Serialize(_dailySpawner), MessageTypes.BirdLocationsNewDay);
         }
 
@@ -273,7 +276,7 @@ public class ModEntry : Mod
         _populatesCurrentVisit = farmer is null;
         if (farmer == null)
         {
-            _dailySpawner.Populate(e.NewLocation, _birdServices);
+            _dailySpawner.Populate(e.NewLocation, _birdServices, _spawnPatterns, _birdTypes);
             return;
         }
 
@@ -288,7 +291,7 @@ public class ModEntry : Mod
             VanillaBirds.Remove(Game1.currentLocation);
             if (_populatesCurrentVisit && _eligibleLocations.Contains(Game1.currentLocation.Name))
             {
-                _dailySpawner.Populate(Game1.currentLocation, _birdServices);
+                _dailySpawner.Populate(Game1.currentLocation, _birdServices, _spawnPatterns, _birdTypes);
             }
         }
     }

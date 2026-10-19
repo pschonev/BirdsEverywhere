@@ -13,8 +13,8 @@ public static class ContentValidator
         string chain,
         IReadOnlyDictionary<string, string> sources,
         IReadOnlyDictionary<string, IReadOnlyList<string>> groups,
-        IReadOnlyCollection<string> patterns,
-        IReadOnlyCollection<string> birdTypes,
+        IReadOnlyCollection<SpawnPatternId> patterns,
+        IReadOnlyCollection<BirdTypeId> birdTypes,
         Func<string, bool> textureExists)
     {
         List<ValidationIssue> issues = new();
@@ -80,12 +80,12 @@ public static class ContentValidator
                 Report(IssueSeverity.Error, path + ".weight", "Weight must be positive.");
             }
 
-            if (!patterns.Contains(rule.SpawnPattern))
+            if (!patterns.Contains(new SpawnPatternId(rule.SpawnPattern)))
             {
                 Report(IssueSeverity.Error, path + ".spawnPattern", $"Unknown spawn pattern '{rule.SpawnPattern}'.");
             }
 
-            if (!birdTypes.Contains(rule.BirdType))
+            if (!birdTypes.Contains(new BirdTypeId(rule.BirdType)))
             {
                 Report(IssueSeverity.Error, path + ".birdType", $"Unknown bird type '{rule.BirdType}'.");
             }

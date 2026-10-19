@@ -1,5 +1,6 @@
 using BirdsEverywhere.BirdTypes;
 using BirdsEverywhere.Domain;
+using BirdsEverywhere.Registries;
 using StardewModdingAPI;
 using StardewValley;
 
@@ -13,8 +14,8 @@ public sealed class DailySpawner
 
     public void BeginVisit() => _spawned.Clear();
 
-    public void InitializeBirdLocations(HashSet<string> seenBirds, IReadOnlyDictionary<string, BirdDefinition> catalog,
-        Domain.Season season, Weather weather, int day, Random random, IMonitor monitor)
+    internal void InitializeBirdLocations(HashSet<string> seenBirds, IReadOnlyDictionary<string, BirdDefinition> catalog,
+        SpawnPatternRegistry patterns, Domain.Season season, Weather weather, int day, Random random, IMonitor monitor)
     {
         HashSet<string> locations = catalog.Values.SelectMany(bird => bird.Rules).SelectMany(rule => rule.Locations).ToHashSet(StringComparer.Ordinal);
         int limit = Math.Max(1, locations.Count / 2);
@@ -44,8 +45,7 @@ public sealed class DailySpawner
                     continue;
                 }
 
-                Spawner? spawner = SpawnerFactory.createSpawner(rule.SpawnPattern.Value);
-                if (spawner is null)
+                if (!patterns.TryCreate(rule.SpawnPattern, out Spawner? spawner))
                 {
                     monitor.Log($"Unknown spawn pattern '{rule.SpawnPattern.Value}' for {bird.Id.Value}; skipping.", LogLevel.Warn);
                     continue;
@@ -60,7 +60,7 @@ public sealed class DailySpawner
         }
     }
 
-    public void Populate(GameLocation location, BirdServices services)
+    internal void Populate(GameLocation location, BirdServices services, SpawnPatternRegistry patterns, BirdTypeRegistry birdTypes)
     {
         if (!LocationBirdPosition.TryGetValue(location.Name ?? "", out List<SingleBirdSpawnParameters>? positions))
         {
@@ -70,12 +70,29 @@ public sealed class DailySpawner
         location.instantiateCrittersList();
         foreach (SingleBirdSpawnParameters placement in positions)
         {
-            if (_spawned.Contains(placement) || !placement.stillValidTime(Game1.timeOfDay) || !placement.stillValidSpawnPosition(location, services.Monitor))
+            if (_spawned.Contains(placement) || !placement.stillValidTime(Game1.timeOfDay))
             {
                 continue;
             }
 
-            location.critters.Add(BirdFactory.createBird(placement, location, services));
+            if (!patterns.TryCreate(new SpawnPatternId(placement.spawnPattern), out Spawner? spawner))
+            {
+                services.Monitor.LogOnce($"Bird '{placement.ID}' has unknown spawn pattern '{placement.spawnPattern}'; skipping.", LogLevel.Warn);
+                continue;
+            }
+
+            if (!placement.stillValidSpawnPosition(location, spawner))
+            {
+                continue;
+            }
+
+            if (!birdTypes.TryCreate(new BirdTypeId(placement.BirdType), placement, location, services, out CustomBirdType? bird))
+            {
+                services.Monitor.LogOnce($"Bird '{placement.ID}' has unknown bird type '{placement.BirdType}' for its placement; skipping.", LogLevel.Warn);
+                continue;
+            }
+
+            location.critters.Add(bird);
             _spawned.Add(placement);
             services.Monitor.Log($"Added {placement.ID} at {(int)placement.position.X} - {(int)placement.position.Y}.", LogLevel.Debug);
         }

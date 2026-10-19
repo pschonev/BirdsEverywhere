@@ -11,6 +11,12 @@ namespace BirdsEverwhyere.UnitTests
     {
         private static readonly string AssetsDir = Path.Combine(System.AppContext.BaseDirectory, "assets");
 
+        internal static readonly SpawnPatternId[] Patterns = new[] { "GroundSpawner", "WaterSpawner", "WaterOrGroundSpawner", "SpawnableGroundSpawner", "TreeTrunkSpawner", "BushSpawner" }
+            .Select(id => new SpawnPatternId(id)).ToArray();
+
+        internal static readonly BirdTypeId[] BirdTypes = new[] { "LandBird", "WaterLandBird", "TreeTrunkBird", "BushBird" }
+            .Select(id => new BirdTypeId(id)).ToArray();
+
         private static IEnumerable<string> BirdIds() =>
             Directory.GetDirectories(AssetsDir)
                 .Select(Path.GetFileName)
@@ -22,9 +28,7 @@ namespace BirdsEverwhyere.UnitTests
         {
             string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
             var (groups, groupIssues) = ContentLoader.LoadGroups(AssetsDir, Read);
-            var (bird, issues, _, _) = ContentLoader.LoadBird(AssetsDir, id, groups,
-                new[] { "GroundSpawner", "WaterSpawner", "WaterOrGroundSpawner", "SpawnableGroundSpawner", "TreeTrunkSpawner", "BushSpawner" },
-                new[] { "LandBird", "WaterLandBird", "TreeTrunkBird", "BushBird" }, Read, File.Exists);
+            var (bird, issues, _, _) = ContentLoader.LoadBird(AssetsDir, id, groups, Patterns, BirdTypes, Read, File.Exists);
             Assert.That(groupIssues.Concat(issues).Where(issue => issue.Severity != IssueSeverity.Info), Is.Empty);
             Assert.That(bird, Is.Not.Null);
             return bird!;

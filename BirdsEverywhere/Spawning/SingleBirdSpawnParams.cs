@@ -1,5 +1,4 @@
 using Microsoft.Xna.Framework;
-using StardewModdingAPI;
 using StardewValley;
 using BirdsEverywhere.Domain;
 
@@ -13,15 +12,8 @@ public class SingleBirdSpawnParamsTile : SingleBirdSpawnParameters
         this.className = "SingleBirdSpawnParamsTile";
     }
 
-    public override bool stillValidSpawnPosition(GameLocation location, IMonitor monitor)
-    {
-        if (SpawnerFactory.createSpawner(spawnPattern) is not TileSpawner spawner)
-        {
-            return logUnknownPattern(monitor);
-        }
-
-        return spawner.condition(new GameLocationQuery(location), position);
-    }
+    public override bool stillValidSpawnPosition(GameLocation location, Spawner spawner) =>
+        spawner is not TileSpawner tile || tile.condition(new GameLocationQuery(location), position);
 }
 
 public class SingleBirdSpawnParamsTerrainFeature : SingleBirdSpawnParameters
@@ -35,15 +27,8 @@ public class SingleBirdSpawnParamsTerrainFeature : SingleBirdSpawnParameters
         this.className = "SingleBirdSpawnParamsTerrainFeature";
     }
 
-    public override bool stillValidSpawnPosition(GameLocation location, IMonitor monitor)
-    {
-        if (SpawnerFactory.createSpawner(spawnPattern) is not TerrainFeatureSpawner spawner)
-        {
-            return logUnknownPattern(monitor);
-        }
-
-        return spawner.condition(location, terrainFeatureIndex, position);
-    }
+    public override bool stillValidSpawnPosition(GameLocation location, Spawner spawner) =>
+        spawner is not TerrainFeatureSpawner feature || feature.condition(location, terrainFeatureIndex, position);
 }
 
 public abstract class SingleBirdSpawnParameters
@@ -65,12 +50,6 @@ public abstract class SingleBirdSpawnParameters
         this.texture = texture;
     }
 
-    public abstract bool stillValidSpawnPosition(GameLocation location, IMonitor monitor);
-
-    protected bool logUnknownPattern(IMonitor monitor)
-    {
-        monitor.LogOnce($"Bird '{ID}' has unknown spawn pattern '{spawnPattern}'; keeping it in place.", LogLevel.Warn);
-        return true;
-    }
+    public abstract bool stillValidSpawnPosition(GameLocation location, Spawner spawner);
     public bool stillValidTime(int time) => possibleTimesOfDay.Count == 0 || possibleTimesOfDay.Any(range => range.Contains(time));
 }
