@@ -3,7 +3,7 @@ using StardewValley;
 
 namespace BirdsEverywhere.BirdTypes;
 
-class WaterLandBird : CustomBirdType
+class WaterLandBird : BirdCritter
 {
     public override string birdTypeName { get; } = "WaterLandBird";
 

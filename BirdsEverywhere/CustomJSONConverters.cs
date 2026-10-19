@@ -17,12 +17,12 @@ namespace BirdsEverywhere
         public override bool CanRead => false;
         public override bool CanConvert(Type objectType)
         {
-            return objectType.IsSubclassOf(typeof(CustomBirdType));
+            return objectType.IsSubclassOf(typeof(BirdCritter));
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
         {
-            CustomBirdType birdAsCritter = value as CustomBirdType;
+            BirdCritter birdAsCritter = value as BirdCritter;
 
             var o = new JObject();
             //o.Add("$type", $"{value.GetType().FullName}, {value.GetType().Assembly.GetName().Name}");
@@ -68,7 +68,7 @@ namespace BirdsEverywhere
         public override bool CanWrite => false;
         public override bool CanConvert(Type objectType)
         {
-            return (objectType == typeof(CustomBirdType));
+            return (objectType == typeof(BirdCritter));
         }
 
         public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
