@@ -4,6 +4,7 @@ using BirdsEverywhere.BirdTypes;
 using BirdsEverywhere.Content;
 using BirdsEverywhere.Domain;
 using BirdsEverywhere.Multiplayer;
+using BirdsEverywhere.Observations;
 using BirdsEverywhere.Registries;
 using BirdsEverywhere.Spawners;
 using Newtonsoft.Json.Linq;
@@ -26,15 +27,16 @@ public class ModEntry : Mod
     private IReadOnlyDictionary<string, BirdDefinition> _catalog = new Dictionary<string, BirdDefinition>();
     private IReadOnlyDictionary<string, (JObject Effective, IReadOnlyDictionary<string, string> Sources)> _effective =
         new Dictionary<string, (JObject, IReadOnlyDictionary<string, string>)>();
-    private MessageSender _messages = null!;
+    private MultiplayerSync _sync = null!;
     private BirdServices _birdServices = null!;
     private bool _populatesCurrentVisit = true;
+    private readonly HashSet<string> _pendingObservations = new(StringComparer.Ordinal);
     private readonly SpawnPatternRegistry _spawnPatterns = SpawnPatternRegistry.CreateDefault();
     private readonly BirdTypeRegistry _birdTypes = BirdTypeRegistry.CreateDefault();
 
     public override void Entry(IModHelper helper)
     {
-        _messages = new MessageSender(helper.Multiplayer, ModManifest.UniqueID);
+        _sync = new MultiplayerSync(helper.Multiplayer, Monitor, ModManifest.UniqueID);
         _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation);
         _locationSpawner = new LocationSpawner(_spawnPatterns, _birdTypes, _birdServices);
 
@@ -62,6 +64,10 @@ public class ModEntry : Mod
         if (Context.IsMainPlayer)
         {
             _saveData = Helper.Data.ReadSaveData<SaveData>(SaveKey) ?? new SaveData();
+        }
+        else
+        {
+            _sync.SendToPeer(new ObservationLogRequest(IMessage.CurrentVersion), Game1.MasterPlayer.UniqueMultiplayerID);
         }
 
         LoadCatalog();
@@ -182,7 +188,7 @@ public class ModEntry : Mod
                 : Game1.isDebrisWeather ? Weather.Wind
                 : Game1.isRaining ? Weather.Rain : Weather.Sun;
             _plan = DailySpawnPlan.Build(_saveData.seenBirds, _catalog, _spawnPatterns, season, weather, Game1.dayOfMonth, Game1.player.DailyLuck, random, Monitor);
-            _messages.SendToAll(MessageJson.Serialize(_plan), MessageTypes.BirdLocationsNewDay);
+            _sync.SendToAll(new SpawnPlanMessage(IMessage.CurrentVersion, MessageJson.Serialize(_plan)));
         }
 
         Logging.LogBirdSeenStatus(Monitor, _saveData, _catalog);
@@ -201,52 +207,90 @@ public class ModEntry : Mod
 
         switch (e.Type)
         {
-            case MessageTypes.RequestCurrentBirds when Game1.player.UniqueMultiplayerID == e.ReadAs<long>():
-                SendCurrentBirds(e.FromPlayerID);
+            case nameof(ObservationRequest) when Context.IsMainPlayer:
+                if (_sync.Read<ObservationRequest>(e) is { } request)
+                {
+                    AcceptObservation(request.BirdId, request.Details);
+                }
+
                 break;
-            case MessageTypes.UpdateCurrentBirds:
-                ReceiveCurrentBirds(e.ReadAs<string>());
+            case nameof(ObservationLogRequest) when Context.IsMainPlayer:
+                if (_sync.Read<ObservationLogRequest>(e) is not null)
+                {
+                    _sync.SendToPeer(new ObservationLogSnapshot(IMessage.CurrentVersion, _saveData), e.FromPlayerID);
+                }
+
                 break;
-            case MessageTypes.SaveNewObservation:
-                _saveData = e.ReadAs<SaveData>();
+            case nameof(ObservationAccepted) when IsFromHost(e):
+                if (_sync.Read<ObservationAccepted>(e) is { } accepted)
+                {
+                    ApplyAccepted(accepted);
+                }
+
                 break;
-            case MessageTypes.GlobalObservationMessage:
-                Game1.showGlobalMessage(e.ReadAs<string>());
+            case nameof(ObservationLogSnapshot) when IsFromHost(e):
+                if (_sync.Read<ObservationLogSnapshot>(e) is { } snapshot && snapshot.Log.logVersion >= _saveData.logVersion)
+                {
+                    _saveData = snapshot.Log;
+                    _pendingObservations.RemoveWhere(_saveData.seenBirds.Contains);
+                }
+
                 break;
-            case MessageTypes.BirdLocationsNewDay when !Context.IsMainPlayer:
-                _plan = MessageJson.Deserialize<DailySpawnPlan>(e.ReadAs<string>());
+            case nameof(SpawnPlanMessage) when IsFromHost(e):
+                if (_sync.Read<SpawnPlanMessage>(e) is { } plan)
+                {
+                    _plan = MessageJson.Deserialize<DailySpawnPlan>(plan.PlanJson);
+                }
+
                 break;
-            case MessageTypes.UpdateFarmhandSave when !Context.IsMainPlayer:
-                Monitor.Log($"{Game1.player.Name} received save data.", LogLevel.Debug);
-                _saveData = e.ReadAs<SaveData>();
+            case nameof(LocationBirdsRequest):
+                if (_sync.Read<LocationBirdsRequest>(e) is { } birdsRequest)
+                {
+                    SendLocationBirds(birdsRequest.LocationName, e.FromPlayerID);
+                }
+
                 break;
-            case MessageTypes.BirdLocationsOnConnect when !Context.IsMainPlayer:
-                Monitor.Log($"{Game1.player.Name} received bird data.", LogLevel.Debug);
-                _plan = MessageJson.Deserialize<DailySpawnPlan>(e.ReadAs<string>());
+            case nameof(LocationBirdsState):
+                if (_sync.Read<LocationBirdsState>(e) is { } birdsState)
+                {
+                    ReceiveLocationBirds(birdsState);
+                }
+
+                break;
+            default:
+                Monitor.Log($"Ignored message {e.Type} from player {e.FromPlayerID}.", LogLevel.Trace);
                 break;
         }
     }
 
-    private void SendCurrentBirds(long requestingPlayerId)
+    private static bool IsFromHost(ModMessageReceivedEventArgs e) =>
+        !Context.IsMainPlayer && e.FromPlayerID == Game1.MasterPlayer.UniqueMultiplayerID;
+
+    private void SendLocationBirds(string locationName, long requestingPlayerId)
     {
-        Monitor.Log($"{Game1.player.Name} got request to send active birds.", LogLevel.Debug);
+        if (Game1.currentLocation?.Name != locationName)
+        {
+            Monitor.Log($"Ignored bird request for {locationName}: not in that location.", LogLevel.Debug);
+            return;
+        }
+
         List<BirdCritter> birds = Game1.currentLocation.critters.OfType<BirdCritter>().ToList();
-        _messages.SendToPeer(MessageJson.Serialize((requestingPlayerId, birds)), MessageTypes.UpdateCurrentBirds, requestingPlayerId);
+        _sync.SendToPeer(new LocationBirdsState(IMessage.CurrentVersion, locationName, MessageJson.Serialize(birds)), requestingPlayerId);
         foreach (BirdCritter bird in birds)
         {
             bird.seedRandom();
         }
     }
 
-    private void ReceiveCurrentBirds(string json)
+    private void ReceiveLocationBirds(LocationBirdsState state)
     {
-        (long targetPlayerId, List<BirdCritter> birds) = MessageJson.Deserialize<(long, List<BirdCritter>)>(json);
-        if (Game1.player.UniqueMultiplayerID != targetPlayerId)
+        if (Game1.currentLocation?.Name != state.LocationName)
         {
+            Monitor.Log($"Dropped birds for {state.LocationName}: no longer in that location.", LogLevel.Debug);
             return;
         }
 
-        Monitor.Log($"{Game1.player.Name} got active birds and updates critter list.", LogLevel.Debug);
+        List<BirdCritter> birds = MessageJson.Deserialize<List<BirdCritter>>(state.BirdsJson);
         foreach (BirdCritter bird in birds)
         {
             bird.services = _birdServices;
@@ -263,26 +307,74 @@ public class ModEntry : Mod
             return;
         }
 
-        _messages.SendToPeer(_saveData, MessageTypes.UpdateFarmhandSave, e.Peer.PlayerID);
-        _messages.SendToPeer(MessageJson.Serialize(_plan), MessageTypes.BirdLocationsOnConnect, e.Peer.PlayerID);
+        _sync.SendToPeer(new ObservationLogSnapshot(IMessage.CurrentVersion, _saveData), e.Peer.PlayerID);
+        _sync.SendToPeer(new SpawnPlanMessage(IMessage.CurrentVersion, MessageJson.Serialize(_plan)), e.Peer.PlayerID);
     }
 
     private void RecordObservation(string birdName, string location)
     {
-        if (!_saveData.seenBirds.Add(birdName))
+        if (_saveData.seenBirds.Contains(birdName))
         {
             return;
         }
 
-        _saveData.birdObservations[birdName] = new ObservationData(location, new SDate(Game1.dayOfMonth, Game1.currentSeason), Game1.timeOfDay, Game1.player.Name);
-        Monitor.Log("New bird was added to seen birds:", LogLevel.Debug);
-        Utils.logObservation(Monitor, _catalog, _saveData, birdName);
-        _messages.SendToAll(_saveData, MessageTypes.SaveNewObservation);
-
-        string message = $"{Game1.player.Name} discovered a new bird: {_catalog[birdName].Name}!";
-        Game1.showGlobalMessage(message);
-        _messages.SendToAll(message, MessageTypes.GlobalObservationMessage);
+        ObservationData details = new(location, new SDate(Game1.dayOfMonth, Game1.currentSeason), Game1.timeOfDay, Game1.player.Name);
+        if (Context.IsMainPlayer)
+        {
+            AcceptObservation(birdName, details);
+        }
+        else if (_pendingObservations.Add(birdName))
+        {
+            _sync.SendToPeer(new ObservationRequest(IMessage.CurrentVersion, birdName, details), Game1.MasterPlayer.UniqueMultiplayerID);
+        }
     }
+
+    /// <summary>Host only: validates and records an observation, then tells every peer.</summary>
+    private void AcceptObservation(string birdId, ObservationData details)
+    {
+        if (!_catalog.TryGetValue(birdId, out BirdDefinition? bird))
+        {
+            Monitor.Log($"Dropped observation of unknown bird '{birdId}'.", LogLevel.Warn);
+            return;
+        }
+
+        if (!ObservationLog.TryApply(_saveData, birdId, details, out SaveData updated))
+        {
+            return;
+        }
+
+        _saveData = updated;
+        Monitor.Log($"New bird seen (log version {updated.logVersion}):", LogLevel.Debug);
+        Utils.logObservation(Monitor, _catalog, _saveData, birdId);
+        _sync.SendToAll(new ObservationAccepted(IMessage.CurrentVersion, updated.logVersion, birdId, details));
+        ShowDiscovery(bird, details);
+    }
+
+    /// <summary>Farmhand only: applies the host's delta, or asks for the full log when versions don't line up.</summary>
+    private void ApplyAccepted(ObservationAccepted accepted)
+    {
+        _pendingObservations.Remove(accepted.BirdId);
+        switch (ObservationLog.Check(_saveData, accepted.LogVersion))
+        {
+            case DeltaStatus.Duplicate:
+                return;
+            case DeltaStatus.Next when ObservationLog.TryApply(_saveData, accepted.BirdId, accepted.Details, out SaveData updated):
+                _saveData = updated;
+                if (_catalog.TryGetValue(accepted.BirdId, out BirdDefinition? bird))
+                {
+                    ShowDiscovery(bird, accepted.Details);
+                }
+
+                return;
+            default:
+                Monitor.Log($"Missed an observation update (local {_saveData.logVersion}, received {accepted.LogVersion}); requesting the full log.", LogLevel.Debug);
+                _sync.SendToPeer(new ObservationLogRequest(IMessage.CurrentVersion), Game1.MasterPlayer.UniqueMultiplayerID);
+                return;
+        }
+    }
+
+    private static void ShowDiscovery(BirdDefinition bird, ObservationData details) =>
+        Game1.showGlobalMessage($"{details.playerName} discovered a new bird: {bird.Name}!");
 
     // #############################
     // # Spawning / Removing Birds #
@@ -312,8 +404,8 @@ public class ModEntry : Mod
             return;
         }
 
-        Monitor.Log($"{Game1.player.Name} request active birds at {farmer.currentLocation}.", LogLevel.Debug);
-        _messages.SendToPeer(farmer.UniqueMultiplayerID, MessageTypes.RequestCurrentBirds, farmer.UniqueMultiplayerID);
+        Monitor.Log($"{Game1.player.Name} request active birds at {e.NewLocation.Name}.", LogLevel.Debug);
+        _sync.SendToPeer(new LocationBirdsRequest(IMessage.CurrentVersion, e.NewLocation.Name), farmer.UniqueMultiplayerID);
     }
 
     private void OnTimeChanged(object? sender, TimeChangedEventArgs e)

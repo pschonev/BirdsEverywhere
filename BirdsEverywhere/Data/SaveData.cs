@@ -8,6 +8,8 @@ namespace BirdsEverywhere
         public HashSet<string> seenBirds { get; set; } = new HashSet<string>();
         public Dictionary<string, ObservationData> birdObservations { get; set; } = new Dictionary<string, ObservationData>();
 
+        /// <summary>Counts accepted observations; peers use it to detect missed updates. Saves from before it existed load as 0.</summary>
+        public int logVersion { get; set; }
     }
 
     public class ObservationData
