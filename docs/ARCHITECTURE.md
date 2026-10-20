@@ -77,9 +77,10 @@ BirdsEverywhere/
   Registries/
     BirdTypeRegistry.cs, SpawnPatternRegistry.cs
   Observations/
-    ObservationLog.cs         pure: apply observation -> new log
+    ObservationLog.cs         pure: TryApply (new log copy, version + 1) and Check (delta status)
+    DeltaStatus.cs            Duplicate / Next / Gap
   Multiplayer/
-    Messages.cs               versioned message records
+    Messages.cs               versioned message records (IMessage.CurrentVersion)
     MultiplayerSync.cs        adapter over Helper.Multiplayer
   Persistence/
     SaveData.cs               versioned save record
@@ -488,15 +489,18 @@ sequenceDiagram
 
 | Message | Sender → receiver | Validated by | Persisted by |
 |---|---|---|---|
-| `SpawnPlan` | host → all (DayStarted, PeerConnected) | host builds it | not persisted |
-| `ObservationRequest` (bird id, details) | any peer → host | host: bird exists, not a duplicate | host only |
-| `ObservationAccepted` (log delta + version) | host → all | — | host already saved |
-| `LocationBirdsRequest` | entering peer → peer in location | responder | not persisted |
-| `LocationBirdsState` (`IReadOnlyList<BirdState>`) | responder → requester | requester: version, known ids | not persisted |
+| `SpawnPlanMessage` | host → farmhands (DayStarted, PeerConnected) | host builds it | not persisted |
+| `ObservationRequest` (bird id, details) | farmhand → host | host: bird exists, not a duplicate | host only |
+| `ObservationAccepted` (log version, bird id, details) | host → all | — | host already saved |
+| `ObservationLogRequest` | farmhand → host (on load, or after a gap) | host | not persisted |
+| `ObservationLogSnapshot` (full log) | host → peer (PeerConnected, on request) | farmhand: from host only | farmhand memory only |
+| `LocationBirdsRequest` (location name) | entering peer → peer in location | responder: is in that location | not persisted |
+| `LocationBirdsState` (location name, birds JSON) | responder → requester | requester: still in that location | not persisted |
 
 - All messages are records with a `Version` field. Unknown or older versions are logged and dropped.
 - Observation updates send deltas plus a monotonic log version. A stale delta is ignored and the peer re-requests the full log.
-- The host applies observations via the pure `ObservationLog.Apply`, so simultaneous discoveries merge instead of overwriting each other.
+- The host applies observations via the pure `ObservationLog.TryApply`, so simultaneous discoveries merge instead of overwriting each other. The first sighting wins; later requests for the same bird are dropped.
+- `SaveData.logVersion` counts accepted observations (saves from before it load as 0). Farmhands send an `ObservationRequest` and only change their log when the host's `ObservationAccepted` or snapshot arrives; a pending set prevents repeat requests.
 - Late joiners receive the current plan and full observation log on `PeerConnected`.
 
 ## Persistence
