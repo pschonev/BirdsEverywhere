@@ -269,6 +269,48 @@ See [ARCHITECTURE.md → Multiplayer ownership](ARCHITECTURE.md#multiplayer-owne
 
 Automated tests protect logic; rendering, timing, and real multiplayer need the game. Build and test results never count as in-game verification.
 
+### Prerequisite: debug tooling
+
+Reach specific cases without waiting for RNG, and inspect planning offline.
+
+**Shared game-free pieces** (mod project, unit-tested, used by console commands and the playground)
+
+- `BirdSelector`: parses `<birdId> [<ruleId>] [-l <location>] [-f]` with a small hand-written flag parser.
+- `SpawnTarget.Resolve(bird, ruleId?, location?, force, currentLocation, conditions, habitatExists, random)`: picks rule and location, returns a target or an error.
+- Day-condition and seed builders (season, weather, `StableHash` seed) extracted from `OnDayStarted`.
+- `HabitatExists` extracted from `DailySpawnPlan.Build` and passed in.
+- One formatter for plans and assignments (bird, rule, location, tile, time window).
+
+**Debug mode**
+
+- `config.json` via `Helper.ReadConfig<ModConfig>()` holds global settings, including `Debug` (default off); `birds_debug on|off` toggles it for the session.
+- Extra log detail uses SMAPI verbose logging (`Monitor.VerboseLog`, enabled per mod in `smapi-internal/config.user.json`); `Debug` controls on-screen output.
+- On `DayStarted` (including day 1 of a new save): log the full plan at `Info` and show a HUD message per placement.
+- Log why birds, rules, and locations were skipped (no eligible rule, habitat missing, pattern placed nothing → fallback).
+- Overlays via `Display.RenderedWorld`: label above each bird (id, rule, current action, time window), candidate and chosen tiles, `shoreDistance` band, terrain anchors, flee and alert radii.
+
+**Console commands** (`Diagnostics/ConsoleCommands.cs`, registered from `Entry`; require `Context.IsWorldReady`; plan changes host-only and rebroadcast to farmhands)
+
+| Command | Behavior |
+|---|---|
+| `birds_plan` | Print today's plan. |
+| `birds_spawn <birdId> [<ruleId>] [-l <location>] [-f]` | Rule: given, or weighted among today's eligible rules. Location: `-l`, else the current location if the rule lists it, else a random existing habitat. Placements get no time window and merge into the plan; populate now if the player is there, otherwise log a `debug warp` line. |
+| `birds_replan [seed]` | Rebuild today's plan, optionally with a fixed seed. |
+| `birds_clear` | Remove the mod's birds from the current location and reset the spawner's visit state. |
+| `birds_reload` | Reload content JSON and invalidate textures without restarting. |
+
+`-f` skips today's rule conditions (season, weather, day) and the habitat-list check, but the location must still exist. If the pattern finds no tile, the bird is placed on a free tile next to the player. Without `-f`, a pattern that finds no tile is reported as an error.
+
+**Playground** (`BirdsEverywhere.Playground`, net10.0 console app, never shipped; references the mod project like the test project)
+
+- REPL over immutable state (season, day, weather, luck, seed, seen birds) that calls `SpawnPlanner.Plan` with a stub `habitatExists` (all true, or filtered by farm type and compat mods) and a `place` callback that always succeeds.
+- Commands: `state`, `set season|weather|luck|seed|farm <value>`, `plan`, `observe <birdId>`, `next` (advance day), `rules <birdId>` (eligible rules and weights now).
+- `odds [<birdId> [<ruleId>] [-l <location>]] [-n N]`: Monte Carlo over N seeds using `BirdSelector`. With no selector, top N birds; otherwise a breakdown over the unspecified parts (rule, location).
+- The odds are upper bounds, since tile feasibility is assumed. To reproduce a real save's order, give placement its own derived `Random` so planner draws don't depend on map geometry.
+- Behavior stepping: run `IBirdBehavior.Decide` over a scripted `BirdContext` timeline (e.g. a farmer approaching) and print the actions.
+
+**Exit:** a chosen bird and rule can be spawned and inspected in game in under a minute; day 1's plan is visible in the log; the playground reproduces the planner's assignments for a given seed and conditions.
+
 **Smoke test (every phase)**
 
 - Mod loads without new SMAPI errors or warnings.
@@ -286,7 +328,7 @@ Automated tests protect logic; rendering, timing, and real multiplayer need the 
 - Farmhand discovery reaches host, then all players; duplicate discoveries do not lose data.
 - Late join and disconnect/reconnect keep valid state without crashes.
 
-Use the `Diagnostics/` console commands (list plan, force spawn, validate content, dump observations) to reach specific cases quickly. Changes to characterization outcomes are accepted only when documented here or in the commit message.
+Use the debug mode and console commands from the prerequisite above to reach specific cases quickly. Changes to characterization outcomes are accepted only when documented here or in the commit message.
 
 ---
 
@@ -344,6 +386,11 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 
 - Seeing more birds unlocks benefits: rarer birds, new locations or biomes, other features (see the birding-experience modifier).
 - Letters, events, and dialogue around birding with Demetrius and Professor Snail.
+
+**Dev tooling**
+
+- Web UI for the playground: minimal API in the playground project plus a React/Vite (or Blazor) frontend for plan views, odds charts, and a day stepper with observe buttons.
+- Sprite and animation preview in the browser: move frame lists from the bird classes to data (named animations of frame, ms, flip), then play them on a canvas at 4× nearest-neighbour over a game screenshot. Movement, collision, and depth stay in-game only.
 
 **Release**
 
