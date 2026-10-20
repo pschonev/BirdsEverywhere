@@ -1,5 +1,5 @@
-using BirdsEverywhere.Domain;
 using System.Globalization;
+using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
@@ -42,7 +42,7 @@ public static class BirdCollectionsTab
 
         foreach (BirdDefinition bird in catalog.Values)
         {
-            bool seen = saveData.seenBirds.Contains(bird.Id.Value);
+            bool seen = saveData.SeenBirds.Contains(bird.Id.Value);
             Texture2D birdTexture = content.Load<Texture2D>($"assets/{bird.Id.Value}/{bird.Id.Value}_icon.png");
 
             int x = baseX + widthUsed % CollectionWidth * 68;

@@ -122,7 +122,7 @@ Replace constructor-time merging and reflection-based default filling with a loa
 
 **Defaults:** C# fallbacks only for technically safe optional fields; gameplay defaults move into base templates; species values stay in bird files. Remove `SpawnData.getDefaultSpawnData()` and `insertDefaults` once templates carry those values.
 
-**Format migration:** convert shipped JSON to the new format: `defaultSpawnData` → `defaults`, `allSpawnData` season dictionary → id-keyed `rules` with `when.seasons`, `min/maxGroupCount` and `min/maxGroupSize` → `[min, max]`, `weather`/`daysRanges`/`timeOfDayRanges` → `when`. Replace `environmentData.json` biome bird lists with `locationGroups.json`. Add `base_bird` with today's global defaults. The `ContentTests.Bird_MergedSpawnData` snapshot changes for birds that relied on global defaults shadowing template values (the tits); document that as the bug fix.
+**Format migration:** convert shipped JSON to the new format: `defaultSpawnData` → `defaults`, `allSpawnData` season dictionary → id-keyed `rules` with `when.seasons`, `min/maxGroupCount` and `min/maxGroupSize` → `[min, max]`, `weather`/`daysRanges`/`timeOfDayRanges` → `when`. Replace `environmentData.json` biome bird lists with `regions.json` (regions with ranked species and location groups). Add `base_bird` with today's global defaults. The `ContentTests.Bird_MergedSpawnData` snapshot changes for birds that relied on global defaults shadowing template values (the tits); document that as the bug fix.
 
 **Removes:** `[JsonConstructor]` merge logic in `BirdData`/`BirdTemplate`, `Reflection.CopyProperties`, `Utils.MergeDictionaries`, runtime state on config (`currentSpawnData`, texture rotation index), and `inspect_output` writes on every load (replace with a console command).
 
@@ -261,7 +261,7 @@ See [ARCHITECTURE.md → Multiplayer ownership](ARCHITECTURE.md#multiplayer-owne
 
 **Done:** `Multiplayer/Messages.cs` (versioned records, one `IMessage.CurrentVersion`), `MultiplayerSync` (typed send/read, drops malformed or unsupported versions with `Warn`), `Observations/ObservationLog` (`TryApply`, `Check`), `SaveData.logVersion`. `ModEntry` switches on `nameof(message)`; observation messages are accepted only from the host on farmhands and only on the host for requests. Live critter transfer is now `LocationBirdsRequest`/`LocationBirdsState` with the location name checked on both sides. `MessageSender`/`MessageTypes` removed; the whole-`SaveData` broadcast defect is fixed. 135 x64 tests pass (new `ObservationLogTests`).
 
-**Not verified in game:** two-player discovery, late join, gap recovery, and critter transfer need a SMAPI multiplayer session.
+**Not verified in game:** two-player discovery, late join, gap recovery, and live critter synchronization need a SMAPI multiplayer session.
 
 ---
 
@@ -272,6 +272,26 @@ Automated tests protect logic; rendering, timing, and real multiplayer need the 
 ### Prerequisite: debug tooling
 
 Reach specific cases without waiting for RNG, and inspect planning offline.
+
+### Prerequisite: shared bird simulation
+
+Players in the same location must see the same birds doing the same things. A one-time snapshot on arrival is not enough: after it, each peer's frame timing, RNG draws, threat checks and animation callbacks diverge.
+
+- One simulation owner per occupied location decides every bird action; other peers only render the owner's state.
+- The owner sends a full snapshot to arriving peers and periodic sequenced state updates (position, state, animation frame, flip, offsets) keyed by bird id; birds missing from an update are removed.
+- The owner checks threats against every farmer in the location, so any player can flush a bird.
+- When the owner leaves, a remaining peer takes over from the latest state it received.
+- Rollback is not needed: non-owners may see a reaction one network delay late, but every peer sees the same decision.
+
+**Exit:** in a two-player SMAPI session, both players see the same birds, poses, flights and despawns; either player's approach flushes a bird for both; ownership survives the owner leaving.
+
+**Implemented (compile/test verified, not tested in game):** the first visitor owns bird simulation. Incoming peers request a correlated snapshot; six-tick sequenced snapshots replace or update replicas by bird id, and replicas interpolate position without running bird logic or animation callbacks. Threat checks cover all farmers. A warp sends the latest birds and transfers ownership; on disconnect, remaining peers elect a new owner from their last snapshot. The new owner resumes spawning without reintroducing birds already despawned in the current time window. Verify two-player join, approach, warp, disconnect, day transition, and debug commands in SMAPI before marking this prerequisite complete.
+
+**Implemented (compile/test verified, not tested in game):** `birds_debug`, `birds_plan`, `birds_spawn`, `birds_replan`, `birds_clear`, `birds_reload`, `birds_rules`, `birds_check`, and `birds_live`; a debug-mode label (`name / state`) above each bird; plan logging/HUD on day start when debug is on; selector/target logic and an offline REPL with simulated plans and odds. Run the playground with `dotnet run --project BirdsEverywhere.Playground/BirdsEverywhere.Playground.csproj`. `birds_reload` reloads JSON but does not invalidate cached texture assets. Forced fallback to a free tile is currently limited to the player's location. Planner simulations assume every selected tile is feasible; they do not reproduce a real save's map-dependent RNG draws.
+
+In the playground, type `help` for command syntax and examples. `dotnet run` builds the referenced mod, so its existing compiler/analyzer warnings can appear before the prompt. After the initial build, use `dotnet run --project BirdsEverywhere.Playground/BirdsEverywhere.Playground.csproj --no-build` for quiet repeat sessions; rebuild after source changes.
+
+**Still pending:** richer overlays (rule, time window), candidate-tile and terrain/radius visualization, behavior stepping, true remote-location forced fallback, and separating planner RNG from placement RNG. Verify the commands and multiplayer rebroadcast in SMAPI before checking this prerequisite off.
 
 **Shared game-free pieces** (mod project, unit-tested, used by console commands and the playground)
 
@@ -298,6 +318,9 @@ Reach specific cases without waiting for RNG, and inspect planning offline.
 | `birds_replan [seed]` | Rebuild today's plan, optionally with a fixed seed. |
 | `birds_clear` | Remove the mod's birds from the current location and reset the spawner's visit state. |
 | `birds_reload` | Reload content JSON and invalidate textures without restarting. |
+| `birds_rules <birdId>` | Print each rule (conditions, habitats, pattern → bird type and initial state, count bounds, textures, params) with ✅/❌ for today's eligibility. Same output as the playground `rules`. |
+| `birds_check <birdId> [<ruleId>] [-l <location>]` | Host only. Per rule and habitat: eligibility, whether the habitat exists, candidate tiles/trees/bushes, and a dry-run placement count. Does not change the plan. |
+| `birds_live` | List live birds here: name, type, texture, tile, water/ground, state, anchor, and the plan rule they came from. |
 
 `-f` skips today's rule conditions (season, weather, day) and the habitat-list check, but the location must still exist. If the pattern finds no tile, the bird is placed on a free tile next to the player. Without `-f`, a pattern that finds no tile is reported as an error.
 
@@ -360,6 +383,10 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 - Visible birds in tree canopies that fly off when the tree is shaken.
 - Shore birds.
 - Flyovers: migrating birds passing through, predators circling.
+- Raptors, in stages ([shared simulation](#prerequisite-shared-bird-simulation) first, so every player sees the same event):
+  1. Feeding raptor: an ordinary placement on the ground, mantling over prey (prey hidden under the wings, a few feathers, no blood). Flees on approach and leaves the prey behind. Needs a `Feed` idle action and 2–4 frames.
+  2. Hunt: the raptor dives onto a small bird in the location, the other birds startle, feathers puff, then it feeds as in stage 1. The simulation owner picks the victim and outcome.
+  3. Not planned: carrying prey away (needs carry frames) or a full patrol/alarm/miss script.
 - Birds that relocate to another spot instead of fleeing the location.
 - Tame birds that don't flee.
 - Special animations, e.g. hunting or display dances.
@@ -373,6 +400,7 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 - Register vanilla `Crow` as Carrion Crow (*Corvus corone*) on observation; needs observe-only bird data and a bird-list image.
 - Register Ginger Island parrots as a matching Central American species on observation.
 - Keep spawn placements away from existing critters.
+- Optional later phase: audit whether vanilla critters already sync; if not, consider syncing a narrow allowlist through the bird owner. Keep `Crow` and all gameplay-affecting critters outside that scope.
 
 **Spawning content**
 
@@ -380,11 +408,15 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 
 - Couples (breeding season) and juveniles.
 - Species that often appear together (affinity between species).
-- Bird feeder: birds appear in nearby trees and fly to it.
+**Items and attraction**
+
+- Bird food: grown or processed by the player, or bought at Pierre's or JojaMart. Using it scatters it on a tile and attracts birds nearby for a while.
+- Bird feeder: craftable placed object like the bee house; holds food, birds appear in nearby trees and fly to it.
+- Both need a runtime attraction point (tile, radius, expiry, food-to-species affinity) next to the daily plan; how it combines with the plan is undecided.
 
 **Progression and story**
 
-- Seeing more birds unlocks benefits: rarer birds, new locations or biomes, other features (see the birding-experience modifier).
+- Perks per birding level. XP and levels are implemented ([birding XP](ARCHITECTURE.md#spawn-selection-luck-rarity-experience)); open: the perks themselves (e.g. rarer birds, new locations or biomes, closer approach), whether they follow vanilla skills (profession choice at 5 and 10), a skills-page entry, and feeder use as an XP source.
 - Letters, events, and dialogue around birding with Demetrius and Professor Snail.
 
 **Dev tooling**

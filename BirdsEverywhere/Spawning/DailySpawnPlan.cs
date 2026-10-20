@@ -1,3 +1,4 @@
+using BirdsEverywhere.Diagnostics;
 using BirdsEverywhere.Domain;
 using BirdsEverywhere.Registries;
 using Microsoft.Xna.Framework;
@@ -15,7 +16,9 @@ public sealed record BirdPlacement(
     int? FeatureIndex,
     IReadOnlyList<IntRange> Times,
     string Texture,
-    int Seed)
+    int Seed,
+    bool Forced = false,
+    bool Unseen = false)
 {
     public bool IsActiveAt(int time) => Times.Count == 0 || Times.Any(range => range.Contains(time));
 }
@@ -24,19 +27,11 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
 {
     public static DailySpawnPlan Empty { get; } = new(new Dictionary<string, IReadOnlyList<BirdPlacement>>());
 
-    internal static DailySpawnPlan Build(IReadOnlySet<string> seenBirds, IReadOnlyDictionary<string, BirdDefinition> catalog,
-        SpawnPatternRegistry patterns, Domain.Season season, Weather weather, int day, double luck, Random random, IMonitor monitor)
+    internal static DailySpawnPlan Build(IReadOnlyList<Region> regions, IReadOnlySet<string> seenBirds, IReadOnlyDictionary<string, BirdDefinition> catalog,
+        SpawnPatternRegistry patterns, Domain.Season season, Weather weather, int day, double luck, int level, Random random, IMonitor monitor,
+        Action<string>? skipped = null)
     {
-        // Missing locations, farm types and fish areas usually belong to a mod or farm type that isn't active.
-        bool HabitatExists(Habitat habitat)
-        {
-            GameLocation? location = Game1.getLocationFromName(habitat.Location);
-            return location is not null
-                && (habitat.FarmType is null || string.Equals(habitat.FarmType, Game1.GetFarmTypeKey(), StringComparison.OrdinalIgnoreCase))
-                && (habitat.FishArea is null || location.GetData()?.FishAreas?.ContainsKey(habitat.FishArea) == true);
-        }
-
-        Dictionary<string, IReadOnlyList<BirdPlacement>> locations = new(StringComparer.Ordinal);
+        Dictionary<string, List<BirdPlacement>> locations = new(StringComparer.Ordinal);
         bool Place(SpawnAssignment assignment)
         {
             if (!patterns.TryCreate(assignment.Rule.SpawnPattern, out Spawner? spawner))
@@ -45,17 +40,30 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
                 return false;
             }
 
-            List<BirdPlacement> placements = spawner.spawnBirds(Game1.getLocationFromName(assignment.Location), assignment.Bird, assignment.Rule, assignment.Habitat.FishArea, random, monitor);
+            locations.TryGetValue(assignment.Location, out List<BirdPlacement>? existing);
+            List<BirdPlacement> placements = spawner.SpawnBirds(Game1.getLocationFromName(assignment.Location), assignment.Bird, assignment.Rule, assignment.Habitat.FishArea, random, monitor,
+                existing?.Select(placement => placement.Tile).ToList());
             if (placements.Count == 0)
             {
                 return false;
             }
 
-            locations[assignment.Location] = placements;
+            placements = placements.Select(placement => placement with { Unseen = assignment.Unseen }).ToList();
+            if (existing is null)
+            {
+                locations.Add(assignment.Location, placements);
+            }
+            else
+            {
+                existing.AddRange(placements);
+            }
+
             return true;
         }
 
-        SpawnPlanner.Plan(catalog, seenBirds, season, weather, day, luck, random, HabitatExists, Place);
-        return new DailySpawnPlan(locations);
+        int LocationArea(string name) => Game1.getLocationFromName(name) is { map: not null } location ? location.map.DisplayWidth / 64 * (location.map.DisplayHeight / 64) : 0;
+
+        SpawnPlanner.Plan(regions, catalog, seenBirds, season, weather, day, luck, level, random, GameHabitat.Exists, Place, LocationArea, skipped);
+        return new DailySpawnPlan(locations.ToDictionary(entry => entry.Key, entry => (IReadOnlyList<BirdPlacement>)entry.Value, StringComparer.Ordinal));
     }
 }

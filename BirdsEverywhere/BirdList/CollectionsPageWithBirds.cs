@@ -5,11 +5,11 @@ using StardewValley.Menus;
 
 namespace BirdsEverywhere.BirdList;
 
-class CollectionsPageWithBirds : CollectionsPage
+internal class CollectionsPageWithBirds : CollectionsPage
 {
     private readonly IReflectedField<string> _hoverText;
     private readonly IReflectedField<int> _value;
-    private readonly IReflectedField<Item> _hoverItem;
+    private readonly IReflectedField<Item?> _hoverItem;
     private readonly IReadOnlyDictionary<string, BirdDefinition> _catalog;
     private readonly SaveData _saveData;
 
@@ -20,7 +20,7 @@ class CollectionsPageWithBirds : CollectionsPage
         _saveData = saveData;
         _hoverText = reflection.GetField<string>(this, "hoverText");
         _value = reflection.GetField<int>(this, "value");
-        _hoverItem = reflection.GetField<Item>(this, "hoverItem");
+        _hoverItem = reflection.GetField<Item?>(this, "hoverItem");
         this.backButton = cp.backButton;
         this.forwardButton = cp.forwardButton;
         this.sideTabs = cp.sideTabs;
@@ -37,7 +37,7 @@ class CollectionsPageWithBirds : CollectionsPage
     {
         IReflectedField<string> hoverText = _hoverText;
         IReflectedField<int> value = _value;
-        IReflectedField<Item> hoverItem = _hoverItem;
+        IReflectedField<Item?> hoverItem = _hoverItem;
 
         hoverText.SetValue("");
         value.SetValue(-1);
@@ -72,7 +72,7 @@ class CollectionsPageWithBirds : CollectionsPage
                     else if (currentTab == 8)
                     {
                         // this is my bird tab
-                        hoverText.SetValue(getBirdHoverText(c.name.Split(null)[0]));
+                        hoverText.SetValue(GetBirdHoverText(c.name.Split(null)[0]));
                     }
                     else
                     {
@@ -102,10 +102,10 @@ class CollectionsPageWithBirds : CollectionsPage
         backButton.tryHover(x, y, 0.5f);
     }
 
-    private string getBirdHoverText(string id)
+    private string GetBirdHoverText(string id)
     {
         BirdDefinition data = _catalog[id];
-        ObservationData obsData = _saveData.birdObservations[id];
-        return $"{data.Name}\n{data.ScientificName}\n\n{data.Description}\n\nFirst seen by {obsData.playerName}\n{obsData.observationLocation} on {obsData.observationDate}";
+        ObservationData obsData = _saveData.BirdObservations[id];
+        return $"{data.Name}\n{data.ScientificName}\n\n{data.Description}\n\nFirst seen by {obsData.PlayerName}\n{obsData.ObservationLocation} on {obsData.ObservationDate}";
     }
 }

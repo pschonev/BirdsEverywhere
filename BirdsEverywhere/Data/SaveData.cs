@@ -1,33 +1,60 @@
-using System.Collections.Generic;
+using Newtonsoft.Json;
 using StardewModdingAPI.Utilities;
 
-namespace BirdsEverywhere
+namespace BirdsEverywhere;
+
+public class SaveData
 {
-    public class SaveData
+    [JsonProperty("seenBirds")]
+    public HashSet<string> SeenBirds { get; set; } = new HashSet<string>();
+
+    [JsonProperty("birdObservations")]
+    public Dictionary<string, ObservationData> BirdObservations { get; set; } = new Dictionary<string, ObservationData>();
+
+    /// <summary>Counts accepted observations; peers use it to detect missed updates. Saves from before it existed load as 0.</summary>
+    [JsonProperty("logVersion")]
+    public int LogVersion { get; set; }
+
+    /// <summary>Farm-wide birding experience; saves from before it existed load as 0.</summary>
+    [JsonProperty("birdingXp")]
+    public long BirdingXp { get; set; }
+
+    /// <summary>Game day of <see cref="Sightings"/>; the set is reset when a new day's first repeat sighting arrives.</summary>
+    [JsonProperty("sightingsDay")]
+    public int SightingsDay { get; set; }
+
+    [JsonProperty("sightings")]
+    public HashSet<string> Sightings { get; set; } = new HashSet<string>();
+}
+
+public class ObservationData
+{
+    [JsonProperty("observationLocation")]
+    public string ObservationLocation { get; set; }
+
+    [JsonProperty("observationDate")]
+    public SDate ObservationDate { get; set; }
+
+    [JsonProperty("observationTime")]
+    public int ObservationTime { get; set; }
+
+    [JsonProperty("playerName")]
+    public string PlayerName { get; set; }
+
+    [JsonProperty("feather")]
+    public bool Feather { get; set; }
+
+    [JsonProperty("egg")]
+    public bool Egg { get; set; }
+
+    [JsonProperty("picture")]
+    public bool Picture { get; set; }
+
+    public ObservationData(string observationLocation, SDate observationDate, int observationTime, string playerName)
     {
-        public HashSet<string> seenBirds { get; set; } = new HashSet<string>();
-        public Dictionary<string, ObservationData> birdObservations { get; set; } = new Dictionary<string, ObservationData>();
-
-        /// <summary>Counts accepted observations; peers use it to detect missed updates. Saves from before it existed load as 0.</summary>
-        public int logVersion { get; set; }
-    }
-
-    public class ObservationData
-    {
-        public string observationLocation { get; set; }
-        public SDate observationDate { get; set; }
-        public int observationTime { get; set; }
-        public string playerName { get; set; }
-        public bool feather { get; set; } = false;
-        public bool egg { get; set; } = false;
-        public bool picture { get; set; } = false;
-
-        public ObservationData(string observationLocation, SDate observationDate, int observationTime, string playerName)
-        {
-            this.observationLocation = observationLocation;
-            this.observationDate = observationDate;
-            this.observationTime = observationTime;
-            this.playerName = playerName;
-        }
+        this.ObservationLocation = observationLocation;
+        this.ObservationDate = observationDate;
+        this.ObservationTime = observationTime;
+        this.PlayerName = playerName;
     }
 }

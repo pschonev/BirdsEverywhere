@@ -56,7 +56,7 @@ Feature folders, one top-level type per file, namespaces mirror folders. One mod
 BirdsEverywhere/
   ModEntry.cs                 composition root: build, subscribe, delegate
   Content/                    JSON boundary
-    BirdJson.cs, SpawnRuleJson.cs, LocationGroupsJson.cs
+    BirdJson.cs, SpawnRuleJson.cs
     TemplateMerger.cs         JObject merge, rule expansion, cycle detection, provenance
     ContentValidator.cs       JSON model -> domain, errors with file/field/chain
     ContentPaths.cs           all asset path construction
@@ -132,8 +132,8 @@ Goal: a new species that behaves like an existing group of birds is a file with 
 |---|---|---|
 | `assets/templates/<id>.json` | optional `template`, `defaults`, `rules` | identity fields |
 | `assets/<bird_id>/<bird_id>.json` | `id` (equals file name), `name`, `scName`, `description`, optional `template`, `defaults`, `rules` | — |
-| `assets/locationGroups.json` | `{ "<group>": ["<GameLocationName>", ...] }`, vanilla locations only | bird ids, nested groups, mod locations |
-| `assets/compat/<modUniqueId>.json` | same format; members appended to (or creating) groups when that mod is loaded | bird ids, nested groups |
+| `assets/regions.json` | `{ "<region>": { "ratio": 0.6, "species": ["<bird_id>", ...], "groups": { "<group>": ["<GameLocationName>", ...] } } }`; `species` is ordered most to least frequent, `ratio` (default 0.6) is the weight factor per rank | nested groups, per-bird location lists |
+| `assets/compat/<modUniqueId>.json` | same format, existing regions only; species and group members are appended when that mod is loaded | new regions, `ratio`, nested groups |
 
 Only templates can be parents. Location groups are the only place that lists locations in bulk; birds are not listed per area anywhere (no second source of truth).
 
@@ -202,7 +202,7 @@ The same code runs in `ContentTests` over every shipped file and on `GameLaunche
 
 ### Examples
 
-`assets/locationGroups.json`
+`assets/regions.json`
 
 ```json
 {
@@ -451,7 +451,7 @@ classDiagram
 - Behavior order and conflict rules live in one ordered list per bird type (`BirdBehaviors`); the first behavior returning an action wins. The bird applies the action (state, animation, movement).
 - Idle options and weights become data: defaults per bird type, overrides per species in JSON. An action is only listed for species whose sprite sheet has its frames, so the sheet needs a fixed frame layout per action.
 - Terrain-feature birds resolve their `TerrainAnchor` by location and tile each update. If the feature is gone or changed kind, the bird despawns cleanly.
-- Each bird owns a `Random` seeded from its placement seed, so behavior is reproducible across peers.
+- Each bird owns a `Random` seeded from its placement seed. Only the location owner advances its RNG and animation callbacks; replicas render its sequenced snapshots, since seed alone cannot keep frame-dependent behavior synchronized.
 
 The migration is gradual: inheritance stays where it is simple and stable; composition replaces it only where combining behaviors would otherwise need more subclasses.
 
@@ -494,14 +494,16 @@ sequenceDiagram
 | `ObservationAccepted` (log version, bird id, details) | host → all | — | host already saved |
 | `ObservationLogRequest` | farmhand → host (on load, or after a gap) | host | not persisted |
 | `ObservationLogSnapshot` (full log) | host → peer (PeerConnected, on request) | farmhand: from host only | farmhand memory only |
-| `LocationBirdsRequest` (location name) | entering peer → peer in location | responder: is in that location | not persisted |
-| `LocationBirdsState` (location name, birds JSON) | responder → requester | requester: still in that location | not persisted |
+| `LocationBirdsRequest` (location, requester, request id) | entering peer → peer in location, forwarded to owner | responder: is in that location | not persisted |
+| `LocationBirdsState` (location, visit id, sequence, birds JSON, request id) | location owner → peers in location | recipient: matching location, owner and newer sequence; first snapshot matches request id | not persisted |
+| `LocationBirdsHandoff` (location, next owner, visit id, sequence, birds JSON) | departing owner → remaining peers | recipient: current owner and visit, newer sequence | not persisted |
 
 - All messages are records with a `Version` field. Unknown or older versions are logged and dropped.
 - Observation updates send deltas plus a monotonic log version. A stale delta is ignored and the peer re-requests the full log.
 - The host applies observations via the pure `ObservationLog.TryApply`, so simultaneous discoveries merge instead of overwriting each other. The first sighting wins; later requests for the same bird are dropped.
 - `SaveData.logVersion` counts accepted observations (saves from before it load as 0). Farmhands send an `ObservationRequest` and only change their log when the host's `ObservationAccepted` or snapshot arrives; a pending set prevents repeat requests.
 - Late joiners receive the current plan and full observation log on `PeerConnected`.
+- The host remains authoritative for the plan, observations, and XP. The first visitor simulates birds in a location; every other peer renders position/pose snapshots at six-tick intervals without running bird logic. Threat checks include all farmers in the location. An owner warp sends a handoff; disconnect elects the lowest remaining player ID from the latest replicated state. Ownership and sequence are scoped to a visit, not persisted. In-game multiplayer verification is still required.
 
 ## Persistence
 
@@ -542,8 +544,9 @@ Goals, not designs; Phase 6 decides the implementation.
 
 - The daily roll at `DayStarted` takes `Game1.player.DailyLuck` as a planner input (multiplayer: host or average, decide later). It stays seeded per save and day: random, but reproducible.
 - Unseen birds in the main region: usually 1 per day, a small chance of 2, a tiny chance of 3. Luck raises or lowers these chances.
-- Implemented: unseen count is 1, with luck-shifted chances of 2 and 3 (`SpawnPlanner.UnseenCount`). Candidates are drawn by weight (`Utils.shuffleByWeights`, heavier first); a bird's weight is the sum of its eligible rule weights raised to `clamp(1 - 5 * luck, 0.5, 1.5)`, so good luck flattens the curve and bad luck steepens it. A bird, rule or location whose placement comes back empty is skipped for the next (feasibility fallback). One bird per base location; the limit is half the distinct base locations, minimum 1.
-- Luck is one of several generic "birding modifiers"; keep room for birding experience or progression to raise the count and rarity of birds seen.
+- Implemented (`SpawnPlanner`, `BirdingProgress`): regions in `assets/regions.json` rank their species by frequency. A species' weight is `(ratio^rank * highest eligible rule weight)^e` with `e = clamp(1 - 5 * luck - 0.05 * level, 0.3, 1.5)`, so luck and birding level flatten the curve and bad luck steepens it. Unseen birds: 1 per region and day, with luck/level-raised chances of 2 and 3 (`UnseenCount`). Seen birds: 1 per location plus extras up to `MaxBirdsPerLocation` (3), with `clamp(0.15 * area / 3000 + 0.5 * luck + 0.02 * level, 0, 0.9)` chance divided by the current count (`LocationCount`). Species keep at least 8 tiles apart (`TileSelection.MinSpeciesDistance`). A bird, rule or location whose placement comes back empty is skipped (feasibility fallback).
+- Birding XP is farm-wide and lives in `SaveData`: a new species gives 100, re-sighting a seen species 10 once per species and game day; level = `floor(sqrt(xp / 100))`. The `birds_xp` console command shows it. Weights, seen/unseen split and counts are visible in the CLI (`plan`, `odds`, `weights`) and in-game `rules`.
+- Luck and birding level are generic "birding modifiers"; further ones plug into `Exponent` and the count chances.
 - A bird's spawn chance combines its position in the rarity order with a per-rule weight modifier in config, e.g. very likely at peak migration and rare on the days around it.
 - Seen birds use the same rarity and weight model but have no 1-per-day limit: one or more species per area is fine when the rules fit. Groups of different species in one location keep a minimum distance; the daily plan records each group's area so placements don't overlap.
 - Special spawn events (e.g. migrations) can be triggered like TV weather forecasts, or by dialogue or quests. Events are data-defined and act by changing rule weights or eligibility.
@@ -567,7 +570,7 @@ Goals, not designs; Phase 6 decides the implementation.
 
   A group with one member is fine when map mods are expected to add to it. Within `Forest` all water counts as one habitat.
 - Popular map mods without their own patch get a shipped compat file, `assets/compat/<modUniqueId>.json`, merged only when `ModRegistry.IsLoaded(modUniqueId)`.
-- Groups live in a game asset, `Mods/<ModId>/LocationGroups`, loaded from `assets/locationGroups.json` via `AssetRequested`. Other mods add their areas with a Content Patcher `EditData` patch in their own content pack (or `IAssetEditor` code); compat files are only for mods that don't. Because Content Patcher conditions can depend on the save, groups are read at `SaveLoaded` and re-read on `AssetsInvalidated`; `@group` references are validated at load but expanded per day. Members for locations or areas that don't exist are ignored silently, because they usually come from a mod that isn't installed.
+- Regions and their groups are loaded from `assets/regions.json` (plus compat files) at `SaveLoaded`; the game-asset route (`Mods/<ModId>/LocationGroups`, Content Patcher `EditData`) is not implemented yet. Other mods add their areas with a Content Patcher `EditData` patch in their own content pack (or `IAssetEditor` code); compat files are only for mods that don't. Because Content Patcher conditions can depend on the save, groups are read at `SaveLoaded` and re-read on `AssetsInvalidated`; `@group` references are validated at load but expanded per day. Members for locations or areas that don't exist are ignored silently, because they usually come from a mod that isn't installed.
 - Distance to shore is the one geometric filter: `shoreDistance: [min, max]` in tiles from the nearest walkable ground (for water tiles) or nearest water (for ground tiles). It splits the beach into sand, shore land, shallow water and open sea, and keeps water birds within sight of walkable ground: the deep sea in the middle of the Beach and the whole sea along the bottom of the Forest are excluded.
 - Remote areas players rarely visit early (e.g. the southern Forest, selected as a coarse map region) get a low weight that rises with birding progression, so unseen birds don't spawn where players won't look.
 - Candidate spots too close to vanilla critters are rejected (see [Vanilla critters](#vanilla-critters)).
@@ -580,7 +583,7 @@ Goals, not designs; Phase 6 decides the implementation.
 
 ## Out of scope for now
 
-- Public mod API for other mods, Content Patcher integration beyond the `LocationGroups` asset, JSON schema files.
+- Public mod API for other mods, Content Patcher integration beyond the regions asset, JSON schema files.
 - Spatial indexing or other performance work without a profile showing the need.
 
 These are tracked as Phase 10 in [REFACTOR.md](REFACTOR.md#10-nice-to-haves-and-future-improvements).

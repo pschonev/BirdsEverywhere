@@ -1,8 +1,8 @@
+using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewValley;
 using static BirdsEverywhere.Spawners.Condition;
-using BirdsEverywhere.Domain;
 
 namespace BirdsEverywhere.Spawners;
 /// <summary>
@@ -15,10 +15,7 @@ public class GroundSpawner : TileSpawner
     /// Checks for valid ground tile (doesn't have to be accessible to player).
     /// </summary>
 
-    public GroundSpawner()
-    {
-        condition = isValidGroundTile;
-    }
+    public GroundSpawner() : base(IsValidGroundTile) { }
 }
 
 public class WaterSpawner : TileSpawner
@@ -26,10 +23,7 @@ public class WaterSpawner : TileSpawner
     /// <summary>
     /// Checks for valid water tile.
     /// </summary>
-    public WaterSpawner()
-    {
-        condition = isValidWaterTile;
-    }
+    public WaterSpawner() : base(IsValidWaterTile) { }
 }
 
 public class WaterOrGroundSpawner : TileSpawner
@@ -37,10 +31,7 @@ public class WaterOrGroundSpawner : TileSpawner
     /// <summary>
     /// Checks if tile is either water or ground.
     /// </summary>
-    public WaterOrGroundSpawner()
-    {
-        condition = isValidWaterOrGroundTile;
-    }
+    public WaterOrGroundSpawner() : base(IsValidWaterOrGroundTile) { }
 }
 
 public class SpawnableGroundSpawner : TileSpawner
@@ -48,22 +39,24 @@ public class SpawnableGroundSpawner : TileSpawner
     /// <summary>
     /// Checks whether the tile is on spawnable ground i.e. if the player can walk up to the birds.
     /// </summary>
-    public SpawnableGroundSpawner()
-    {
-        condition = isSpawnableGroundTile;
-    }
+    public SpawnableGroundSpawner() : base(IsValidSpawnableGroundTile) { }
 }
 
 public abstract class TileSpawner : Spawner
 {
-    public TileSpawnCondition condition = null!;
-
-    public override List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor) =>
-        spawnBirds(new GameLocationQuery(location), data, rule, fishArea, random, monitor);
-
-    public List<BirdPlacement> spawnBirds(ILocationQuery location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor)
+    protected TileSpawner(TileSpawnCondition tileCondition)
     {
-        List<BirdPlacement> spawnList = TileSelection.Tiles(location, Restrict(rule, fishArea), rule.GroupCount, rule.GroupSize, random)
+        TileCondition = tileCondition;
+    }
+
+    public TileSpawnCondition TileCondition { get; }
+
+    public override List<BirdPlacement> SpawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor, IReadOnlyCollection<Vector2>? avoid = null) =>
+        SpawnBirds(new GameLocationQuery(location), data, rule, fishArea, random, monitor, avoid);
+
+    public List<BirdPlacement> SpawnBirds(ILocationQuery location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor, IReadOnlyCollection<Vector2>? avoid = null)
+    {
+        List<BirdPlacement> spawnList = TileSelection.Tiles(location, Restrict(rule, fishArea), rule.GroupCount, rule.GroupSize, random, avoid: avoid)
             .Select(tile => Place(data, rule, tile, null, random))
             .ToList();
         monitor.Log($"Planned {spawnList.Count} {data.Id.Value} at {location.Name}.", LogLevel.Debug);
@@ -71,17 +64,17 @@ public abstract class TileSpawner : Spawner
     }
 
     public override bool IsStillValid(GameLocation location, BirdPlacement placement) =>
-        condition(new GameLocationQuery(location), placement.Tile);
+        TileCondition(new GameLocationQuery(location), placement.Tile);
 
-    private TileSpawnCondition Restrict(SpawnRule rule, string? fishArea)
+    public TileSpawnCondition Restrict(SpawnRule rule, string? fishArea)
     {
         IntRange? shore = rule.Params.ShoreDistance;
         if (shore is null && fishArea is null)
         {
-            return condition;
+            return TileCondition;
         }
 
-        return (location, tile) => condition(location, tile)
+        return (location, tile) => TileCondition(location, tile)
             && (fishArea is null || location.FishArea(tile) == fishArea)
             && (shore is not IntRange range || range.Contains(ShoreDistance.From(location, tile)));
     }
@@ -89,7 +82,7 @@ public abstract class TileSpawner : Spawner
 
 public abstract class Spawner
 {
-    public abstract List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor);
+    public abstract List<BirdPlacement> SpawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor, IReadOnlyCollection<Vector2>? avoid = null);
 
     public abstract bool IsStillValid(GameLocation location, BirdPlacement placement);
 

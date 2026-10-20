@@ -1,5 +1,6 @@
 using BirdsEverywhere.BirdTypes.Behaviors;
 using Microsoft.Xna.Framework;
+using Newtonsoft.Json;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
 using StardewValley.TerrainFeatures;
@@ -13,10 +14,13 @@ internal sealed class TreeTrunkBird : BirdCritter
 
     private Tree? _tree;
 
-    public override string birdTypeName { get; } = "TreeTrunkBird";
-    public int index { get; set; }
-    public string? locationName { get; set; }
-    public int peckTimer { get; set; }
+    public override string BirdTypeName { get; } = "TreeTrunkBird";
+    [JsonProperty("index")]
+    public int Index { get; set; }
+    [JsonProperty("locationName")]
+    public string? LocationName { get; set; }
+    [JsonProperty("peckTimer")]
+    public int PeckTimer { get; set; }
 
     public TreeTrunkBird() { }
 
@@ -29,8 +33,8 @@ internal sealed class TreeTrunkBird : BirdCritter
 
     public TreeTrunkBird SetAnchor(int index, string? locationName)
     {
-        this.index = index;
-        this.locationName = locationName;
+        Index = index;
+        LocationName = locationName;
         _tree = new TerrainAnchor(locationName, index).ResolveTree();
         return this;
     }
@@ -47,30 +51,35 @@ internal sealed class TreeTrunkBird : BirdCritter
 
     public override bool update(GameTime time, GameLocation environment)
     {
+        if (IsReplica)
+        {
+            return UpdateReplica();
+        }
+
         if (environment == null || sprite == null || _tree == null)
         {
             return true;
         }
-        if (yJumpOffset < 0f && state != BehaviorStatus.FlyingAway)
+        if (yJumpOffset < 0f && State != BehaviorStatus.FlyingAway)
         {
             HopDrift(environment);
         }
-        peckTimer -= time.ElapsedGameTime.Milliseconds;
-        if (state != BehaviorStatus.FlyingAway && peckTimer <= 0 && sprite.CurrentAnimation == null)
+        PeckTimer -= time.ElapsedGameTime.Milliseconds;
+        if (State != BehaviorStatus.FlyingAway && PeckTimer <= 0 && sprite.CurrentAnimation == null)
         {
             StartPeck();
         }
 
         bool pollNow = CheckIntervalElapsed(time);
-        Character? threat = pollNow ? Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, ThreatRadiusTiles, environment) : null;
+        Character? threat = pollNow ? FindThreat(environment, ThreatRadiusTiles) : null;
         bool treeFelled = pollNow && _tree.stump.Value;
-        BirdContext context = new(state, threat != null || treeFelled, sprite.CurrentAnimation == null, yJumpOffset < 0f, random);
+        BirdContext context = new(State, threat != null || treeFelled, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
         if (BirdBehaviors.Decide(BirdBehaviors.FleeOnly, context) == BirdAction.Flee)
         {
             StartFlee(threat, environment);
         }
 
-        if (state == BehaviorStatus.FlyingAway)
+        if (State == BehaviorStatus.FlyingAway)
         {
             position.X += flip ? FlyingSpeed : -FlyingSpeed;
             yOffset -= 1f;
@@ -80,7 +89,7 @@ internal sealed class TreeTrunkBird : BirdCritter
 
     private void StartPeck()
     {
-        int nibbles = random.Next(2, 8);
+        int nibbles = Rng.Next(2, 8);
         List<FarmerSprite.AnimationFrame> anim = new();
         for (int i = 0; i < nibbles; i++)
         {
@@ -94,8 +103,8 @@ internal sealed class TreeTrunkBird : BirdCritter
 
     private void StartFlee(Character? threat, GameLocation environment)
     {
-        state = BehaviorStatus.FlyingAway;
-        addBirdObservation(birdName, environment.Name);
+        State = BehaviorStatus.FlyingAway;
+        AddBirdObservation(BirdName, environment.Name);
         flip = threat == null || threat.Position.X <= position.X;
         sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
         {
@@ -124,7 +133,7 @@ internal sealed class TreeTrunkBird : BirdCritter
 
     private void DonePecking(Farmer who)
     {
-        peckTimer = random.Next(1000, 3000);
+        PeckTimer = Rng.Next(1000, 3000);
     }
 
     private void PlayFlap(Farmer who)

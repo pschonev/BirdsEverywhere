@@ -7,7 +7,7 @@ namespace BirdsEverywhere;
 
 public static class Utils
 {
-    public static List<T> shuffleByWeights<T>(Random random, List<T> items, List<double> weights)
+    public static List<T> ShuffleByWeights<T>(Random random, List<T> items, List<double> weights)
     {
         double[] keys = weights.Select(w => Math.Pow(random.NextDouble(), 1.0 / w)).ToArray();
         return Enumerable.Range(0, items.Count).OrderByDescending(i => keys[i]).Select(i => items[i]).ToList();
@@ -29,7 +29,7 @@ public static class Utils
         }
     }
 
-    public static T getRandomElementFromList<T>(Random random, IReadOnlyList<T> listToPickFrom)
+    public static T GetRandomElementFromList<T>(Random random, IReadOnlyList<T> listToPickFrom)
     {
         if (listToPickFrom.Count == 0)
         {
@@ -61,18 +61,18 @@ public static class Utils
         return random.Next(min, max + 1);
     }
 
-    public static double getRandomBoundedDoublePosOrNeg(Random random, double minDistance, double maxDistance)
+    public static double GetRandomBoundedDoublePosOrNeg(Random random, double minDistance, double maxDistance)
     {
         int sign = random.NextDouble() > 0.5 ? 1 : -1;
         return (random.NextDouble() * (maxDistance - minDistance) + minDistance) * sign;
     }
 
-    public static bool isCoordInsideScreenBounds(float coord, int sizeDimension, int padding)
+    public static bool IsCoordInsideScreenBounds(float coord, int sizeDimension, int padding)
     {
         return (coord >= padding - 1 && coord <= sizeDimension - padding);
     }
 
-    public static List<Vector2> getRandomPositionsStartingFromThisTile(Random random, Vector2 startTile, Point mapSize, int maxAttempts = 100, double minDistance = 1.0, double maxDistance = 4.0, double branchChance = 0.2)
+    public static List<Vector2> GetRandomPositionsStartingFromThisTile(Random random, Vector2 startTile, Point mapSize, int maxAttempts = 100, double minDistance = 1.0, double maxDistance = 4.0, double branchChance = 0.2)
     {
         List<Vector2> tiles = new List<Vector2>();
         tiles.Add(startTile);
@@ -82,10 +82,10 @@ public static class Utils
 
         while (attempts < maxAttempts)
         {
-            float xDistance = (float)Math.Round(getRandomBoundedDoublePosOrNeg(random, minDistance, maxDistance));
-            xDistance = isCoordInsideScreenBounds(currentTile2.X + xDistance, mapSize.X, 4) ? xDistance : xDistance * -1;
-            float yDistance = (float)Math.Round(getRandomBoundedDoublePosOrNeg(random, minDistance, maxDistance));
-            yDistance = isCoordInsideScreenBounds(currentTile2.Y + yDistance, mapSize.Y, 4) ? yDistance : yDistance * -1;
+            float xDistance = (float)Math.Round(GetRandomBoundedDoublePosOrNeg(random, minDistance, maxDistance));
+            xDistance = IsCoordInsideScreenBounds(currentTile2.X + xDistance, mapSize.X, 4) ? xDistance : xDistance * -1;
+            float yDistance = (float)Math.Round(GetRandomBoundedDoublePosOrNeg(random, minDistance, maxDistance));
+            yDistance = IsCoordInsideScreenBounds(currentTile2.Y + yDistance, mapSize.Y, 4) ? yDistance : yDistance * -1;
 
             Vector2 tile = new Vector2(currentTile2.X + xDistance, currentTile2.Y + yDistance);
             if (!tiles.Contains(tile))
@@ -101,13 +101,13 @@ public static class Utils
         return tiles;
     }
 
-    public static void logObservation(IMonitor monitor, IReadOnlyDictionary<string, BirdDefinition> catalog, SaveData saveData, string birdName)
+    public static void LogObservation(IMonitor monitor, IReadOnlyDictionary<string, BirdDefinition> catalog, SaveData saveData, string birdName)
     {
-        if (!catalog.TryGetValue(birdName, out BirdDefinition? data) || !saveData.birdObservations.TryGetValue(birdName, out ObservationData? obs))
+        if (!catalog.TryGetValue(birdName, out BirdDefinition? data) || !saveData.BirdObservations.TryGetValue(birdName, out ObservationData? obs))
         {
             return;
         }
-        monitor.Log($"{data.Name} - {data.ScientificName} (ID: {birdName}) was seen by {obs.playerName} at {obs.observationLocation} at {Game1.getTimeOfDayString(obs.observationTime)} on {obs.observationDate.ToLocaleString()}", LogLevel.Debug);
+        monitor.Log($"{data.Name} - {data.ScientificName} (ID: {birdName}) was seen by {obs.PlayerName} at {obs.ObservationLocation} at {Game1.getTimeOfDayString(obs.ObservationTime)} on {obs.ObservationDate.ToLocaleString()}", LogLevel.Debug);
     }
 
     public static int StableHash(string text)

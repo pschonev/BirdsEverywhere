@@ -11,7 +11,7 @@ public sealed record SpawnRule(
     IntRange GroupCount,
     IntRange GroupSize,
     IReadOnlyDictionary<string, int> Textures,
-    int Weight,
+    double Weight,
     SpawnParams Params)
 {
     public string PickTexture(BirdId bird, Random random)

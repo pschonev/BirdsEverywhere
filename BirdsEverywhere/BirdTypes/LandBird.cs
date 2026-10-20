@@ -1,5 +1,6 @@
 using BirdsEverywhere.BirdTypes.Behaviors;
 using Microsoft.Xna.Framework;
+using Newtonsoft.Json;
 using StardewValley;
 
 namespace BirdsEverywhere.BirdTypes;
@@ -8,36 +9,43 @@ internal sealed class LandBird : BirdCritter
 {
     private const int ThreatRadiusTiles = 4;
 
-    public override string birdTypeName { get; } = "LandBird";
-    public float flightOffset { get; set; }
-    public int walkTimer { get; set; }
+    public override string BirdTypeName { get; } = "LandBird";
+    [JsonProperty("flightOffset")]
+    public float FlightOffset { get; set; }
+    [JsonProperty("walkTimer")]
+    public int WalkTimer { get; set; }
 
     public LandBird() { }
 
     public LandBird(int tileX, int tileY, string birdName, string texture, BirdServices services, BehaviorStatus state = BehaviorStatus.Pecking)
         : base(0, tileX, tileY, birdName, texture, services)
     {
-        flip = random.NextDouble() < 0.5;
+        flip = Rng.NextDouble() < 0.5;
         position.X += 32f;
         position.Y += 32f;
         startingPosition = position;
-        flightOffset = (float)random.NextDouble() - 0.5f;
+        FlightOffset = (float)Rng.NextDouble() - 0.5f;
 
-        this.state = state;
+        State = state;
     }
 
     public override bool update(GameTime time, GameLocation environment)
     {
-        if (yJumpOffset < 0f && state != BehaviorStatus.FlyingAway)
+        if (IsReplica)
+        {
+            return UpdateReplica();
+        }
+
+        if (yJumpOffset < 0f && State != BehaviorStatus.FlyingAway)
         {
             HopDrift(environment);
         }
 
         Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
-        BirdContext context = new(state, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, random);
+        BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
         Apply(BirdBehaviors.Decide(BirdBehaviors.Land, context), threat, environment);
 
-        switch (state)
+        switch (State)
         {
             case BehaviorStatus.Pecking:
                 if (sprite.CurrentAnimation == null)
@@ -47,7 +55,7 @@ internal sealed class LandBird : BirdCritter
                 break;
             case BehaviorStatus.FlyingAway:
                 position.X += flip ? 6f : -6f;
-                yOffset -= 2f + flightOffset;
+                yOffset -= 2f + FlightOffset;
                 break;
             case BehaviorStatus.Sleeping:
                 if (sprite.CurrentAnimation == null)
@@ -78,7 +86,7 @@ internal sealed class LandBird : BirdCritter
             case BirdAction.Stop:
             case BirdAction.Sleep:
             case BirdAction.Peck:
-                state = action switch
+                State = action switch
                 {
                     BirdAction.Sleep => BehaviorStatus.Sleeping,
                     BirdAction.Peck => BehaviorStatus.Pecking,
@@ -100,12 +108,12 @@ internal sealed class LandBird : BirdCritter
 
     private void StartFlee(Character threat, GameLocation environment)
     {
-        if (random.NextDouble() < 0.85)
+        if (Rng.NextDouble() < 0.85)
         {
             Game1.playSound("SpringBirds");
         }
-        state = BehaviorStatus.FlyingAway;
-        addBirdObservation(birdName, environment.Name);
+        State = BehaviorStatus.FlyingAway;
+        AddBirdObservation(BirdName, environment.Name);
         flip = threat.Position.X <= position.X;
         sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
         {
@@ -119,7 +127,7 @@ internal sealed class LandBird : BirdCritter
 
     private void StartWalk()
     {
-        state = BehaviorStatus.Walking;
+        State = BehaviorStatus.Walking;
         sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
         {
             new FarmerSprite.AnimationFrame((short)baseFrame, 100),
@@ -127,7 +135,7 @@ internal sealed class LandBird : BirdCritter
         });
         sprite.loop = true;
         flip = position.X < startingPosition.X;
-        walkTimer = random.Next(5, 15) * 100;
+        WalkTimer = Rng.Next(5, 15) * 100;
     }
 
     private void StartPeckAnimation()
@@ -138,7 +146,7 @@ internal sealed class LandBird : BirdCritter
             new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 170, secondaryArm: false, flip),
             new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 170, secondaryArm: false, flip),
         };
-        int pecks = random.Next(1, 5);
+        int pecks = Rng.Next(1, 5);
         for (int i = 0; i < pecks; i++)
         {
             peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 70));
@@ -174,10 +182,10 @@ internal sealed class LandBird : BirdCritter
         {
             position.X += 1f;
         }
-        walkTimer -= time.ElapsedGameTime.Milliseconds;
-        if (walkTimer < 0)
+        WalkTimer -= time.ElapsedGameTime.Milliseconds;
+        if (WalkTimer < 0)
         {
-            state = BehaviorStatus.Stopped;
+            State = BehaviorStatus.Stopped;
             sprite.loop = false;
             sprite.CurrentAnimation = null;
             sprite.currentFrame = baseFrame;
@@ -194,7 +202,7 @@ internal sealed class LandBird : BirdCritter
 
     private void DonePecking(Farmer who)
     {
-        state = random.NextDouble() < 0.5 ? BehaviorStatus.Pecking : BehaviorStatus.Stopped;
+        State = Rng.NextDouble() < 0.5 ? BehaviorStatus.Pecking : BehaviorStatus.Stopped;
     }
 
     private void PlayFlap(Farmer who)

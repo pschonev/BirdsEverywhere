@@ -26,7 +26,7 @@ public sealed record SpawnRuleJson
     public Dictionary<string, int> Textures { get; init; } = new();
 
     [JsonProperty("weight")]
-    public int Weight { get; init; } = 1;
+    public double Weight { get; init; } = 1;
 
     [JsonProperty("spawnParams")]
     public SpawnParamsJson? SpawnParams { get; init; }

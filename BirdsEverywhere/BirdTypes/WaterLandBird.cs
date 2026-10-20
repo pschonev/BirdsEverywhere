@@ -8,29 +8,34 @@ internal sealed class WaterLandBird : BirdCritter
 {
     private const int ThreatRadiusTiles = 4;
 
-    public override string birdTypeName { get; } = "WaterLandBird";
+    public override string BirdTypeName { get; } = "WaterLandBird";
 
     public WaterLandBird() { }
 
     public WaterLandBird(int tileX, int tileY, string birdName, string texture, BirdServices services, BehaviorStatus state = BehaviorStatus.Stopped)
         : base(0, tileX, tileY, birdName, texture, services)
     {
-        flip = random.NextDouble() < 0.5;
+        flip = Rng.NextDouble() < 0.5;
         startingPosition = position;
-        this.state = state;
+        State = state;
     }
 
     public override bool update(GameTime time, GameLocation environment)
     {
-        Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
-        if (state == BehaviorStatus.Stopped && threat == null && IsOnWater(environment))
+        if (IsReplica)
         {
-            state = BehaviorStatus.Swimming;
+            return UpdateReplica();
         }
-        BirdContext context = new(state, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, random);
+
+        Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
+        if (State == BehaviorStatus.Stopped && threat == null && IsOnWater(environment))
+        {
+            State = BehaviorStatus.Swimming;
+        }
+        BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
         Apply(BirdBehaviors.Decide(BirdBehaviors.WaterLand, context), threat, environment);
 
-        switch (state)
+        switch (State)
         {
             case BehaviorStatus.Walking:
                 Walk(environment);
@@ -60,7 +65,7 @@ internal sealed class WaterLandBird : BirdCritter
                 StartFlee(threat!, environment);
                 break;
             case BirdAction.Stop:
-                state = BehaviorStatus.Stopped;
+                State = BehaviorStatus.Stopped;
                 sprite.loop = false;
                 sprite.CurrentAnimation = null;
                 sprite.currentFrame = baseFrame;
@@ -72,7 +77,7 @@ internal sealed class WaterLandBird : BirdCritter
                 sprite.loop = false;
                 sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
                 {
-                    new FarmerSprite.AnimationFrame(baseFrame + 6, (short)random.Next(500, 4000))
+                    new FarmerSprite.AnimationFrame(baseFrame + 6, (short)Rng.Next(500, 4000))
                 });
                 break;
             case BirdAction.Hop:
@@ -86,12 +91,12 @@ internal sealed class WaterLandBird : BirdCritter
 
     private void StartFlee(Character threat, GameLocation environment)
     {
-        if (random.NextDouble() < 0.25)
+        if (Rng.NextDouble() < 0.25)
         {
             Game1.playSound("seagulls");
         }
-        state = BehaviorStatus.FlyingAway;
-        addBirdObservation(birdName, environment.Name);
+        State = BehaviorStatus.FlyingAway;
+        AddBirdObservation(BirdName, environment.Name);
         flip = threat.Position.X <= position.X;
         sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
         {
@@ -112,7 +117,7 @@ internal sealed class WaterLandBird : BirdCritter
             new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 200),
             new FarmerSprite.AnimationFrame((short)(baseFrame + 5), 200)
         };
-        int extra = random.Next(5);
+        int extra = Rng.Next(5);
         for (int i = 0; i < extra; i++)
         {
             frames.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 200));
@@ -130,7 +135,7 @@ internal sealed class WaterLandBird : BirdCritter
             new FarmerSprite.AnimationFrame((short)(baseFrame + 7), 100, secondaryArm: false, flip: false, Hop),
             new FarmerSprite.AnimationFrame((short)(baseFrame + 8), 100)
         };
-        int extra = random.Next(3);
+        int extra = Rng.Next(3);
         for (int i = 0; i < extra; i++)
         {
             frames.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 7), 100));
@@ -142,15 +147,15 @@ internal sealed class WaterLandBird : BirdCritter
 
     private void StartWalk()
     {
-        state = BehaviorStatus.Walking;
+        State = BehaviorStatus.Walking;
         sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
         {
             new FarmerSprite.AnimationFrame((short)baseFrame, 200),
             new FarmerSprite.AnimationFrame((short)(baseFrame + 1), 200)
         });
         sprite.loop = true;
-        flip = random.NextDouble() < 0.5;
-        if (random.NextDouble() < 0.33)
+        flip = Rng.NextDouble() < 0.5;
+        if (Rng.NextDouble() < 0.33)
         {
             flip = position.X <= startingPosition.X;
         }
@@ -175,7 +180,7 @@ internal sealed class WaterLandBird : BirdCritter
         yOffset = (time.TotalGameTime.TotalMilliseconds + ((int)position.X * 4)) % 2000.0 < 1000.0 ? 2f : 0f;
         if (yOffset > previousYOffset)
         {
-            environment.temporarySprites.Add(new TemporaryAnimatedSprite("TileSheets\\animations", new Rectangle(0, 0, 64, 64), 150f, 8, 0, new Vector2(position.X - 32f, position.Y - 32f), flicker: false, random.NextDouble() < 0.5, 0.001f, 0.01f, Color.White, 1f, 0.003f, 0f, 0f));
+            environment.temporarySprites.Add(new TemporaryAnimatedSprite("TileSheets\\animations", new Rectangle(0, 0, 64, 64), 150f, 8, 0, new Vector2(position.X - 32f, position.Y - 32f), flicker: false, Rng.NextDouble() < 0.5, 0.001f, 0.01f, Color.White, 1f, 0.003f, 0f, 0f));
         }
     }
 

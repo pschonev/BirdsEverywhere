@@ -1,5 +1,6 @@
 using BirdsEverywhere.BirdTypes.Behaviors;
 using Microsoft.Xna.Framework;
+using Newtonsoft.Json;
 using StardewValley;
 using StardewValley.TerrainFeatures;
 
@@ -11,10 +12,13 @@ internal sealed class BushBird : BirdCritter
 
     private Bush? _bush;
 
-    public override string birdTypeName { get; } = "BushBird";
-    public int index { get; set; }
-    public string? locationName { get; set; }
-    public int flightDistance { get; set; }
+    public override string BirdTypeName { get; } = "BushBird";
+    [JsonProperty("index")]
+    public int Index { get; set; }
+    [JsonProperty("locationName")]
+    public string? LocationName { get; set; }
+    [JsonProperty("flightDistance")]
+    public int FlightDistance { get; set; }
 
     public BushBird() { }
 
@@ -27,8 +31,8 @@ internal sealed class BushBird : BirdCritter
 
     public BushBird SetAnchor(int index, string? locationName)
     {
-        this.index = index;
-        this.locationName = locationName;
+        Index = index;
+        LocationName = locationName;
         _bush = new TerrainAnchor(locationName, index).ResolveBush();
         if (_bush == null)
         {
@@ -36,17 +40,22 @@ internal sealed class BushBird : BirdCritter
         }
         flip = _bush.Tile.X > position.X / 64f;
         startingPosition = position;
-        flightDistance = (int)Math.Abs(_bush.Tile.X - (position.X / 64f)) - 1;
+        FlightDistance = (int)Math.Abs(_bush.Tile.X - (position.X / 64f)) - 1;
         return this;
     }
 
     public override bool update(GameTime time, GameLocation environment)
     {
+        if (IsReplica)
+        {
+            return UpdateReplica();
+        }
+
         if (_bush == null)
         {
             return true;
         }
-        if (state == BehaviorStatus.Running)
+        if (State == BehaviorStatus.Running)
         {
             position.X += flip ? RunSpeed : -RunSpeed;
             if (CheckIntervalElapsed(time) && ReachedBush())
@@ -57,8 +66,8 @@ internal sealed class BushBird : BirdCritter
             return base.update(time, environment);
         }
 
-        Character? threat = PollThreat(time, environment, flightDistance);
-        BirdContext context = new(state, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, random);
+        Character? threat = PollThreat(time, environment, FlightDistance);
+        BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
         if (BirdBehaviors.Decide(BirdBehaviors.FleeOnly, context) == BirdAction.Flee && Utility.isOnScreen(position, -32))
         {
             StartRun(environment);
@@ -71,8 +80,8 @@ internal sealed class BushBird : BirdCritter
 
     private void StartRun(GameLocation environment)
     {
-        state = BehaviorStatus.Running;
-        addBirdObservation(birdName, environment.Name);
+        State = BehaviorStatus.Running;
+        AddBirdObservation(BirdName, environment.Name);
         sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
         {
             new FarmerSprite.AnimationFrame(baseFrame, 40),

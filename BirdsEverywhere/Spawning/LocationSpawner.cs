@@ -22,6 +22,30 @@ internal sealed class LocationSpawner
 
     public void BeginVisit() => _spawned.Clear();
 
+    public void ResumeVisit(GameLocation location, DailySpawnPlan plan)
+    {
+        BeginVisit();
+        if (!plan.Locations.TryGetValue(location.Name, out IReadOnlyList<BirdPlacement>? placements))
+        {
+            return;
+        }
+
+        HashSet<long> birdIds = location.critters.OfType<BirdCritter>().Select(bird => bird.BirdID).ToHashSet();
+        foreach (BirdPlacement placement in placements)
+        {
+            if (birdIds.Contains(placement.Seed) || placement.IsActiveAt(Game1.timeOfDay))
+            {
+                _spawned.Add(placement);
+            }
+        }
+    }
+
+    public void Clear(GameLocation location)
+    {
+        location.critters?.RemoveAll(critter => critter is BirdCritter);
+        BeginVisit();
+    }
+
     public void Populate(GameLocation location, DailySpawnPlan plan)
     {
         if (!plan.Locations.TryGetValue(location.Name ?? "", out IReadOnlyList<BirdPlacement>? placements))
@@ -43,7 +67,7 @@ internal sealed class LocationSpawner
                 continue;
             }
 
-            if (!spawner.IsStillValid(location, placement))
+            if (!placement.Forced && !spawner.IsStillValid(location, placement))
             {
                 continue;
             }
@@ -54,7 +78,7 @@ internal sealed class LocationSpawner
                 continue;
             }
 
-            bird.birdID = placement.Seed;
+            bird.BirdID = placement.Seed;
             location.critters.Add(bird);
             _spawned.Add(placement);
             _services.Monitor.Log($"Added {placement.BirdId} at {(int)placement.Tile.X} - {(int)placement.Tile.Y}.", LogLevel.Debug);
