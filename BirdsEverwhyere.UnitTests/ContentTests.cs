@@ -26,13 +26,9 @@ public class ContentTests
         var (bird, issues, _, _) = ContentLoader.LoadBird(_assetsDir, id, Region.AllGroups(regions), Patterns, BirdTypes, Read, File.Exists);
         Assert.That(groupIssues.Concat(issues).Where(issue => issue.Severity != IssueSeverity.Info), Is.Empty);
         Assert.That(bird, Is.Not.Null);
+        Assert.That(bird!.Id.Value, Is.EqualTo(id));
+        Assert.That(bird.Rules.SelectMany(rule => rule.Locations), Is.Not.Empty);
         return bird!;
-    }
-
-    [TestCaseSource(nameof(BirdIds))]
-    public void Bird_JsonIsValid(string id)
-    {
-        Assert.That(LoadBird(id).Id.Value, Is.EqualTo(id));
     }
 
     [TestCaseSource(nameof(BirdIds))]
@@ -47,12 +43,6 @@ public class ContentTests
         {
             Assert.That(Path.Combine(_assetsDir, id, $"{id}_{key}.png"), Does.Exist);
         }
-    }
-
-    [TestCaseSource(nameof(BirdIds))]
-    public void Bird_HasResolvedLocations(string id)
-    {
-        Assert.That(LoadBird(id).Rules.SelectMany(rule => rule.Locations), Is.Not.Empty);
     }
 
     [Test]

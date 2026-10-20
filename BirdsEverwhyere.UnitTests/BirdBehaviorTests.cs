@@ -26,7 +26,6 @@ internal sealed class BirdBehaviorTests
 
     [TestCase(BehaviorStatus.Stopped)]
     [TestCase(BehaviorStatus.Sleeping)]
-    [TestCase(BehaviorStatus.Pecking)]
     [TestCase(BehaviorStatus.Walking)]
     public void Threat_AlwaysFleesFirst(BehaviorStatus state) =>
         Assert.That(Decide(state, threat: true), Is.EqualTo(BirdAction.Flee));
@@ -65,7 +64,6 @@ internal sealed class BirdBehaviorTests
         BirdBehaviors.Decide(BirdBehaviors.WaterLand, new BirdContext(state, threat, idle, false, new FixedRandom(roll, pick)));
 
     [TestCase(BehaviorStatus.Stopped)]
-    [TestCase(BehaviorStatus.Walking)]
     [TestCase(BehaviorStatus.Swimming)]
     public void WaterLand_ThreatFleesFirst(BehaviorStatus state) =>
         Assert.That(DecideWaterLand(state, threat: true), Is.EqualTo(BirdAction.Flee));

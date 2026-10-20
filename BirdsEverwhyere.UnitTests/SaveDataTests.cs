@@ -24,12 +24,6 @@ public class SaveDataTests
         Assert.That(obs.ObservationDate, Is.EqualTo(new SDate(5, Season.Spring, 2)));
         Assert.That(obs.ObservationTime, Is.EqualTo(630));
         Assert.That(obs.Feather, Is.True);
-    }
-
-    [Test]
-    public void SaveData_RoundTrip_PreservesDate()
-    {
-        SaveData data = JsonConvert.DeserializeObject<SaveData>(LegacyJson, _smapiSettings)!;
 
         string json = JsonConvert.SerializeObject(data, _smapiSettings);
         SaveData reloaded = JsonConvert.DeserializeObject<SaveData>(json, _smapiSettings)!;

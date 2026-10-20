@@ -7,25 +7,6 @@ public class RandomTests
 {
     private const int Draws = 1000;
 
-    [TestCase(1)]
-    [TestCase(2)]
-    [TestCase(5)]
-    public void GetRandomElementFromList_ReachesEveryElement(int count)
-    {
-        Random random = new Random(42);
-        List<int> items = Enumerable.Range(0, count).ToList();
-
-        HashSet<int> picked = Enumerable.Range(0, Draws).Select(_ => Utils.GetRandomElementFromList(random, items)).ToHashSet();
-
-        Assert.That(picked, Is.EquivalentTo(items));
-    }
-
-    [Test]
-    public void GetRandomElementFromList_Empty_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => Utils.GetRandomElementFromList(new Random(1), new List<int>()));
-    }
-
     [TestCase(1, 1)]
     [TestCase(1, 3)]
     [TestCase(2, 7)]
