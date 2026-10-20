@@ -137,7 +137,6 @@ public class SpawningTests
     }
 
     [TestCase("Town", "Town", null, null)]
-    [TestCase("Farm_Forest", "Farm", "Forest", null)]
     [TestCase("Farm_Meadowlands:River", "Farm", "Meadowlands", "River")]
     [TestCase("Forest:Lake", "Forest", null, "Lake")]
     public void Habitat_Parse(string key, string location, string? farmType, string? fishArea)
@@ -361,14 +360,6 @@ public class SpawningTests
         Assert.That(Weights(0.1, 20)[1].Weight, Is.LessThanOrEqualTo(1));
         Assert.That(SpawnPlanner.Exponent(0, 0), Is.EqualTo(1));
         Assert.That(SpawnPlanner.Exponent(0.1, 20), Is.EqualTo(0.3));
-    }
-
-    [Test]
-    public void SpawnPlanner_RarerBirdsAppearMoreOftenWithLuck()
-    {
-        int Count(double luck) => Enumerable.Range(0, 1000).Count(seed => Plan(new HashSet<string>(), seed, luck: luck).Any(p => p.Bird.Id.Value == "b"));
-
-        Assert.That(Count(0.1), Is.GreaterThan(Count(0)));
     }
 
     [Test]

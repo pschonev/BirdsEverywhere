@@ -27,15 +27,6 @@ public class ObservationLogTests
         Assert.That(updated.LogVersion, Is.EqualTo(1));
         Assert.That(updated.SeenBirds, Does.Contain("blue_tit"));
         Assert.That(updated.BirdObservations["blue_tit"].PlayerName, Is.EqualTo("A"));
-    }
-
-    [Test]
-    public void TryApply_DoesNotMutateInput()
-    {
-        SaveData log = new();
-
-        ObservationLog.TryApply(log, "blue_tit", Observation("A"), out _);
-
         Assert.That(log.LogVersion, Is.EqualTo(0));
         Assert.That(log.SeenBirds, Is.Empty);
         Assert.That(log.BirdObservations, Is.Empty);

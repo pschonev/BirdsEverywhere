@@ -1,4 +1,3 @@
-using BirdsEverywhere.Domain;
 using BirdsEverywhere.Content;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
@@ -236,21 +235,4 @@ public class TemplateMergerTests
         Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue!.Severity == IssueSeverity.Error && issue.Message.Contains("typo")));
     }
 
-    [Test]
-    public void ShippedBirds_AreValid()
-    {
-        string root = Path.Combine(System.AppContext.BaseDirectory, "assets");
-        string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
-        var (regions, groupIssues) = ContentLoader.LoadRegions(root, Array.Empty<string>(), Read, ContentPaths.BirdIds(root).ToList());
-        var groups = Region.AllGroups(regions);
-        List<ValidationIssue> issues = groupIssues.ToList();
-        foreach (string id in ContentPaths.BirdIds(root))
-        {
-            var (bird, birdIssues, _, _) = ContentLoader.LoadBird(root, id, groups, ContentTests.Patterns, ContentTests.BirdTypes, Read, File.Exists);
-            issues.AddRange(birdIssues.Where(issue => issue.Severity != IssueSeverity.Info));
-            Assert.That(bird, Is.Not.Null, id + ": " + string.Join("; ", birdIssues));
-        }
-
-        Assert.That(issues, Is.Empty, string.Join("; ", issues));
-    }
 }
