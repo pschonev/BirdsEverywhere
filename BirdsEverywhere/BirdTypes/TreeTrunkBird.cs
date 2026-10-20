@@ -53,7 +53,8 @@ internal sealed class TreeTrunkBird : BirdCritter
     {
         if (IsReplica)
         {
-            return UpdateReplica();
+            return UpdateReplica(time, State == BehaviorStatus.FlyingAway ? new Vector2(flip ? FlyingSpeed : -FlyingSpeed, 0f) : default,
+                State == BehaviorStatus.FlyingAway ? -1f : 0f);
         }
 
         if (environment == null || sprite == null || _tree == null)

@@ -7,6 +7,7 @@ namespace BirdsEverywhere.BirdTypes;
 internal sealed class WaterLandBird : BirdCritter
 {
     private const int ThreatRadiusTiles = 4;
+    private static readonly BirdAction[] _idleOptions = { BirdAction.Peck, BirdAction.Rest, BirdAction.Hop, BirdAction.Walk };
 
     public override string BirdTypeName { get; } = "WaterLandBird";
 
@@ -24,7 +25,9 @@ internal sealed class WaterLandBird : BirdCritter
     {
         if (IsReplica)
         {
-            return UpdateReplica();
+            ApplyReplicaIdle(AdvanceReplicaIdle());
+            return UpdateReplica(time, State == BehaviorStatus.FlyingAway ? new Vector2(flip ? 4f : -4f, 0f) : default,
+                State == BehaviorStatus.FlyingAway ? -2f : 0f);
         }
 
         Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
@@ -33,7 +36,8 @@ internal sealed class WaterLandBird : BirdCritter
             State = BehaviorStatus.Swimming;
         }
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
-        Apply(BirdBehaviors.Decide(BirdBehaviors.WaterLand, context), threat, environment);
+        BirdAction idleAction = AdvanceIdle(_idleOptions, 0.003, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
+        Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(BirdBehaviors.WaterLand, context), threat, environment);
 
         switch (State)
         {
@@ -77,7 +81,30 @@ internal sealed class WaterLandBird : BirdCritter
                 sprite.loop = false;
                 sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
                 {
-                    new FarmerSprite.AnimationFrame(baseFrame + 6, (short)Rng.Next(500, 4000))
+                    new FarmerSprite.AnimationFrame(baseFrame + 6, (short)VisualRng.Next(500, 4000))
+                });
+                break;
+            case BirdAction.Hop:
+                StartHop();
+                break;
+            case BirdAction.Walk:
+                StartWalk();
+                break;
+        }
+    }
+
+    private void ApplyReplicaIdle(BirdAction action)
+    {
+        switch (action)
+        {
+            case BirdAction.Peck:
+                StartPeck();
+                break;
+            case BirdAction.Rest:
+                sprite.loop = false;
+                sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
+                {
+                    new(baseFrame + 6, (short)VisualRng.Next(500, 4000))
                 });
                 break;
             case BirdAction.Hop:
@@ -117,7 +144,7 @@ internal sealed class WaterLandBird : BirdCritter
             new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 200),
             new FarmerSprite.AnimationFrame((short)(baseFrame + 5), 200)
         };
-        int extra = Rng.Next(5);
+        int extra = VisualRng.Next(5);
         for (int i = 0; i < extra; i++)
         {
             frames.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 200));
@@ -135,7 +162,7 @@ internal sealed class WaterLandBird : BirdCritter
             new FarmerSprite.AnimationFrame((short)(baseFrame + 7), 100, secondaryArm: false, flip: false, Hop),
             new FarmerSprite.AnimationFrame((short)(baseFrame + 8), 100)
         };
-        int extra = Rng.Next(3);
+        int extra = VisualRng.Next(3);
         for (int i = 0; i < extra; i++)
         {
             frames.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 7), 100));
@@ -154,8 +181,8 @@ internal sealed class WaterLandBird : BirdCritter
             new FarmerSprite.AnimationFrame((short)(baseFrame + 1), 200)
         });
         sprite.loop = true;
-        flip = Rng.NextDouble() < 0.5;
-        if (Rng.NextDouble() < 0.33)
+        flip = VisualRng.NextDouble() < 0.5;
+        if (VisualRng.NextDouble() < 0.33)
         {
             flip = position.X <= startingPosition.X;
         }

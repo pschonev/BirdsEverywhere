@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using BirdsEverywhere.BirdTypes.Behaviors;
 using Microsoft.Xna.Framework.Graphics;
 using Newtonsoft.Json;
 using StardewModdingAPI;
@@ -13,6 +14,10 @@ internal abstract class BirdCritter : Critter
 
     private long _birdID;
     private Vector2 _replicaTarget;
+    private float _replicaYOffsetTarget;
+    private Random _scheduleRandom = new();
+    private long _nextScheduleTick;
+    private long _playedIdleRevision = -1;
 
     [JsonProperty("birdTypeName")]
     public abstract string BirdTypeName { get; }
@@ -24,6 +29,12 @@ internal abstract class BirdCritter : Critter
     public string Texture { get; set; } = "";
     [JsonProperty("characterCheckTimer")]
     public int CharacterCheckTimer { get; set; } = ThreatCheckIntervalMs;
+    [JsonProperty("idleTick")]
+    public long IdleTick { get; set; }
+    [JsonProperty("idleRevision")]
+    public long IdleRevision { get; set; }
+    [JsonProperty("idleCue")]
+    public IdleCue? IdleCue { get; set; }
 
     [JsonProperty("birdID")]
     public long BirdID
@@ -40,6 +51,9 @@ internal abstract class BirdCritter : Critter
     protected Random Rng { get; private set; } = new();
 
     [JsonIgnore]
+    protected Random VisualRng { get; private set; } = new();
+
+    [JsonIgnore]
     public BirdServices? Services { get; set; }
 
     [JsonIgnore]
@@ -47,23 +61,136 @@ internal abstract class BirdCritter : Critter
 
     public void ApplyReplicaState(BirdCritter source)
     {
+        bool continuingMotion = IsReplica && State == source.State && State is BehaviorStatus.FlyingAway or BehaviorStatus.Running;
         if (!IsReplica)
         {
             position = source.position;
         }
         _replicaTarget = source.position;
         startingPosition = source.startingPosition;
-        State = source.State;
-        flip = source.flip;
-        yOffset = source.yOffset;
+        bool pendingVisual = IsReplica && _playedIdleRevision == IdleRevision && source.IdleRevision == IdleRevision;
+        if (!pendingVisual)
+        {
+            State = source.State;
+            flip = source.flip;
+        }
+        if (continuingMotion)
+        {
+            _replicaYOffsetTarget = source.yOffset;
+        }
+        else
+        {
+            yOffset = source.yOffset;
+            _replicaYOffsetTarget = source.yOffset;
+        }
         yJumpOffset = source.yJumpOffset;
         gravityAffectedDY = source.gravityAffectedDY;
-        sprite = source.sprite;
+        if (!pendingVisual && (!continuingMotion || sprite?.CurrentAnimation == null || source.sprite.CurrentAnimation == null))
+        {
+            sprite = source.sprite;
+        }
+        if (IsReplica)
+        {
+            IdleTick = Math.Max(IdleTick, source.IdleTick);
+            if (source.IdleRevision > IdleRevision)
+            {
+                IdleRevision = source.IdleRevision;
+                IdleCue = source.IdleCue;
+            }
+            else if (source.IdleRevision == IdleRevision && source.IdleCue == null)
+            {
+                IdleCue = null;
+            }
+        }
     }
 
-    protected bool UpdateReplica()
+    protected BirdAction AdvanceIdle(IReadOnlyList<BirdAction> options, double chance, bool eligible)
     {
+        IdleTick++;
+        if (!eligible)
+        {
+            if (IdleCue != null)
+            {
+                IdleCue = null;
+                IdleRevision++;
+            }
+            _nextScheduleTick = IdleTick;
+            return BirdAction.None;
+        }
+        if (IdleCue == null && _nextScheduleTick < IdleTick + 12)
+        {
+            long firstTick = Math.Max(IdleTick, _nextScheduleTick + 1);
+            long lastTick = IdleTick + 120;
+            for (long tick = firstTick; tick <= lastTick; tick++)
+            {
+                if (_scheduleRandom.NextDouble() >= chance)
+                {
+                    continue;
+                }
+                IdleCue = new IdleCue(tick, options[_scheduleRandom.Next(options.Count)], _scheduleRandom.Next());
+                IdleRevision++;
+                _nextScheduleTick = tick;
+                break;
+            }
+            if (IdleCue == null)
+            {
+                _nextScheduleTick = lastTick;
+            }
+        }
+        if (IdleCue == null || IdleTick < IdleCue.Tick)
+        {
+            return BirdAction.None;
+        }
+        BirdAction action = IdleCue.Action;
+        VisualRng = new Random(IdleCue.Seed);
+        IdleCue = null;
+        IdleRevision++;
+        return action;
+    }
+
+    protected BirdAction AdvanceReplicaIdle()
+    {
+        IdleTick++;
+        if (State != BehaviorStatus.Stopped || IdleCue == null || IdleTick < IdleCue.Tick || _playedIdleRevision == IdleRevision)
+        {
+            return BirdAction.None;
+        }
+        _playedIdleRevision = IdleRevision;
+        VisualRng = new Random(IdleCue.Seed);
+        return IdleCue.Action;
+    }
+
+    protected bool UpdateReplica(GameTime time, Vector2 velocity = default, float verticalVelocity = 0f)
+    {
+        if (State is BehaviorStatus.FlyingAway or BehaviorStatus.Running)
+        {
+            position += velocity;
+            yOffset += verticalVelocity;
+            _replicaTarget += velocity;
+            _replicaYOffsetTarget += verticalVelocity;
+        }
         position = Vector2.Lerp(position, _replicaTarget, 0.4f);
+        yOffset = MathHelper.Lerp(yOffset, _replicaYOffsetTarget, 0.4f);
+        if (sprite?.CurrentAnimation is { Count: > 0 } frames)
+        {
+            sprite.timer -= (float)time.ElapsedGameTime.TotalMilliseconds;
+            while (sprite.timer <= 0 && sprite.CurrentAnimation is { Count: > 0 })
+            {
+                int next = sprite.currentAnimationIndex + 1;
+                if (next >= frames.Count)
+                {
+                    if (!sprite.loop)
+                    {
+                        sprite.CurrentAnimation = null;
+                        break;
+                    }
+                    next = 0;
+                }
+                sprite.currentAnimationIndex = next;
+                sprite.currentFrame = frames[next].frame;
+                sprite.timer += frames[next].milliseconds;
+            }
+        }
         return false;
     }
 
@@ -88,6 +215,7 @@ internal abstract class BirdCritter : Critter
     public void SeedRandom()
     {
         Rng = new Random((int)(BirdID % int.MaxValue));
+        _scheduleRandom = new Random(unchecked((int)BirdID ^ 0x5197A0B));
     }
 
     private string GetTextureName(IModContentHelper content)

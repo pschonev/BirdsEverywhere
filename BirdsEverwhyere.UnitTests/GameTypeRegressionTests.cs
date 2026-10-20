@@ -1,5 +1,6 @@
 using BirdsEverywhere;
 using BirdsEverywhere.BirdTypes;
+using BirdsEverywhere.BirdTypes.Behaviors;
 using BirdsEverywhere.Domain;
 using BirdsEverywhere.Multiplayer;
 using BirdsEverywhere.Registries;
@@ -13,6 +14,45 @@ namespace BirdsEverwhyere.UnitTests;
 // Touches game types: run with `dotnet test --arch x64` on Apple Silicon.
 public class GameTypeRegressionTests
 {
+    [TestCase(0.008, 50, 110)]
+    [TestCase(0.003, 12, 55)]
+    public void IdleSchedule_RetainsActionRateAndVariety(double chance, int minimumActions, int maximumActions)
+    {
+        IdleProbe bird = new() { BirdID = 42 };
+        BirdAction[] options = { BirdAction.Sleep, BirdAction.Peck, BirdAction.Hop, BirdAction.Walk };
+        Dictionary<BirdAction, int> counts = new();
+
+        for (int tick = 0; tick < 10_000; tick++)
+        {
+            BirdAction action = bird.Next(options, chance);
+            if (action != BirdAction.None)
+            {
+                counts[action] = counts.GetValueOrDefault(action) + 1;
+            }
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(counts.Values.Sum(), Is.InRange(minimumActions, maximumActions));
+            Assert.That(counts.Keys, Is.EquivalentTo(options));
+        });
+    }
+
+    [Test]
+    public void IdleSchedule_CanActOnFirstEligibleTick()
+    {
+        IdleProbe bird = new() { BirdID = 42 };
+
+        Assert.That(bird.Next(new[] { BirdAction.Hop }, 1), Is.EqualTo(BirdAction.Hop));
+    }
+
+    private sealed class IdleProbe : BirdCritter
+    {
+        public override string BirdTypeName => "IdleProbe";
+
+        public BirdAction Next(IReadOnlyList<BirdAction> options, double chance) => AdvanceIdle(options, chance, eligible: true);
+    }
+
     [Test]
     public void CurrentAnimatedSprite_CapturesCurrentAnimation()
     {
@@ -54,9 +94,132 @@ public class GameTypeRegressionTests
             Assert.That(replica.sprite.currentFrame, Is.EqualTo(7));
         });
 
-        Assert.That(replica.update(null!, null!), Is.False);
-        Assert.That(replica.position, Is.EqualTo(new Vector2(40, 20)));
+        Assert.That(replica.update(new GameTime(TimeSpan.Zero, TimeSpan.FromMilliseconds(16)), null!), Is.False);
+        Assert.That(replica.position, Is.EqualTo(new Vector2(46, 20)));
         Assert.That(replica.State, Is.EqualTo(BehaviorStatus.FlyingAway));
+    }
+
+    [Test]
+    public void ReplicaFlight_KeepsAnimationProgressAcrossSnapshots()
+    {
+        LandBird owner = new() { State = BehaviorStatus.FlyingAway, position = new Vector2(100, 0), flip = true, sprite = new AnimatedSprite() };
+        owner.sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
+        {
+            new(6, 70), new(7, 60)
+        });
+        owner.sprite.loop = true;
+        LandBird replica = new() { IsReplica = true, sprite = new AnimatedSprite() };
+        GameTime tick = new(TimeSpan.Zero, TimeSpan.FromMilliseconds(75));
+
+        AnimatedSprite firstSprite = new();
+        firstSprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame> { new(6, 70), new(7, 60) });
+        firstSprite.loop = true;
+        LandBird firstSnapshot = new() { State = owner.State, position = owner.position, flip = owner.flip, sprite = firstSprite };
+        replica.ApplyReplicaState(firstSnapshot);
+        replica.update(tick, null!);
+        Assert.That(replica.sprite.currentFrame, Is.EqualTo(7));
+
+        owner.position = new Vector2(106, 0);
+        owner.sprite.currentFrame = 6;
+        AnimatedSprite secondSprite = new();
+        secondSprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame> { new(6, 70), new(7, 60) });
+        secondSprite.loop = true;
+        LandBird secondSnapshot = new() { State = owner.State, position = owner.position, flip = owner.flip, sprite = secondSprite };
+        replica.ApplyReplicaState(secondSnapshot);
+
+        Assert.That(replica.sprite.currentFrame, Is.EqualTo(7));
+        Assert.That(replica.update(tick, null!), Is.False);
+        Assert.That(replica.position.X, Is.GreaterThan(48));
+    }
+
+    [Test]
+    public void ReplicaIdle_PlaysCueOnceAndRejectsOlderRevision()
+    {
+        LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite() };
+        LandBird owner = new() { State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 1,
+            IdleCue = new IdleCue(12, BirdAction.Sleep, 4), sprite = new AnimatedSprite() };
+        GameTime tick = new(TimeSpan.Zero, TimeSpan.FromMilliseconds(16));
+
+        replica.ApplyReplicaState(owner);
+        replica.update(tick, null!);
+        Assert.That(replica.State, Is.EqualTo(BehaviorStatus.Stopped));
+        replica.update(tick, null!);
+        Assert.That(replica.State, Is.EqualTo(BehaviorStatus.Sleeping));
+
+        owner.IdleTick = 11;
+        replica.ApplyReplicaState(owner);
+        Assert.That(replica.State, Is.EqualTo(BehaviorStatus.Sleeping));
+        owner.IdleRevision = 2;
+        owner.IdleCue = null;
+        replica.ApplyReplicaState(owner);
+        Assert.That(replica.IdleCue, Is.Null);
+    }
+
+    [Test]
+    public void ReplicaIdle_FleeRevokesPendingCue()
+    {
+        LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite() };
+        LandBird owner = new() { State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 1,
+            IdleCue = new IdleCue(12, BirdAction.Sleep, 4), sprite = new AnimatedSprite() };
+        replica.ApplyReplicaState(owner);
+
+        owner.State = BehaviorStatus.FlyingAway;
+        owner.IdleRevision = 2;
+        owner.IdleCue = null;
+        replica.ApplyReplicaState(owner);
+        replica.update(new GameTime(TimeSpan.Zero, TimeSpan.FromMilliseconds(16)), null!);
+
+        Assert.That(replica.State, Is.EqualTo(BehaviorStatus.FlyingAway));
+        Assert.That(replica.IdleCue, Is.Null);
+    }
+
+    [Test]
+    public void ReplicaRun_ContinuesWithoutSnapshots()
+    {
+        BushBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite() };
+        BushBird owner = new() { State = BehaviorStatus.Running, position = new Vector2(100, 0), flip = true,
+            sprite = new AnimatedSprite() };
+        replica.ApplyReplicaState(owner);
+        GameTime tick = new(TimeSpan.Zero, TimeSpan.FromMilliseconds(16));
+
+        replica.update(tick, null!);
+        float firstPosition = replica.position.X;
+        replica.update(tick, null!);
+
+        Assert.That(replica.position.X, Is.GreaterThan(firstPosition));
+    }
+
+    [Test]
+    public void ReplicaAnimation_DoesNotInvokeGameplayCallback()
+    {
+        bool callbackCalled = false;
+        AnimatedSprite animation = new();
+        animation.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
+        {
+            new(0, 30), new(1, 30, secondaryArm: false, flip: false, _ => callbackCalled = true)
+        });
+        animation.loop = true;
+        LandBird replica = new() { IsReplica = true, sprite = new AnimatedSprite() };
+        LandBird owner = new() { State = BehaviorStatus.FlyingAway, sprite = animation };
+
+        replica.ApplyReplicaState(owner);
+        replica.update(new GameTime(TimeSpan.Zero, TimeSpan.FromMilliseconds(35)), null!);
+
+        Assert.That(replica.sprite.currentFrame, Is.EqualTo(1));
+        Assert.That(callbackCalled, Is.False);
+    }
+
+    [Test]
+    public void BirdSnapshot_RoundTrip_PreservesIdleSchedule()
+    {
+        LandBird bird = new() { BirdID = 42, State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 3,
+            IdleCue = new IdleCue(30, BirdAction.Peck, 12), sprite = new AnimatedSprite() };
+
+        string json = MessageJson.Serialize(bird);
+
+        Assert.That(json, Does.Contain("\"idleRevision\":3"));
+        Assert.That(json, Does.Contain("\"Tick\":30"));
+        Assert.That(json, Does.Contain("\"Seed\":12"));
     }
 
     [Test]

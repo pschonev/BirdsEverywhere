@@ -48,7 +48,7 @@ internal sealed class BushBird : BirdCritter
     {
         if (IsReplica)
         {
-            return UpdateReplica();
+            return UpdateReplica(time, State == BehaviorStatus.Running ? new Vector2(flip ? RunSpeed : -RunSpeed, 0f) : default);
         }
 
         if (_bush == null)
