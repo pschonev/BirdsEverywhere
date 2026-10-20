@@ -3,7 +3,7 @@ namespace BirdsEverywhere.Multiplayer;
 /// <summary>Every mod message carries a version; the record type name is the SMAPI message type.</summary>
 public interface IMessage
 {
-    const int CurrentVersion = 3;
+    const int CurrentVersion = 4;
 
     int Version { get; }
 }

@@ -8,6 +8,10 @@ namespace BirdsEverywhere.BirdTypes;
 internal sealed class LandBird : BirdCritter
 {
     private const int ThreatRadiusTiles = 4;
+    private static readonly BirdAction[] _idleOptions =
+    {
+        BirdAction.Sleep, BirdAction.Peck, BirdAction.Hop, BirdAction.TurnAndHop, BirdAction.Walk, BirdAction.Walk
+    };
 
     public override string BirdTypeName { get; } = "LandBird";
     [JsonProperty("flightOffset")]
@@ -33,7 +37,9 @@ internal sealed class LandBird : BirdCritter
     {
         if (IsReplica)
         {
-            return UpdateReplica();
+            ApplyReplicaIdle(AdvanceReplicaIdle());
+            return UpdateReplica(time, State == BehaviorStatus.FlyingAway ? new Vector2(flip ? 6f : -6f, 0f) : default,
+                State == BehaviorStatus.FlyingAway ? -2f - FlightOffset : 0f);
         }
 
         if (yJumpOffset < 0f && State != BehaviorStatus.FlyingAway)
@@ -43,7 +49,8 @@ internal sealed class LandBird : BirdCritter
 
         Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
-        Apply(BirdBehaviors.Decide(BirdBehaviors.Land, context), threat, environment);
+        BirdAction idleAction = AdvanceIdle(_idleOptions, 0.008, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
+        Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(BirdBehaviors.Land, context), threat, environment);
 
         switch (State)
         {
@@ -106,6 +113,32 @@ internal sealed class LandBird : BirdCritter
         }
     }
 
+    private void ApplyReplicaIdle(BirdAction action)
+    {
+        switch (action)
+        {
+            case BirdAction.Sleep:
+                State = BehaviorStatus.Sleeping;
+                sprite.CurrentAnimation = null;
+                sprite.currentFrame = baseFrame + 5;
+                break;
+            case BirdAction.Peck:
+                State = BehaviorStatus.Pecking;
+                StartPeckAnimation();
+                break;
+            case BirdAction.Hop:
+            case BirdAction.TurnAndHop:
+                if (action == BirdAction.TurnAndHop)
+                {
+                    flip = !flip;
+                }
+                break;
+            case BirdAction.Walk:
+                StartWalk();
+                break;
+        }
+    }
+
     private void StartFlee(Character threat, GameLocation environment)
     {
         if (Rng.NextDouble() < 0.85)
@@ -135,7 +168,7 @@ internal sealed class LandBird : BirdCritter
         });
         sprite.loop = true;
         flip = position.X < startingPosition.X;
-        WalkTimer = Rng.Next(5, 15) * 100;
+        WalkTimer = VisualRng.Next(5, 15) * 100;
     }
 
     private void StartPeckAnimation()
@@ -146,7 +179,7 @@ internal sealed class LandBird : BirdCritter
             new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 170, secondaryArm: false, flip),
             new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 170, secondaryArm: false, flip),
         };
-        int pecks = Rng.Next(1, 5);
+        int pecks = VisualRng.Next(1, 5);
         for (int i = 0; i < pecks; i++)
         {
             peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 70));
