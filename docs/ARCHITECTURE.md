@@ -530,7 +530,7 @@ No mocking library. Stardew types (`GameLocation`, `Farmer`, `Tree`) are concret
 1. **Pure domain tests (arm64):** content merge and validation over every shipped asset, spawn planning with seeded `Random`, behavior decisions over `BirdContext`, observation log merging, message and save round-trips. This is most of the suite.
 2. **Seams with hand-written fakes:** small mod-owned interfaces where adapters need game state, e.g. `ILocationQuery` (tile passable/water/spawnable, terrain feature at tile) and `IMessageSender`. Fakes are a few lines each; revisit only if they start duplicating each other.
 3. **x64 integration tests:** anything that must touch real game types (`SDate`, `AnimatedSprite`, SMAPI JSON settings).
-4. **In-game checks:** console commands in `Diagnostics/` (list today's plan, force-spawn a bird, validate content, dump observations) plus the manual checklist in [REFACTOR.md](REFACTOR.md#9-verify-in-game-behavior-after-each-phase).
+4. **In-game checks:** debug mode and console commands in `Diagnostics/`, the offline planner playground (see [REFACTOR.md → debug tooling](REFACTOR.md#prerequisite-debug-tooling)), and the manual checklist in [REFACTOR.md](REFACTOR.md#9-verify-in-game-behavior-after-each-phase).
 
 Tests assert observable outcomes (a bird flees when a farmer is near), not class names or private state. NUnit with `[TestCase]` / `TestCaseSource` tables.
 
