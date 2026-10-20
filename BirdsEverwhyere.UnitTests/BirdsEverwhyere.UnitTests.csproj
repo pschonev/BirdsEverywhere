@@ -9,6 +9,7 @@
 	<EnableModDeploy>false</EnableModDeploy>
 	<EnableModZip>false</EnableModZip>
 	<BundleExtraAssemblies>All</BundleExtraAssemblies>
+        <NoWarn>$(NoWarn);CA1707;CA1861</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Newtonsoft.Json;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
@@ -42,7 +43,7 @@ public sealed class MultiplayerSync
 
         if (message is null || message.Version != IMessage.CurrentVersion)
         {
-            _monitor.Log($"Dropped {e.Type} from player {e.FromPlayerID}: unsupported version {message?.Version.ToString() ?? "<null>"}, expected {IMessage.CurrentVersion}.", LogLevel.Warn);
+            _monitor.Log($"Dropped {e.Type} from player {e.FromPlayerID}: unsupported version {message?.Version.ToString(CultureInfo.InvariantCulture) ?? "<null>"}, expected {IMessage.CurrentVersion}.", LogLevel.Warn);
             return null;
         }
 

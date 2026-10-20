@@ -16,7 +16,7 @@ using StardewValley.Menus;
 
 namespace BirdsEverywhere;
 
-public class ModEntry : Mod
+public partial class ModEntry : Mod
 {
     private const string SaveKey = "bird-save";
 
@@ -30,12 +30,21 @@ public class ModEntry : Mod
     private MultiplayerSync _sync = null!;
     private BirdServices _birdServices = null!;
     private bool _populatesCurrentVisit = true;
+    private long _birdOwnerId;
+    private string _birdVisitId = "";
+    private string _birdRequestId = "";
+    private long _birdSequence;
     private readonly HashSet<string> _pendingObservations = new(StringComparer.Ordinal);
     private readonly SpawnPatternRegistry _spawnPatterns = SpawnPatternRegistry.CreateDefault();
     private readonly BirdTypeRegistry _birdTypes = BirdTypeRegistry.CreateDefault();
+    private ModConfig _config = new();
+    private IReadOnlyList<Region> _regions = Array.Empty<Region>();
+    private readonly HashSet<string> _reportedSightings = new(StringComparer.Ordinal);
+    private int _reportedDay = -1;
 
     public override void Entry(IModHelper helper)
     {
+        _config = helper.ReadConfig<ModConfig>();
         _sync = new MultiplayerSync(helper.Multiplayer, Monitor, ModManifest.UniqueID);
         _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation);
         _locationSpawner = new LocationSpawner(_spawnPatterns, _birdTypes, _birdServices);
@@ -45,14 +54,18 @@ public class ModEntry : Mod
         helper.Events.GameLoop.Saving += OnSaving;
         helper.Events.GameLoop.SaveLoaded += OnLoaded;
         helper.Events.GameLoop.TimeChanged += OnTimeChanged;
+        helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
         helper.Events.Display.MenuChanged += OnMenuChanged;
         helper.Events.Multiplayer.ModMessageReceived += OnModMessageReceived;
         helper.Events.Multiplayer.PeerConnected += OnPeerConnected;
+        helper.Events.Multiplayer.PeerDisconnected += OnPeerDisconnected;
 
         helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.",
             (_, _) => Logging.LogBirdSeenStatus(Monitor, _saveData, _catalog));
         helper.ConsoleCommands.Add("birds_dump", "Print effective rules and sources for a bird. Usage: birds_dump <id>", DumpBird);
         helper.ConsoleCommands.Add("birds_fishareas", "List fish areas in Data/Locations. Usage: birds_fishareas [here]", DumpFishAreas);
+        RegisterDebugCommands(helper);
+        RegisterInspectCommands(helper);
     }
 
     // ##################
@@ -89,11 +102,14 @@ public class ModEntry : Mod
         IEnumerable<string> compatModIds = Directory.Exists(compatDirectory)
             ? Directory.GetFiles(compatDirectory, "*.json").Select(Path.GetFileNameWithoutExtension).Select(modId => modId!).Where(Helper.ModRegistry.IsLoaded)
             : Enumerable.Empty<string>();
-        (IReadOnlyDictionary<string, IReadOnlyList<string>> groups, IReadOnlyList<ValidationIssue> groupIssues) = ContentLoader.LoadGroups(root, compatModIds, Read);
-        foreach (ValidationIssue issue in groupIssues)
+        (IReadOnlyList<Region> regions, IReadOnlyList<ValidationIssue> regionIssues) = ContentLoader.LoadRegions(root, compatModIds, Read, ContentPaths.BirdIds(root).ToList());
+        foreach (ValidationIssue issue in regionIssues)
         {
             LogIssue(issue);
         }
+
+        _regions = regions;
+        IReadOnlyDictionary<string, IReadOnlyList<string>> groups = Region.AllGroups(regions);
 
         Dictionary<string, BirdDefinition> catalog = new(StringComparer.Ordinal);
         Dictionary<string, (JObject Effective, IReadOnlyDictionary<string, string> Sources)> effective = new(StringComparer.Ordinal);
@@ -178,16 +194,26 @@ public class ModEntry : Mod
 
     private void OnDayStarted(object? sender, DayStartedEventArgs e)
     {
+        _birdVisitId = "";
+        _birdRequestId = "";
+        _birdSequence = 0;
+        _birdOwnerId = 0;
+        _locationSpawner.BeginVisit();
+        if (Game1.currentLocation is { } location)
+        {
+            _birdOwnerId = Game1.getOnlineFarmers().Where(farmer => farmer.currentLocation == location)
+                .Select(farmer => farmer.UniqueMultiplayerID).DefaultIfEmpty(Game1.player.UniqueMultiplayerID).Min();
+            _populatesCurrentVisit = _birdOwnerId == Game1.player.UniqueMultiplayerID;
+            if (_populatesCurrentVisit)
+            {
+                _birdVisitId = Guid.NewGuid().ToString("N");
+            }
+        }
+
         if (Context.IsMainPlayer)
         {
-            Random random = new(Utils.StableHash($"{Game1.uniqueIDForThisGame}|{Game1.stats.DaysPlayed}|day"));
-            Domain.Season season = Enum.Parse<Domain.Season>(Game1.currentSeason, ignoreCase: true);
-            Weather weather = Game1.isGreenRain ? Weather.GreenRain
-                : Game1.isLightning ? Weather.Storm
-                : Game1.isSnowing ? Weather.Snow
-                : Game1.isDebrisWeather ? Weather.Wind
-                : Game1.isRaining ? Weather.Rain : Weather.Sun;
-            _plan = DailySpawnPlan.Build(_saveData.seenBirds, _catalog, _spawnPatterns, season, weather, Game1.dayOfMonth, Game1.player.DailyLuck, random, Monitor);
+            _plan = BuildDebugPlan(null);
+            ReportPlan();
             _sync.SendToAll(new SpawnPlanMessage(IMessage.CurrentVersion, MessageJson.Serialize(_plan)));
         }
 
@@ -214,6 +240,13 @@ public class ModEntry : Mod
                 }
 
                 break;
+            case nameof(XpAwarded) when IsFromHost(e) && !Context.IsMainPlayer:
+                if (_sync.Read<XpAwarded>(e) is { } xp)
+                {
+                    SetXp(Math.Max(xp.BirdingXp, _saveData.BirdingXp));
+                }
+
+                break;
             case nameof(ObservationLogRequest) when Context.IsMainPlayer:
                 if (_sync.Read<ObservationLogRequest>(e) is not null)
                 {
@@ -229,10 +262,10 @@ public class ModEntry : Mod
 
                 break;
             case nameof(ObservationLogSnapshot) when IsFromHost(e):
-                if (_sync.Read<ObservationLogSnapshot>(e) is { } snapshot && snapshot.Log.logVersion >= _saveData.logVersion)
+                if (_sync.Read<ObservationLogSnapshot>(e) is { } snapshot && snapshot.Log.LogVersion >= _saveData.LogVersion)
                 {
                     _saveData = snapshot.Log;
-                    _pendingObservations.RemoveWhere(_saveData.seenBirds.Contains);
+                    _pendingObservations.RemoveWhere(_saveData.SeenBirds.Contains);
                 }
 
                 break;
@@ -240,20 +273,62 @@ public class ModEntry : Mod
                 if (_sync.Read<SpawnPlanMessage>(e) is { } plan)
                 {
                     _plan = MessageJson.Deserialize<DailySpawnPlan>(plan.PlanJson);
+                    if (Context.IsWorldReady && Game1.currentLocation is { } location)
+                    {
+                        _birdVisitId = "";
+                        _birdRequestId = "";
+                        _birdSequence = 0;
+                        _locationSpawner.Clear(location);
+                        if (_populatesCurrentVisit)
+                        {
+                            _birdOwnerId = Game1.player.UniqueMultiplayerID;
+                            _birdVisitId = Guid.NewGuid().ToString("N");
+                            _locationSpawner.Populate(location, _plan);
+                        }
+                        else
+                        {
+                            Farmer? farmer = Game1.getOnlineFarmers().FirstOrDefault(f =>
+                                f.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID && f.currentLocation == location);
+                            if (farmer is not null)
+                            {
+                                RequestLocationBirds(location, farmer.UniqueMultiplayerID);
+                            }
+                            else
+                            {
+                                _populatesCurrentVisit = true;
+                                _birdOwnerId = Game1.player.UniqueMultiplayerID;
+                                _birdVisitId = Guid.NewGuid().ToString("N");
+                                _birdSequence = 0;
+                                _locationSpawner.Populate(location, _plan);
+                            }
+                        }
+                    }
                 }
 
                 break;
             case nameof(LocationBirdsRequest):
                 if (_sync.Read<LocationBirdsRequest>(e) is { } birdsRequest)
                 {
-                    SendLocationBirds(birdsRequest.LocationName, e.FromPlayerID);
+                    if (birdsRequest.RequestId.Length != 0 && (birdsRequest.RequesterId == e.FromPlayerID ||
+                        Game1.getOnlineFarmers().Any(farmer => farmer.UniqueMultiplayerID == birdsRequest.RequesterId && farmer.currentLocation == Game1.currentLocation))
+                    )
+                    {
+                        SendLocationBirds(birdsRequest.LocationName, birdsRequest.RequesterId, birdsRequest.RequestId);
+                    }
                 }
 
                 break;
             case nameof(LocationBirdsState):
                 if (_sync.Read<LocationBirdsState>(e) is { } birdsState)
                 {
-                    ReceiveLocationBirds(birdsState);
+                    ReceiveLocationBirds(birdsState, e.FromPlayerID);
+                }
+
+                break;
+            case nameof(LocationBirdsHandoff):
+                if (_sync.Read<LocationBirdsHandoff>(e) is { } handoff)
+                {
+                    ReceiveBirdHandoff(handoff, e.FromPlayerID);
                 }
 
                 break;
@@ -266,7 +341,14 @@ public class ModEntry : Mod
     private static bool IsFromHost(ModMessageReceivedEventArgs e) =>
         !Context.IsMainPlayer && e.FromPlayerID == Game1.MasterPlayer.UniqueMultiplayerID;
 
-    private void SendLocationBirds(string locationName, long requestingPlayerId)
+    private void RequestLocationBirds(GameLocation location, long peerId)
+    {
+        _birdRequestId = Guid.NewGuid().ToString("N");
+        _sync.SendToPeer(new LocationBirdsRequest(IMessage.CurrentVersion, location.Name,
+            Game1.player.UniqueMultiplayerID, _birdRequestId), peerId);
+    }
+
+    private void SendLocationBirds(string locationName, long requestingPlayerId, string requestId)
     {
         if (Game1.currentLocation?.Name != locationName)
         {
@@ -274,30 +356,165 @@ public class ModEntry : Mod
             return;
         }
 
-        List<BirdCritter> birds = Game1.currentLocation.critters.OfType<BirdCritter>().ToList();
-        _sync.SendToPeer(new LocationBirdsState(IMessage.CurrentVersion, locationName, MessageJson.Serialize(birds)), requestingPlayerId);
-        foreach (BirdCritter bird in birds)
+        if (!_populatesCurrentVisit)
         {
-            bird.seedRandom();
+            if (_birdOwnerId != 0 && _birdOwnerId != requestingPlayerId)
+            {
+                _sync.SendToPeer(new LocationBirdsRequest(IMessage.CurrentVersion, locationName, requestingPlayerId, requestId), _birdOwnerId);
+            }
+            return;
         }
+
+        _sync.SendToPeer(new LocationBirdsState(IMessage.CurrentVersion, locationName, _birdVisitId,
+            _birdSequence, SerializeCurrentBirds(Game1.currentLocation), requestId), requestingPlayerId);
     }
 
-    private void ReceiveLocationBirds(LocationBirdsState state)
+    private static string SerializeCurrentBirds(GameLocation location) =>
+        MessageJson.Serialize(location.critters.OfType<BirdCritter>().ToList());
+
+    private void ReceiveLocationBirds(LocationBirdsState state, long senderId)
     {
-        if (Game1.currentLocation?.Name != state.LocationName)
+        if (_populatesCurrentVisit || Game1.currentLocation?.Name != state.LocationName || state.VisitId.Length == 0
+            || (_birdVisitId.Length != 0 && (state.VisitId != _birdVisitId || senderId != _birdOwnerId || state.Sequence <= _birdSequence))
+            || (_birdVisitId.Length == 0 && (state.RequestId != _birdRequestId || _birdRequestId.Length == 0 ||
+                !Game1.getOnlineFarmers().Any(farmer => farmer.UniqueMultiplayerID == senderId && farmer.currentLocation == Game1.currentLocation))))
         {
-            Monitor.Log($"Dropped birds for {state.LocationName}: no longer in that location.", LogLevel.Debug);
             return;
         }
 
         List<BirdCritter> birds = MessageJson.Deserialize<List<BirdCritter>>(state.BirdsJson);
+        GameLocation location = Game1.currentLocation;
+        location.instantiateCrittersList();
+        Dictionary<long, BirdCritter> existing = location.critters.OfType<BirdCritter>().ToDictionary(bird => bird.BirdID);
+        HashSet<long> received = new();
         foreach (BirdCritter bird in birds)
         {
-            bird.services = _birdServices;
+            if (!received.Add(bird.BirdID))
+            {
+                continue;
+            }
+            if (existing.TryGetValue(bird.BirdID, out BirdCritter? replica) && replica.BirdTypeName == bird.BirdTypeName)
+            {
+                replica.ApplyReplicaState(bird);
+                continue;
+            }
+
+            bird.Services = _birdServices;
+            bird.IsReplica = true;
+            bird.ApplyReplicaState(bird);
+            location.critters.Add(bird);
         }
 
-        Game1.currentLocation.instantiateCrittersList();
-        Game1.currentLocation.critters.AddRange(birds);
+        location.critters.RemoveAll(critter => critter is BirdCritter bird &&
+            (!received.Contains(bird.BirdID) || (existing.ContainsKey(bird.BirdID) &&
+                existing[bird.BirdID].BirdTypeName != bird.BirdTypeName && ReferenceEquals(critter, existing[bird.BirdID]))));
+        _birdVisitId = state.VisitId;
+        _birdRequestId = "";
+        _birdOwnerId = senderId;
+        _birdSequence = state.Sequence;
+    }
+
+    private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
+    {
+        if (!Context.IsWorldReady || !_populatesCurrentVisit || !e.IsMultipleOf(6)
+            || Game1.currentLocation is not { } location || _birdVisitId.Length == 0)
+        {
+            return;
+        }
+
+        if (!location.farmers.Any(farmer => farmer.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID))
+        {
+            return;
+        }
+
+        _birdSequence++;
+        LocationBirdsState state = new(IMessage.CurrentVersion, location.Name, _birdVisitId,
+            _birdSequence, SerializeCurrentBirds(location));
+        foreach (Farmer farmer in location.farmers)
+        {
+            if (farmer.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID)
+            {
+                _sync.SendToPeer(state, farmer.UniqueMultiplayerID);
+            }
+        }
+    }
+
+    private void ReceiveBirdHandoff(LocationBirdsHandoff handoff, long senderId)
+    {
+        if (Game1.currentLocation?.Name != handoff.LocationName || _populatesCurrentVisit
+            || (senderId != _birdOwnerId && !(_birdVisitId.Length == 0 && _birdRequestId.Length != 0
+                && Game1.getOnlineFarmers().Any(farmer => farmer.UniqueMultiplayerID == senderId && farmer.currentLocation == Game1.currentLocation)))
+            || handoff.VisitId.Length == 0
+            || (_birdVisitId.Length != 0 && (handoff.VisitId != _birdVisitId || handoff.Sequence <= _birdSequence)))
+        {
+            return;
+        }
+
+        if (handoff.NextOwnerId != Game1.player.UniqueMultiplayerID &&
+            !Game1.getOnlineFarmers().Any(farmer => farmer.UniqueMultiplayerID == handoff.NextOwnerId && farmer.currentLocation == Game1.currentLocation))
+        {
+            return;
+        }
+
+        _birdOwnerId = handoff.NextOwnerId;
+        _birdRequestId = "";
+        _birdSequence = handoff.Sequence;
+        _birdVisitId = handoff.VisitId;
+        if (_birdOwnerId != Game1.player.UniqueMultiplayerID)
+        {
+            return;
+        }
+
+        _populatesCurrentVisit = true;
+        RestoreOwnership(handoff.BirdsJson);
+    }
+
+    private void RestoreOwnership(string birdsJson)
+    {
+        GameLocation location = Game1.currentLocation;
+        _locationSpawner.Clear(location);
+        location.instantiateCrittersList();
+        foreach (BirdCritter bird in MessageJson.Deserialize<List<BirdCritter>>(birdsJson))
+        {
+            bird.Services = _birdServices;
+            bird.sprite.CurrentAnimation = null;
+            location.critters.Add(bird);
+        }
+        _locationSpawner.ResumeVisit(location, _plan);
+    }
+
+    private void OnPeerDisconnected(object? sender, PeerDisconnectedEventArgs e)
+    {
+        if (!Context.IsWorldReady || _populatesCurrentVisit || e.Peer.PlayerID != _birdOwnerId
+            || Game1.currentLocation is not { } location)
+        {
+            return;
+        }
+
+        long nextOwnerId = Game1.getOnlineFarmers().Where(farmer => farmer.UniqueMultiplayerID != e.Peer.PlayerID && farmer.currentLocation == location)
+            .Select(farmer => farmer.UniqueMultiplayerID).DefaultIfEmpty(Game1.player.UniqueMultiplayerID).Min();
+        _birdOwnerId = nextOwnerId;
+        if (_birdVisitId.Length == 0)
+        {
+            if (nextOwnerId == Game1.player.UniqueMultiplayerID)
+            {
+                _populatesCurrentVisit = true;
+                _birdVisitId = Guid.NewGuid().ToString("N");
+                _locationSpawner.Clear(location);
+                _locationSpawner.Populate(location, _plan);
+            }
+            else
+            {
+                RequestLocationBirds(location, nextOwnerId);
+            }
+            return;
+        }
+
+        if (nextOwnerId == Game1.player.UniqueMultiplayerID)
+        {
+            _populatesCurrentVisit = true;
+            RestoreOwnership(SerializeCurrentBirds(location));
+        }
     }
 
     private void OnPeerConnected(object? sender, PeerConnectedEventArgs e)
@@ -313,8 +530,10 @@ public class ModEntry : Mod
 
     private void RecordObservation(string birdName, string location)
     {
-        if (_saveData.seenBirds.Contains(birdName))
+        int day = (int)Game1.stats.DaysPlayed;
+        if (_saveData.SeenBirds.Contains(birdName))
         {
+            ReportRepeatSighting(birdName, day);
             return;
         }
 
@@ -329,10 +548,64 @@ public class ModEntry : Mod
         }
     }
 
+    private void ReportRepeatSighting(string birdName, int day)
+    {
+        if (Context.IsMainPlayer)
+        {
+            AwardSighting(birdName, day);
+            return;
+        }
+
+        if (_reportedDay != day)
+        {
+            _reportedDay = day;
+            _reportedSightings.Clear();
+        }
+
+        if (_reportedSightings.Add(birdName))
+        {
+            ObservationData details = new(Game1.currentLocation.Name, new SDate(Game1.dayOfMonth, Game1.currentSeason), Game1.timeOfDay, Game1.player.Name);
+            _sync.SendToPeer(new ObservationRequest(IMessage.CurrentVersion, birdName, details), Game1.MasterPlayer.UniqueMultiplayerID);
+        }
+    }
+
+    private void AwardSighting(string birdId, int day)
+    {
+        if (BirdingProgress.TryAwardSighting(_saveData, birdId, day, out SaveData updated))
+        {
+            SetXp(updated.BirdingXp, updated);
+            _sync.SendToAll(new XpAwarded(IMessage.CurrentVersion, updated.BirdingXp));
+        }
+    }
+
+    private void SetXp(long xp, SaveData? replacement = null)
+    {
+        int before = BirdingProgress.Level(_saveData.BirdingXp);
+        if (replacement is not null)
+        {
+            _saveData = replacement;
+        }
+        else
+        {
+            _saveData.BirdingXp = xp;
+        }
+
+        NotifyLevelUp(before);
+    }
+
+    private void NotifyLevelUp(int before)
+    {
+        int after = BirdingProgress.Level(_saveData.BirdingXp);
+        if (after > before)
+        {
+            Game1.addHUDMessage(new HUDMessage($"Birding level {after}!", HUDMessage.achievement_type));
+        }
+    }
+
     /// <summary>Host only: validates and records an observation, then tells every peer.</summary>
     private void AcceptObservation(string birdId, ObservationData details)
     {
-        if (!_catalog.TryGetValue(birdId, out BirdDefinition? bird))
+if (!_catalog.TryGetValue(birdId, out BirdDefinition? bird))
         {
             Monitor.Log($"Dropped observation of unknown bird '{birdId}'.", LogLevel.Warn);
             return;
@@ -340,13 +613,16 @@ public class ModEntry : Mod
 
         if (!ObservationLog.TryApply(_saveData, birdId, details, out SaveData updated))
         {
+            AwardSighting(birdId, (int)Game1.stats.DaysPlayed);
             return;
         }
 
+        int levelBefore = BirdingProgress.Level(_saveData.BirdingXp);
         _saveData = updated;
-        Monitor.Log($"New bird seen (log version {updated.logVersion}):", LogLevel.Debug);
-        Utils.logObservation(Monitor, _catalog, _saveData, birdId);
-        _sync.SendToAll(new ObservationAccepted(IMessage.CurrentVersion, updated.logVersion, birdId, details));
+        NotifyLevelUp(levelBefore);
+        Monitor.Log($"New bird seen (log version {updated.LogVersion}):", LogLevel.Debug);
+        Utils.LogObservation(Monitor, _catalog, _saveData, birdId);
+        _sync.SendToAll(new ObservationAccepted(IMessage.CurrentVersion, updated.LogVersion, birdId, details));
         ShowDiscovery(bird, details);
     }
 
@@ -359,7 +635,9 @@ public class ModEntry : Mod
             case DeltaStatus.Duplicate:
                 return;
             case DeltaStatus.Next when ObservationLog.TryApply(_saveData, accepted.BirdId, accepted.Details, out SaveData updated):
+                int levelBefore = BirdingProgress.Level(_saveData.BirdingXp);
                 _saveData = updated;
+                NotifyLevelUp(levelBefore);
                 if (_catalog.TryGetValue(accepted.BirdId, out BirdDefinition? bird))
                 {
                     ShowDiscovery(bird, accepted.Details);
@@ -367,14 +645,14 @@ public class ModEntry : Mod
 
                 return;
             default:
-                Monitor.Log($"Missed an observation update (local {_saveData.logVersion}, received {accepted.LogVersion}); requesting the full log.", LogLevel.Debug);
+                Monitor.Log($"Missed an observation update (local {_saveData.LogVersion}, received {accepted.LogVersion}); requesting the full log.", LogLevel.Debug);
                 _sync.SendToPeer(new ObservationLogRequest(IMessage.CurrentVersion), Game1.MasterPlayer.UniqueMultiplayerID);
                 return;
         }
     }
 
     private static void ShowDiscovery(BirdDefinition bird, ObservationData details) =>
-        Game1.showGlobalMessage($"{details.playerName} discovered a new bird: {bird.Name}!");
+        Game1.showGlobalMessage($"{details.PlayerName} discovered a new bird: {bird.Name}!");
 
     // #############################
     // # Spawning / Removing Birds #
@@ -382,6 +660,28 @@ public class ModEntry : Mod
 
     private void OnWarped(object? sender, WarpedEventArgs e)
     {
+        if (_populatesCurrentVisit && _birdVisitId.Length != 0 && e.OldLocation is { } oldLocation)
+        {
+            long nextOwnerId = oldLocation.farmers.Where(farmer => farmer.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID)
+                .Select(farmer => farmer.UniqueMultiplayerID).DefaultIfEmpty(0).Min();
+            if (nextOwnerId != 0)
+            {
+                LocationBirdsHandoff handoff = new(IMessage.CurrentVersion, oldLocation.Name, nextOwnerId,
+                    _birdVisitId, _birdSequence + 1, SerializeCurrentBirds(oldLocation));
+                foreach (Farmer recipient in oldLocation.farmers)
+                {
+                    if (recipient.UniqueMultiplayerID != Game1.player.UniqueMultiplayerID)
+                    {
+                        _sync.SendToPeer(handoff, recipient.UniqueMultiplayerID);
+                    }
+                }
+            }
+        }
+
+        _birdVisitId = "";
+        _birdRequestId = "";
+        _birdSequence = 0;
+        _birdOwnerId = 0;
         if (e.NewLocation == null)
         {
             return;
@@ -390,7 +690,7 @@ public class ModEntry : Mod
         Monitor.Log($"{Game1.player.Name} entered {e.NewLocation.Name}.", LogLevel.Debug);
         VanillaBirds.Remove(e.NewLocation);
 
-        if (!_eligibleLocations.Contains(e.NewLocation.Name))
+        if (!_eligibleLocations.Contains(e.NewLocation.Name) && !_plan.Locations.ContainsKey(e.NewLocation.Name))
         {
             return;
         }
@@ -400,12 +700,16 @@ public class ModEntry : Mod
         _populatesCurrentVisit = farmer is null;
         if (farmer == null)
         {
+            _birdOwnerId = Game1.player.UniqueMultiplayerID;
+            _birdVisitId = Guid.NewGuid().ToString("N");
             _locationSpawner.Populate(e.NewLocation, _plan);
             return;
         }
 
+        _locationSpawner.Clear(e.NewLocation);
+        _birdOwnerId = farmer.UniqueMultiplayerID;
         Monitor.Log($"{Game1.player.Name} request active birds at {e.NewLocation.Name}.", LogLevel.Debug);
-        _sync.SendToPeer(new LocationBirdsRequest(IMessage.CurrentVersion, e.NewLocation.Name), farmer.UniqueMultiplayerID);
+        RequestLocationBirds(e.NewLocation, farmer.UniqueMultiplayerID);
     }
 
     private void OnTimeChanged(object? sender, TimeChangedEventArgs e)
@@ -413,7 +717,8 @@ public class ModEntry : Mod
         if (Game1.currentLocation != null)
         {
             VanillaBirds.Remove(Game1.currentLocation);
-            if (_populatesCurrentVisit && _eligibleLocations.Contains(Game1.currentLocation.Name))
+            if (_populatesCurrentVisit && (_eligibleLocations.Contains(Game1.currentLocation.Name)
+                || _plan.Locations.ContainsKey(Game1.currentLocation.Name)))
             {
                 _locationSpawner.Populate(Game1.currentLocation, _plan);
             }

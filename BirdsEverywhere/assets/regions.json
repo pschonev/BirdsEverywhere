@@ -1,0 +1,25 @@
+{
+    "valley": {
+        "ratio": 0.6,
+        "species": [
+            "great_tit",
+            "blue_tit",
+            "coal_tit",
+            "herring_gull",
+            "grey_partridge",
+            "black_woodpecker"
+        ],
+        "groups": {
+            "valley_gardens": [
+                "Forest",
+                "Farm",
+                "Backwoods"
+            ],
+            "coast": [
+                "Beach"
+            ]
+        }
+    },
+    "desert": {},
+    "ginger_island": {}
+}

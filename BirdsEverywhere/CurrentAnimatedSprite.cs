@@ -1,61 +1,60 @@
-using StardewModdingAPI;
+using Newtonsoft.Json;
 using StardewValley;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
-namespace BirdsEverywhere
+namespace BirdsEverywhere;
+
+public class CurrentAnimatedSprite
 {
-    public class CurrentAnimatedSprite
+    [JsonProperty("texture")]
+    public string Texture { get; set; } = "";
+
+    [JsonProperty("currentAnimation")]
+    public List<(int frame, int ms)>? CurrentAnimation { get; set; }
+
+    [JsonProperty("currentFrame")]
+    public int CurrentFrame { get; set; }
+
+    [JsonProperty("timer")]
+    public float Timer { get; set; }
+
+    [JsonProperty("loop")]
+    public bool Loop { get; set; }
+
+    [JsonProperty("currentAnimationIndex")]
+    public int CurrentAnimationIndex { get; set; }
+
+    [JsonProperty("spriteWidth")]
+    public int SpriteWidth { get; set; }
+
+    [JsonProperty("spriteHeight")]
+    public int SpriteHeight { get; set; }
+
+    public CurrentAnimatedSprite() { }
+
+    public CurrentAnimatedSprite(AnimatedSprite sprite)
     {
-        public string texture { get; set; }
-        public List<(int frame, int ms)> currentAnimation { get; set; }
-        public int currentFrame { get; set; }
-        public float timer { get; set; }
-        public bool loop { get; set; }
-        public int currentAnimationIndex { get; set; }
-        public int spriteWidth { get; set; }
-        public int spriteHeight { get; set; }
+        CurrentAnimation = sprite.CurrentAnimation?.Select(f => (f.frame, f.milliseconds)).ToList();
+        CurrentFrame = sprite.currentFrame;
+        Texture = sprite.textureName.Value ?? "";
+        Timer = sprite.timer;
+        Loop = sprite.loop;
+        CurrentAnimationIndex = sprite.currentAnimationIndex;
+        SpriteWidth = sprite.SpriteWidth;
+        SpriteHeight = sprite.SpriteHeight;
+    }
 
-
-        public CurrentAnimatedSprite() { }
-
-        public CurrentAnimatedSprite(AnimatedSprite sprite)
+    public static AnimatedSprite CurrentToAnimatedSprite(CurrentAnimatedSprite sprite)
+    {
+        AnimatedSprite currentSprite = new(sprite.Texture, sprite.CurrentFrame, sprite.SpriteWidth, sprite.SpriteHeight);
+        if (sprite.CurrentAnimation != null)
         {
-            this.currentAnimation = sprite.CurrentAnimation?.Select(f => (f.frame, f.milliseconds)).ToList();
-            this.currentFrame = sprite.currentFrame;
-            this.texture = sprite.textureName.Value;
-            this.timer = sprite.timer;
-            this.loop = sprite.loop;
-            this.currentAnimationIndex = sprite.currentAnimationIndex;
-            this.spriteWidth = sprite.SpriteWidth;
-            this.spriteHeight = sprite.SpriteHeight;
+            currentSprite.setCurrentAnimation(sprite.CurrentAnimation
+                .Select(f => new FarmerSprite.AnimationFrame((short)f.frame, f.ms))
+                .ToList());
         }
-
-        public static AnimatedSprite CurrentToAnimatedSprite(CurrentAnimatedSprite sprite)
-        {
-            if (sprite != null)
-            {
-                AnimatedSprite currentSprite = new AnimatedSprite(sprite.texture, sprite.currentFrame, sprite.spriteWidth, sprite.spriteHeight);
-                if (sprite.currentAnimation != null)
-                {
-                    List<FarmerSprite.AnimationFrame> currentAnim = new List<FarmerSprite.AnimationFrame>();
-                    foreach ((int frame, int ms) frameWithTime in sprite.currentAnimation)
-                    {
-                        currentAnim.Add(new FarmerSprite.AnimationFrame((short)(frameWithTime.frame), frameWithTime.ms));
-                    }
-                    currentSprite.setCurrentAnimation(currentAnim);
-                }
-                currentSprite.timer = sprite.timer;
-                currentSprite.loop = sprite.loop;
-                currentSprite.currentAnimationIndex = sprite.currentAnimationIndex;
-                return currentSprite;
-            }
-            else
-                return null;
-        }
+        currentSprite.timer = sprite.Timer;
+        currentSprite.loop = sprite.Loop;
+        currentSprite.currentAnimationIndex = sprite.CurrentAnimationIndex;
+        return currentSprite;
     }
 }

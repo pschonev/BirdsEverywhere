@@ -7,89 +7,135 @@ using StardewValley.BellsAndWhistles;
 
 namespace BirdsEverywhere.BirdTypes;
 
-abstract class BirdCritter : Critter
+internal abstract class BirdCritter : Critter
 {
     private const int ThreatCheckIntervalMs = 200;
 
     private long _birdID;
+    private Vector2 _replicaTarget;
 
-    public abstract string birdTypeName { get; }
-    public BehaviorStatus state { get; set; }
-    public string birdName { get; set; }
-    public string texture { get; set; }
-    public int characterCheckTimer { get; set; } = 200;
+    [JsonProperty("birdTypeName")]
+    public abstract string BirdTypeName { get; }
+    [JsonProperty("state")]
+    public BehaviorStatus State { get; set; }
+    [JsonProperty("birdName")]
+    public string BirdName { get; set; } = "";
+    [JsonProperty("texture")]
+    public string Texture { get; set; } = "";
+    [JsonProperty("characterCheckTimer")]
+    public int CharacterCheckTimer { get; set; } = ThreatCheckIntervalMs;
 
-    public long birdID
+    [JsonProperty("birdID")]
+    public long BirdID
     {
         get => _birdID;
         set
         {
             _birdID = value;
-            seedRandom();
+            SeedRandom();
         }
     }
 
     [JsonIgnore]
-    protected Random random = null!;
+    protected Random Rng { get; private set; } = new();
 
     [JsonIgnore]
-    public BirdServices? services { get; set; }
+    public BirdServices? Services { get; set; }
+
+    [JsonIgnore]
+    public bool IsReplica { get; set; }
+
+    public void ApplyReplicaState(BirdCritter source)
+    {
+        if (!IsReplica)
+        {
+            position = source.position;
+        }
+        _replicaTarget = source.position;
+        startingPosition = source.startingPosition;
+        State = source.State;
+        flip = source.flip;
+        yOffset = source.yOffset;
+        yJumpOffset = source.yJumpOffset;
+        gravityAffectedDY = source.gravityAffectedDY;
+        sprite = source.sprite;
+    }
+
+    protected bool UpdateReplica()
+    {
+        position = Vector2.Lerp(position, _replicaTarget, 0.4f);
+        return false;
+    }
 
     public BirdCritter() { }
 
     protected BirdCritter(int baseFrame, int tileX, int tileY, string birdName, string texture, BirdServices services, int spriteWidth = 32, int spriteHeight = 32)
         : base(baseFrame, new Vector2(tileX * 64, tileY * 64))
     {
-        this.birdName = birdName;
-        this.texture = texture;
-        this.services = services;
-        this.sprite = new AnimatedSprite(getTextureName(services.Content), baseFrame, spriteWidth, spriteHeight);
-        this.birdID = services.NewId();
+        BirdName = birdName;
+        Texture = texture;
+        Services = services;
+        sprite = new AnimatedSprite(GetTextureName(services.Content), baseFrame, spriteWidth, spriteHeight);
+        BirdID = services.NewId();
     }
 
-    public BirdCritter setAnimatedSprite(AnimatedSprite sprite)
+    public BirdCritter SetAnimatedSprite(AnimatedSprite sprite)
     {
         this.sprite = sprite;
         return this;
     }
 
-    public void seedRandom()
+    public void SeedRandom()
     {
-        this.random = new Random((int)(this.birdID % Int32.MaxValue));
+        Rng = new Random((int)(BirdID % int.MaxValue));
     }
 
-    private string getTextureName(IModContentHelper content)
+    private string GetTextureName(IModContentHelper content)
     {
-        string assetPath = $"assets/{this.birdName}/{this.texture}.png";
+        string assetPath = $"assets/{BirdName}/{Texture}.png";
         content.Load<Texture2D>(assetPath);
         return content.GetInternalAssetName(assetPath).Name;
     }
 
     public override void drawAboveFrontLayer(SpriteBatch b)
     {
-        if (state == BehaviorStatus.FlyingAway)
+        if (State == BehaviorStatus.FlyingAway)
         {
             base.draw(b);
         }
     }
 
-    public void addBirdObservation(string birdName, string location)
+    public void AddBirdObservation(string birdName, string location)
     {
-        services?.Observe(birdName, location);
+        Services?.Observe(birdName, location);
     }
 
     /// <summary>Returns a farmer or character within <paramref name="radiusTiles"/>, checked at most every 200 ms.</summary>
     protected Character? PollThreat(GameTime time, GameLocation location, int radiusTiles) =>
-        CheckIntervalElapsed(time) ? Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, radiusTiles, location) : null;
+        CheckIntervalElapsed(time) ? FindThreat(location, radiusTiles) : null;
+
+    protected Character? FindThreat(GameLocation location, int radiusTiles)
+    {
+        float radiusSquared = radiusTiles * radiusTiles * 64f * 64f;
+        foreach (Farmer farmer in location.farmers)
+        {
+            if (Vector2.DistanceSquared(farmer.Position, position) <= radiusSquared)
+            {
+                return farmer;
+            }
+        }
+
+        return Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, radiusTiles, location);
+    }
 
     protected bool CheckIntervalElapsed(GameTime time)
     {
-        characterCheckTimer -= time.ElapsedGameTime.Milliseconds;
-        if (characterCheckTimer >= 0)
+        CharacterCheckTimer -= time.ElapsedGameTime.Milliseconds;
+        if (CharacterCheckTimer >= 0)
         {
             return false;
         }
-        characterCheckTimer = ThreatCheckIntervalMs;
+        CharacterCheckTimer = ThreatCheckIntervalMs;
         return true;
     }
 }

@@ -6,8 +6,8 @@ namespace BirdsEverywhere.Content;
 
 public static class ContentLoader
 {
-    private static readonly HashSet<string> TemplateFields = new(StringComparer.Ordinal) { "template", "defaults", "rules" };
-    private static readonly HashSet<string> BirdFields = new(StringComparer.Ordinal) { "id", "name", "scName", "description", "template", "defaults", "rules" };
+    private static readonly HashSet<string> _templateFields = new(StringComparer.Ordinal) { "template", "defaults", "rules" };
+    private static readonly HashSet<string> _birdFields = new(StringComparer.Ordinal) { "id", "name", "scName", "description", "template", "defaults", "rules" };
 
     public static (BirdDefinition? Bird, IReadOnlyList<ValidationIssue> Issues, JObject? Effective, IReadOnlyDictionary<string, string> Sources) LoadBird(
         string root,
@@ -46,14 +46,14 @@ public static class ContentLoader
                     }
                 }
 
-                foreach (string key in template.Properties().Select(property => property.Name).Except(TemplateFields))
+                foreach (string key in template.Properties().Select(property => property.Name).Except(_templateFields))
                 {
                     issues.Add(new ValidationIssue(IssueSeverity.Error, templateFile, id, "$." + key, chain, "Unknown template field."));
                 }
             }
 
             JObject birdDocument = Read(file);
-            foreach (string key in birdDocument.Properties().Select(property => property.Name).Except(BirdFields))
+            foreach (string key in birdDocument.Properties().Select(property => property.Name).Except(_birdFields))
             {
                 issues.Add(new ValidationIssue(IssueSeverity.Error, file, id, "$." + key, chain, "Unknown bird field."));
             }
@@ -129,41 +129,141 @@ public static class ContentLoader
         return false;
     }
 
-    public static (IReadOnlyDictionary<string, IReadOnlyList<string>> Groups, IReadOnlyList<ValidationIssue> Issues) LoadGroups(
+    public static (IReadOnlyList<Region> Regions, IReadOnlyList<ValidationIssue> Issues) LoadRegions(
         string root,
         IEnumerable<string> compatModIds,
-        Func<string, string?> read)
+        Func<string, string?> read,
+        IReadOnlyCollection<string>? birdIds = null)
     {
         List<ValidationIssue> issues = new();
-        Dictionary<string, List<string>> groups = new(StringComparer.Ordinal);
-        foreach (string file in compatModIds.Select(modId => ContentPaths.CompatGroups(root, modId)).Prepend(ContentPaths.Groups(root)))
+        Dictionary<string, double> ratios = new(StringComparer.Ordinal);
+        Dictionary<string, List<string>> species = new(StringComparer.Ordinal);
+        Dictionary<string, Dictionary<string, List<string>>> groups = new(StringComparer.Ordinal);
+
+        void Error(string file, string path, string message) =>
+            issues.Add(new ValidationIssue(IssueSeverity.Error, file, "", path, file, message));
+
+        string[] files = compatModIds.Select(modId => ContentPaths.CompatRegions(root, modId)).Prepend(ContentPaths.Regions(root)).ToArray();
+        foreach (string file in files)
         {
+            bool isBase = file == files[0];
             try
             {
-                JObject document = JObject.Parse(read(file) ?? throw new FileNotFoundException("Location groups missing.", file));
-                foreach (JProperty property in document.Properties())
+                JObject document = JObject.Parse(read(file) ?? throw new FileNotFoundException("Regions missing.", file));
+                foreach (JProperty region in document.Properties())
                 {
-                    if (property.Value is not JArray locations || locations.Count == 0 || locations.Any(location => location.Type != JTokenType.String || string.IsNullOrWhiteSpace(location.Value<string>()) || location.Value<string>()!.StartsWith('@')))
+                    string path = "$." + region.Name;
+                    if (region.Value is not JObject body)
                     {
-                        issues.Add(new ValidationIssue(IssueSeverity.Error, file, property.Name, "$." + property.Name, file, "Expected a nonempty array of location names (no nested groups)."));
+                        Error(file, path, "Region must be an object.");
                         continue;
                     }
 
-                    if (!groups.TryGetValue(property.Name, out List<string>? members))
+                    if (!isBase && !species.ContainsKey(region.Name))
                     {
-                        members = new List<string>();
-                        groups.Add(property.Name, members);
+                        Error(file, path, $"Unknown region '{region.Name}'; compat files extend existing regions.");
+                        continue;
                     }
 
-                    members.AddRange(locations.Values<string>().Select(location => location!).Except(members, StringComparer.Ordinal));
+                    if (isBase)
+                    {
+                        species[region.Name] = new List<string>();
+                        groups[region.Name] = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+                        ratios[region.Name] = Region.DefaultRatio;
+                    }
+
+                    foreach (JProperty field in body.Properties())
+                    {
+                        string fieldPath = path + "." + field.Name;
+                        switch (field.Name)
+                        {
+                            case "ratio" when isBase:
+                                if (field.Value.Type is JTokenType.Float or JTokenType.Integer && field.Value.Value<double>() is > 0 and < 1)
+                                {
+                                    ratios[region.Name] = field.Value.Value<double>();
+                                }
+                                else
+                                {
+                                    Error(file, fieldPath, "Ratio must be a number between 0 and 1 (exclusive).");
+                                }
+
+                                break;
+                            case "species":
+                                if (field.Value is JArray names && names.All(name => name.Type == JTokenType.String && !string.IsNullOrWhiteSpace(name.Value<string>())))
+                                {
+                                    species[region.Name].AddRange(names.Values<string>().Select(name => name!).Except(species[region.Name], StringComparer.Ordinal));
+                                }
+                                else
+                                {
+                                    Error(file, fieldPath, "Expected an array of bird ids.");
+                                }
+
+                                break;
+                            case "groups":
+                                if (field.Value is not JObject groupObject)
+                                {
+                                    Error(file, fieldPath, "Expected an object of location groups.");
+                                    break;
+                                }
+
+                                foreach (JProperty group in groupObject.Properties())
+                                {
+                                    if (group.Value is not JArray locations || locations.Count == 0 || locations.Any(location => location.Type != JTokenType.String || string.IsNullOrWhiteSpace(location.Value<string>()) || location.Value<string>()!.StartsWith('@')))
+                                    {
+                                        Error(file, fieldPath + "." + group.Name, "Expected a nonempty array of location names (no nested groups).");
+                                        continue;
+                                    }
+
+                                    if (!groups[region.Name].TryGetValue(group.Name, out List<string>? members))
+                                    {
+                                        members = new List<string>();
+                                        groups[region.Name].Add(group.Name, members);
+                                    }
+
+                                    members.AddRange(locations.Values<string>().Select(location => location!).Except(members, StringComparer.Ordinal));
+                                }
+
+                                break;
+                            default:
+                                Error(file, fieldPath, $"Unknown region field '{field.Name}'.");
+                                break;
+                        }
+                    }
                 }
             }
             catch (Exception exception) when (exception is JsonException or FileNotFoundException)
             {
-                issues.Add(new ValidationIssue(IssueSeverity.Error, file, "", "$", file, exception.Message));
+                Error(file, "$", exception.Message);
             }
         }
 
-        return (groups.ToDictionary(group => group.Key, group => (IReadOnlyList<string>)group.Value, StringComparer.Ordinal), issues);
+        string regionsFile = files[0];
+        foreach (IGrouping<string, string> duplicate in species.SelectMany(region => region.Value.Select(bird => (Region: region.Key, Bird: bird))).GroupBy(entry => entry.Bird, entry => entry.Region).Where(group => group.Count() > 1))
+        {
+            Error(regionsFile, "$", $"Species '{duplicate.Key}' is listed in several regions: {string.Join(", ", duplicate)}.");
+        }
+
+        foreach (IGrouping<string, string> duplicate in groups.SelectMany(region => region.Value.Keys.Select(group => (Region: region.Key, Group: group))).GroupBy(entry => entry.Group, entry => entry.Region).Where(group => group.Count() > 1))
+        {
+            Error(regionsFile, "$", $"Location group '{duplicate.Key}' is defined in several regions: {string.Join(", ", duplicate)}.");
+        }
+
+        if (birdIds is not null)
+        {
+            foreach (string unknown in species.Values.SelectMany(list => list).Where(bird => !birdIds.Contains(bird)))
+            {
+                Error(regionsFile, "$", $"Region lists unknown bird '{unknown}'.");
+            }
+
+            foreach (string missing in birdIds.Except(species.Values.SelectMany(list => list)))
+            {
+                issues.Add(new ValidationIssue(IssueSeverity.Warn, regionsFile, missing, "$", regionsFile, "Bird is not listed in any region and will never spawn."));
+            }
+        }
+
+        List<Region> regions = species.Keys
+            .Select(id => new Region(id, ratios[id], species[id], groups[id].ToDictionary(group => group.Key, group => (IReadOnlyList<string>)group.Value, StringComparer.Ordinal)))
+            .ToList();
+        return (regions, issues);
     }
 }

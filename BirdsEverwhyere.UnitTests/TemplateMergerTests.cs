@@ -1,7 +1,5 @@
+using BirdsEverywhere.Domain;
 using BirdsEverywhere.Content;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 
@@ -142,7 +140,7 @@ public class TemplateMergerTests
         Assert.Multiple(() =>
         {
             Assert.That(bird, Is.Null);
-            Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Path == "$.rules.wintre"));
+            Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue!.Severity == IssueSeverity.Error && issue.Path == "$.rules.wintre"));
         });
     }
 
@@ -176,7 +174,7 @@ public class TemplateMergerTests
         {
             Assert.That(loaded, Is.Null);
             Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue =>
-                issue.Severity == IssueSeverity.Error && issue.Path == expectedPath && issue.File == birdFile), string.Join("; ", issues));
+                issue!.Severity == IssueSeverity.Error && issue.Path == expectedPath && issue.File == birdFile), string.Join("; ", issues));
         });
     }
 
@@ -196,7 +194,7 @@ public class TemplateMergerTests
         Assert.Multiple(() =>
         {
             Assert.That(bird, Is.Null);
-            Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.File == birdFile));
+            Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue!.Severity == IssueSeverity.Error && issue.File == birdFile));
         });
     }
 
@@ -219,7 +217,7 @@ public class TemplateMergerTests
         Assert.Multiple(() =>
         {
             Assert.That(bird, Is.Null);
-            Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Message.Contains(message)), string.Join("; ", issues));
+            Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue!.Severity == IssueSeverity.Error && issue.Message.Contains(message)), string.Join("; ", issues));
         });
     }
 
@@ -235,7 +233,7 @@ public class TemplateMergerTests
             path => path == birdFile ? text : null, _ => true);
 
         Assert.That(bird, Is.Null);
-        Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Message.Contains("typo")));
+        Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue!.Severity == IssueSeverity.Error && issue.Message.Contains("typo")));
     }
 
     [Test]
@@ -243,7 +241,8 @@ public class TemplateMergerTests
     {
         string root = Path.Combine(System.AppContext.BaseDirectory, "assets");
         string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
-        var (groups, groupIssues) = ContentLoader.LoadGroups(root, Array.Empty<string>(), Read);
+        var (regions, groupIssues) = ContentLoader.LoadRegions(root, Array.Empty<string>(), Read, ContentPaths.BirdIds(root).ToList());
+        var groups = Region.AllGroups(regions);
         List<ValidationIssue> issues = groupIssues.ToList();
         foreach (string id in ContentPaths.BirdIds(root))
         {

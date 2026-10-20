@@ -2,114 +2,170 @@ using BirdsEverywhere.Domain;
 
 namespace BirdsEverywhere.Spawners;
 
-public sealed record SpawnAssignment(Habitat Habitat, BirdDefinition Bird, SpawnRule Rule)
+public sealed record SpawnAssignment(Habitat Habitat, BirdDefinition Bird, SpawnRule Rule, string Region = "", bool Unseen = false)
 {
     public string Location => Habitat.Location;
 }
 
+public sealed record BirdWeight(BirdDefinition Bird, int Rank, double Weight);
+
 public static class SpawnPlanner
 {
+    public const int MaxBirdsPerLocation = 3;
+
     private const double TripleChance = 0.02;
     private const double DoubleChance = 0.15;
     private const double LuckToTriple = 0.1;
-    private const double LuckToWeightExponent = 5;
+    private const double LevelToTriple = 0.002;
+    private const double LevelToDouble = 0.01;
+    private const double LuckToExponent = 5;
+    private const double LevelToExponent = 0.05;
+    private const double ExtraPerArea = 0.15;
+    private const double AreaReference = 3000;
+    private const double LuckToExtra = 0.5;
+    private const double LevelToExtra = 0.02;
 
-    private sealed record Candidate(BirdDefinition Bird, IReadOnlyList<SpawnRule> Rules);
+    private sealed record Candidate(BirdDefinition Bird, IReadOnlyList<SpawnRule> Rules, double Weight);
 
-    /// <param name="place">Commits an assignment and returns true, or false when the pattern finds no spot; the planner then tries the next location, rule or bird.</param>
-    public static IReadOnlyList<SpawnAssignment> Plan(IReadOnlyDictionary<string, BirdDefinition> catalog, IReadOnlySet<string> seenBirds,
-        Season season, Weather weather, int day, double luck, Random random, Func<Habitat, bool> habitatExists, Func<SpawnAssignment, bool> place)
+    /// <summary>Luck and birding level flatten the rank curve: the exponent drops below 1, so rarer species gain weight.</summary>
+    public static double Exponent(double luck, int level) =>
+        Math.Clamp(1 - LuckToExponent * luck - LevelToExponent * level, 0.3, 1.5);
+
+    /// <summary>Weight of each bird that has an eligible rule today: (ratio^rank x best rule weight)^exponent.</summary>
+    public static IReadOnlyList<BirdWeight> Weights(Region region, IEnumerable<BirdDefinition> birds,
+        Season season, Weather weather, int day, double luck, int level)
     {
-        int limit = Math.Max(1, catalog.Values.SelectMany(bird => bird.Rules).SelectMany(rule => rule.Locations)
-            .Select(key => Habitat.Parse(key).Location).Distinct(StringComparer.Ordinal).Count() / 2);
-        double exponent = Math.Clamp(1 - LuckToWeightExponent * luck, 0.5, 1.5);
-        List<SpawnAssignment> assigned = new();
-        HashSet<string> taken = new(StringComparer.Ordinal);
-
-        bool TryAssign(Candidate candidate, bool singleLocation)
+        double exponent = Exponent(luck, level);
+        List<BirdWeight> weights = new();
+        foreach (BirdDefinition bird in birds)
         {
-            foreach (SpawnRule rule in Utils.shuffleByWeights(random, candidate.Rules.ToList(), candidate.Rules.Select(r => (double)r.Weight).ToList()))
+            int rank = region.Species.ToList().IndexOf(bird.Id.Value);
+            IReadOnlyList<SpawnRule> rules = bird.EligibleRules(season, weather, day);
+            if (rank >= 0 && rules.Count > 0)
             {
-                bool placed = false;
-                foreach (string key in Utils.Shuffle(random, rule.Locations))
+                weights.Add(new BirdWeight(bird, rank, Math.Pow(Math.Pow(region.Ratio, rank) * rules.Max(rule => rule.Weight), exponent)));
+            }
+        }
+
+        return weights.OrderBy(weight => weight.Rank).ToList();
+    }
+
+    /// <summary>Plans assignments per region: unseen birds once per region, seen birds per location; tries another habitat or rule when placement fails.</summary>
+    public static IReadOnlyList<SpawnAssignment> Plan(IReadOnlyList<Region> regions, IReadOnlyDictionary<string, BirdDefinition> catalog,
+        IReadOnlySet<string> seenBirds, Season season, Weather weather, int day, double luck, int level, Random random,
+        Func<Habitat, bool> habitatExists, Func<SpawnAssignment, bool> place,
+        Func<string, int>? locationArea = null, Action<string>? skipped = null)
+    {
+        List<SpawnAssignment> assigned = new();
+
+        bool TryPlace(SpawnAssignment assignment)
+        {
+            string label = $"{assignment.Bird.Id.Value} / {assignment.Rule.Id}";
+            if (!habitatExists(assignment.Habitat))
+            {
+                skipped?.Invoke($"{label}: habitat {assignment.Habitat.Key} unavailable.");
+                return false;
+            }
+
+            if (!place(assignment))
+            {
+                skipped?.Invoke($"{label}: {assignment.Habitat.Key} placed nothing; trying next habitat.");
+                return false;
+            }
+
+            assigned.Add(assignment);
+            return true;
+        }
+
+        List<SpawnRule> ByWeight(IEnumerable<SpawnRule> rules)
+        {
+            List<SpawnRule> list = rules.ToList();
+            return Utils.ShuffleByWeights(random, list, list.Select(rule => rule.Weight).ToList());
+        }
+
+        List<Candidate> Ordered(IEnumerable<Candidate> pool)
+        {
+            List<Candidate> list = pool.ToList();
+            return Utils.ShuffleByWeights(random, list, list.Select(candidate => candidate.Weight).ToList());
+        }
+
+        foreach (Region region in regions)
+        {
+            List<Candidate> candidates = Weights(region, region.Species.Where(catalog.ContainsKey).Select(id => catalog[id]), season, weather, day, luck, level)
+                .Select(weight => new Candidate(weight.Bird, weight.Bird.EligibleRules(season, weather, day), weight.Weight))
+                .ToList();
+
+            int unseenTarget = UnseenCount(luck, level, random);
+            int unseenPlaced = 0;
+            foreach (Candidate candidate in Ordered(candidates.Where(c => !seenBirds.Contains(c.Bird.Id.Value))))
+            {
+                if (unseenPlaced >= unseenTarget)
                 {
-                    Habitat habitat = Habitat.Parse(key);
-                    if (assigned.Count >= limit || taken.Contains(habitat.Location) || !habitatExists(habitat))
-                    {
-                        continue;
-                    }
-
-                    SpawnAssignment assignment = new(habitat, candidate.Bird, rule);
-                    if (!place(assignment))
-                    {
-                        continue;
-                    }
-
-                    assigned.Add(assignment);
-                    taken.Add(habitat.Location);
-                    placed = true;
-                    if (singleLocation)
-                    {
-                        return true;
-                    }
+                    break;
                 }
 
+                bool placed = ByWeight(candidate.Rules).Any(rule =>
+                    Utils.Shuffle(random, rule.Locations).Select(Habitat.Parse).Any(habitat => TryPlace(new SpawnAssignment(habitat, candidate.Bird, rule, region.Id, Unseen: true))));
                 if (placed)
                 {
-                    return true;
+                    unseenPlaced++;
                 }
             }
 
-            return false;
-        }
-
-        List<Candidate> Ordered(bool seen)
-        {
-            List<Candidate> group = catalog.Values
-                .Where(bird => seenBirds.Contains(bird.Id.Value) == seen)
-                .OrderBy(bird => bird.Id.Value, StringComparer.Ordinal)
-                .Select(bird => new Candidate(bird, bird.EligibleRules(season, weather, day)))
-                .Where(candidate => candidate.Rules.Count > 0)
-                .ToList();
-            return Utils.shuffleByWeights(random, group, group.Select(c => Math.Pow(c.Rules.Sum(rule => rule.Weight), exponent)).ToList());
-        }
-
-        int unseenTarget = UnseenCount(luck, random);
-        int unseenPlaced = 0;
-        foreach (Candidate candidate in Ordered(seen: false))
-        {
-            if (assigned.Count >= limit || unseenPlaced >= unseenTarget)
+            List<Candidate> seen = candidates.Where(c => seenBirds.Contains(c.Bird.Id.Value)).ToList();
+            IEnumerable<string> locations = seen.SelectMany(c => c.Rules).SelectMany(rule => rule.Locations)
+                .Select(key => Habitat.Parse(key).Location).Distinct(StringComparer.Ordinal).OrderBy(name => name, StringComparer.Ordinal);
+            foreach (string location in locations)
             {
-                break;
-            }
+                int target = LocationCount(locationArea?.Invoke(location) ?? 0, luck, level, random);
+                int placedHere = 0;
+                foreach (Candidate candidate in Ordered(seen.Where(c => c.Rules.Any(rule => rule.Locations.Any(key => Habitat.Parse(key).Location == location)))))
+                {
+                    if (placedHere >= target)
+                    {
+                        break;
+                    }
 
-            if (TryAssign(candidate, singleLocation: true))
-            {
-                unseenPlaced++;
+                    bool placed = ByWeight(candidate.Rules).Any(rule =>
+                        Utils.Shuffle(random, rule.Locations).Select(Habitat.Parse).Where(habitat => habitat.Location == location)
+                            .Any(habitat => TryPlace(new SpawnAssignment(habitat, candidate.Bird, rule, region.Id, Unseen: false))));
+                    if (placed)
+                    {
+                        placedHere++;
+                    }
+                }
             }
-        }
-
-        foreach (Candidate candidate in Ordered(seen: true))
-        {
-            if (assigned.Count >= limit)
-            {
-                break;
-            }
-
-            TryAssign(candidate, singleLocation: false);
         }
 
         return assigned;
     }
 
-    public static int UnseenCount(double luck, Random random)
+    /// <summary>Unseen birds per region and day: usually 1, with luck and level adding chances of 2 or 3.</summary>
+    public static int UnseenCount(double luck, int level, Random random)
     {
         double roll = random.NextDouble();
-        if (roll < Math.Clamp(TripleChance + LuckToTriple * luck, 0, 1))
+        if (roll < Math.Clamp(TripleChance + LuckToTriple * luck + LevelToTriple * level, 0, 1))
         {
             return 3;
         }
 
-        return roll < Math.Clamp(DoubleChance + luck, 0, 1) ? 2 : 1;
+        return roll < Math.Clamp(DoubleChance + luck + LevelToDouble * level, 0, 1) ? 2 : 1;
+    }
+
+    /// <summary>Chance of each extra species at a location; larger maps, luck, and level raise it.</summary>
+    public static double ExtraChance(int area, double luck, int level) =>
+        Math.Clamp(ExtraPerArea * area / AreaReference + LuckToExtra * luck + LevelToExtra * level, 0, 0.9);
+
+    /// <summary>Seen species at a location: 1 plus up to two extras, each rolled at a falling chance.</summary>
+    public static int LocationCount(int area, double luck, int level, Random random)
+    {
+        double chance = ExtraChance(area, luck, level);
+        int count = 1;
+        while (count < MaxBirdsPerLocation && random.NextDouble() < chance / count)
+        {
+            count++;
+        }
+
+        return count;
     }
 }

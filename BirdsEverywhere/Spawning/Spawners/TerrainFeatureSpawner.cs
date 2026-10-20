@@ -1,9 +1,9 @@
+using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.TerrainFeatures;
 using static BirdsEverywhere.Spawners.Condition;
-using BirdsEverywhere.Domain;
 
 namespace BirdsEverywhere.Spawners;
 /// <summary>
@@ -17,16 +17,13 @@ public class TreeTrunkSpawner : TerrainFeatureSpawner
     /// Checks for valid tree.
     /// </summary>
 
-    public TreeTrunkSpawner()
-    {
-        condition = (location, index, position) => isEligibleTree(location, index, position);
-    }
+    public TreeTrunkSpawner() : base((location, index, _) => IsEligibleTree(location, index)) { }
 
-    public override List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor)
+    public override List<BirdPlacement> SpawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor, IReadOnlyCollection<Vector2>? avoid = null)
     {
         List<TerrainFeature> features = location.terrainFeatures.Pairs.Select(pair => pair.Value).ToList();
-        IEnumerable<int> trees = Enumerable.Range(0, features.Count).Where(index => isEligibleTree(location, index, Vector2.Zero));
-        return Placements(TileSelection.Features(trees, rule.GroupCount, random, (index, _) => features[index].Tile), location, data, rule, random, monitor);
+        IEnumerable<int> trees = Enumerable.Range(0, features.Count).Where(index => IsEligibleTree(location, index));
+        return Placements(TileSelection.Features(trees, rule.GroupCount, random, (index, _) => features[index].Tile, avoid), location, data, rule, random, monitor);
     }
 }
 
@@ -36,15 +33,12 @@ public class BushSpawner : TerrainFeatureSpawner
     /// Checks for valid bush with free path.
     /// </summary>
 
-    public BushSpawner()
-    {
-        condition = (location, index, position) => straightPathToBush(location, index, position);
-    }
+    public BushSpawner() : base(HasStraightPathToBush) { }
 
-    public override List<BirdPlacement> spawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor)
+    public override List<BirdPlacement> SpawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor, IReadOnlyCollection<Vector2>? avoid = null)
     {
         IEnumerable<int> bushes = Enumerable.Range(0, location.largeTerrainFeatures.Count).Where(index => location.largeTerrainFeatures[index] is Bush);
-        return Placements(TileSelection.Features(bushes, rule.GroupCount, random, (index, r) => PlaceNearBush(location, index, r)), location, data, rule, random, monitor);
+        return Placements(TileSelection.Features(bushes, rule.GroupCount, random, (index, r) => PlaceNearBush(location, index, r), avoid), location, data, rule, random, monitor);
     }
 
     private static Vector2? PlaceNearBush(GameLocation location, int index, Random random)
@@ -52,16 +46,21 @@ public class BushSpawner : TerrainFeatureSpawner
         Vector2 bush = location.largeTerrainFeatures[index].Tile;
         int distance = random.Next(5, 12);
         Vector2 position = new(bush.X + (random.NextDouble() < 0.5 ? distance : -distance), bush.Y);
-        return straightPathToBush(location, index, position) ? position : null;
+        return HasStraightPathToBush(location, index, position) ? position : null;
     }
 }
 
 public abstract class TerrainFeatureSpawner : Spawner
 {
-    public TerrainSpawnCondition condition = null!;
+    protected TerrainFeatureSpawner(TerrainSpawnCondition featureCondition)
+    {
+        FeatureCondition = featureCondition;
+    }
+
+    public TerrainSpawnCondition FeatureCondition { get; }
 
     public override bool IsStillValid(GameLocation location, BirdPlacement placement) =>
-        placement.FeatureIndex is int index && condition(location, index, placement.Tile);
+        placement.FeatureIndex is int index && FeatureCondition(location, index, placement.Tile);
 
     protected static List<BirdPlacement> Placements(List<(int Index, Vector2 Position)> placed, GameLocation location,
         BirdDefinition data, SpawnRule rule, Random random, IMonitor monitor)

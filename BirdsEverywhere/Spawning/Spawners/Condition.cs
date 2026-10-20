@@ -4,30 +4,28 @@ using StardewValley.TerrainFeatures;
 
 namespace BirdsEverywhere.Spawners;
 
-public class Condition
+public static class Condition
 {
     public delegate bool TileSpawnCondition(ILocationQuery location, Vector2 tile);
 
-    public static bool isValidGroundTile(ILocationQuery location, Vector2 tile) => location.IsGroundTile(tile);
+    public static bool IsValidGroundTile(ILocationQuery location, Vector2 tile) => location.IsGroundTile(tile);
 
-    public static bool isValidWaterTile(ILocationQuery location, Vector2 tile) => location.IsWaterTile(tile);
+    public static bool IsValidWaterTile(ILocationQuery location, Vector2 tile) => location.IsWaterTile(tile);
 
-    public static bool isValidWaterOrGroundTile(ILocationQuery location, Vector2 tile) =>
+    public static bool IsValidWaterOrGroundTile(ILocationQuery location, Vector2 tile) =>
         location.IsGroundTile(tile) || location.IsWaterTile(tile);
 
-    public static bool isSpawnableGroundTile(ILocationQuery location, Vector2 tile) => location.IsSpawnableGroundTile(tile);
+    public static bool IsValidSpawnableGroundTile(ILocationQuery location, Vector2 tile) => location.IsSpawnableGroundTile(tile);
 
     public delegate bool TerrainSpawnCondition(GameLocation location, int index, Vector2 position);
 
-    public static bool isEligibleTree(GameLocation location, int index, Vector2 position)
+    public static bool IsEligibleTree(GameLocation location, int index)
     {
         try
         {
-            TerrainFeature treeCandidate = location.terrainFeatures.Pairs.ElementAt(index).Value;
-
-            return treeCandidate is Tree &&
-            (treeCandidate as Tree).treeType.Value != Tree.leafyTree &&
-            (int)(treeCandidate as Tree).growthStage.Value >= 5;
+            return location.terrainFeatures.Pairs.ElementAt(index).Value is Tree tree
+                && tree.treeType.Value != Tree.leafyTree
+                && tree.growthStage.Value >= 5;
         }
         catch (ArgumentOutOfRangeException)
         {
@@ -35,7 +33,7 @@ public class Condition
         }
     }
 
-    public static bool straightPathToBush(GameLocation location, int index, Vector2 position)
+    public static bool HasStraightPathToBush(GameLocation location, int index, Vector2 position)
     {
         LargeTerrainFeature bush = location.largeTerrainFeatures[index];
         if (!(bush is Bush))

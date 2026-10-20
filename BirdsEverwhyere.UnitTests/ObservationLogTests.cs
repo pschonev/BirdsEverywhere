@@ -11,7 +11,7 @@ namespace BirdsEverwhyere.UnitTests;
 
 public class ObservationLogTests
 {
-    private static readonly JsonSerializerSettings SmapiSettings = JsonHelper.CreateDefaultSettings();
+    private static readonly JsonSerializerSettings _smapiSettings = JsonHelper.CreateDefaultSettings();
 
     private static ObservationData Observation(string player) =>
         new("Forest", new SDate(5, Season.Spring, 2), 630, player);
@@ -24,9 +24,9 @@ public class ObservationLogTests
         bool applied = ObservationLog.TryApply(log, "blue_tit", Observation("A"), out SaveData updated);
 
         Assert.That(applied, Is.True);
-        Assert.That(updated.logVersion, Is.EqualTo(1));
-        Assert.That(updated.seenBirds, Does.Contain("blue_tit"));
-        Assert.That(updated.birdObservations["blue_tit"].playerName, Is.EqualTo("A"));
+        Assert.That(updated.LogVersion, Is.EqualTo(1));
+        Assert.That(updated.SeenBirds, Does.Contain("blue_tit"));
+        Assert.That(updated.BirdObservations["blue_tit"].PlayerName, Is.EqualTo("A"));
     }
 
     [Test]
@@ -36,9 +36,9 @@ public class ObservationLogTests
 
         ObservationLog.TryApply(log, "blue_tit", Observation("A"), out _);
 
-        Assert.That(log.logVersion, Is.EqualTo(0));
-        Assert.That(log.seenBirds, Is.Empty);
-        Assert.That(log.birdObservations, Is.Empty);
+        Assert.That(log.LogVersion, Is.EqualTo(0));
+        Assert.That(log.SeenBirds, Is.Empty);
+        Assert.That(log.BirdObservations, Is.Empty);
     }
 
     [Test]
@@ -50,7 +50,7 @@ public class ObservationLogTests
 
         Assert.That(applied, Is.False);
         Assert.That(second, Is.SameAs(first));
-        Assert.That(second.birdObservations["blue_tit"].playerName, Is.EqualTo("A"));
+        Assert.That(second.BirdObservations["blue_tit"].PlayerName, Is.EqualTo("A"));
     }
 
     [Test]
@@ -59,8 +59,8 @@ public class ObservationLogTests
         ObservationLog.TryApply(new SaveData(), "blue_tit", Observation("A"), out SaveData afterA);
         ObservationLog.TryApply(afterA, "coal_tit", Observation("B"), out SaveData afterB);
 
-        Assert.That(afterB.seenBirds, Is.EquivalentTo(new[] { "blue_tit", "coal_tit" }));
-        Assert.That(afterB.logVersion, Is.EqualTo(2));
+        Assert.That(afterB.SeenBirds, Is.EquivalentTo(new[] { "blue_tit", "coal_tit" }));
+        Assert.That(afterB.LogVersion, Is.EqualTo(2));
     }
 
     [TestCase(0, DeltaStatus.Duplicate)]
@@ -69,7 +69,7 @@ public class ObservationLogTests
     [TestCase(5, DeltaStatus.Gap)]
     public void Check_ClassifiesDelta(int deltaVersion, DeltaStatus expected)
     {
-        SaveData log = new() { logVersion = 3 };
+        SaveData log = new() { LogVersion = 3 };
 
         Assert.That(ObservationLog.Check(log, deltaVersion), Is.EqualTo(expected));
     }
@@ -77,9 +77,9 @@ public class ObservationLogTests
     [Test]
     public void SaveData_LegacyJson_LoadsWithVersionZero()
     {
-        SaveData data = JsonConvert.DeserializeObject<SaveData>("{\"seenBirds\":[\"blue_tit\"],\"birdObservations\":{}}", SmapiSettings)!;
+        SaveData data = JsonConvert.DeserializeObject<SaveData>("{\"seenBirds\":[\"blue_tit\"],\"birdObservations\":{}}", _smapiSettings)!;
 
-        Assert.That(data.logVersion, Is.EqualTo(0));
+        Assert.That(data.LogVersion, Is.EqualTo(0));
     }
 
     [Test]
@@ -87,12 +87,12 @@ public class ObservationLogTests
     {
         ObservationAccepted message = new(IMessage.CurrentVersion, 7, "blue_tit", Observation("A"));
 
-        string json = JsonConvert.SerializeObject(message, SmapiSettings);
-        ObservationAccepted? read = JsonConvert.DeserializeObject<ObservationAccepted>(json, SmapiSettings);
+        string json = JsonConvert.SerializeObject(message, _smapiSettings);
+        ObservationAccepted? read = JsonConvert.DeserializeObject<ObservationAccepted>(json, _smapiSettings);
 
         Assert.That(read, Is.Not.Null);
         Assert.That(read!.Version, Is.EqualTo(IMessage.CurrentVersion));
         Assert.That(read.LogVersion, Is.EqualTo(7));
-        Assert.That(read.Details.observationDate, Is.EqualTo(new SDate(5, Season.Spring, 2)));
+        Assert.That(read.Details.ObservationDate, Is.EqualTo(new SDate(5, Season.Spring, 2)));
     }
 }
