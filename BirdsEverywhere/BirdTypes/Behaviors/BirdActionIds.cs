@@ -16,6 +16,8 @@ internal static class BirdActionIds
 
     public static IEnumerable<string> All => _byId.Keys;
 
+    public static bool TryParse(string id, out BirdAction action) => _byId.TryGetValue(id, out action);
+
     public static BirdAction Parse(string id) =>
         _byId.TryGetValue(id, out BirdAction action) ? action : throw new ArgumentOutOfRangeException(nameof(id), id, "Unknown routine action.");
 }

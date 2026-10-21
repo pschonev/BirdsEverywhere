@@ -13,7 +13,7 @@ public sealed record BirdPlacement(
     string BirdType,
     string SpawnPattern,
     Vector2 Tile,
-    int? FeatureIndex,
+    Vector2? FeatureTile,
     IReadOnlyList<IntRange> Times,
     string Texture,
     int Seed,

@@ -1,30 +1,17 @@
+using BirdsEverywhere.Spawners;
+using Microsoft.Xna.Framework;
 using StardewValley;
 using StardewValley.TerrainFeatures;
 
 namespace BirdsEverywhere.BirdTypes;
 
-/// <summary>Points a bird at a tree or bush; resolves to null when the location or feature is gone.</summary>
-internal readonly record struct TerrainAnchor(string? LocationName, int Index)
+/// <summary>Points a bird at a tree or bush by the feature's tile; resolves to null when the location or feature is gone or changed kind.</summary>
+internal readonly record struct TerrainAnchor(string? LocationName, Vector2 Tile)
 {
-    public Tree? ResolveTree()
-    {
-        GameLocation? location = ResolveLocation();
-        if (location is null || Index < 0 || Index >= location.terrainFeatures.Count())
-        {
-            return null;
-        }
-        return location.terrainFeatures.Pairs.ElementAt(Index).Value as Tree;
-    }
+    public Tree? ResolveTree() =>
+        ResolveLocation() is { } location && location.terrainFeatures.TryGetValue(Tile, out TerrainFeature? feature) ? feature as Tree : null;
 
-    public Bush? ResolveBush()
-    {
-        GameLocation? location = ResolveLocation();
-        if (location is null || Index < 0 || Index >= location.largeTerrainFeatures.Count)
-        {
-            return null;
-        }
-        return location.largeTerrainFeatures[Index] as Bush;
-    }
+    public Bush? ResolveBush() => ResolveLocation() is { } location ? Condition.BushAt(location, Tile) : null;
 
     private GameLocation? ResolveLocation() =>
         string.IsNullOrEmpty(LocationName) ? null : Game1.getLocationFromName(LocationName);

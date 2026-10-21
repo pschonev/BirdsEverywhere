@@ -122,7 +122,7 @@ public partial class ModEntry
         string candidates = spawner switch
         {
             TileSpawner tiles => $"{CountTiles(location, tiles.Restrict(rule, habitat.FishArea))} candidate tiles",
-            TreeTrunkSpawner => $"{Enumerable.Range(0, location.terrainFeatures.Count()).Count(index => Condition.IsEligibleTree(location, index))} eligible trees",
+            TreeTrunkSpawner => $"{location.terrainFeatures.Pairs.Count(pair => Condition.IsEligibleTree(pair.Value))} eligible trees",
             BushSpawner => $"{location.largeTerrainFeatures.Count(feature => feature is Bush)} bushes (needs a free straight path 5-11 tiles beside)",
             _ => "unknown candidates",
         };
@@ -169,8 +169,8 @@ public partial class ModEntry
             string surface = query.IsWaterTile(tile) ? "water" : "ground";
             string anchor = bird switch
             {
-                TreeTrunkBird tree => $" tree #{tree.Index}",
-                BushBird bush => $" bush #{bush.Index}",
+                TreeTrunkBird tree => $" tree at ({(int)tree.AnchorTile.X}, {(int)tree.AnchorTile.Y})",
+                BushBird bush => $" bush at ({(int)bush.AnchorTile.X}, {(int)bush.AnchorTile.Y})",
                 _ => "",
             };
             BirdPlacement? placement = placements?.FirstOrDefault(p => p.Seed == bird.BirdID);

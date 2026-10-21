@@ -130,12 +130,37 @@ public class CompositionTests
         });
     }
 
-    [TestCase(@"""actions"":{""sing"":{""do"":""stay"",""clip"":""stand""}}", "has no action 'sing'")]
+    [TestCase(@"""actions"":{""sing"":{""do"":""walk"",""clip"":""walk"",""speed"":1,""durationMs"":[100,200]}}", "must be 'stay' with a clip")]
     [TestCase(@"""actions"":{""walk"":{""do"":""stay""}}", "runs 'walk' as 'walk', not 'stay'")]
     [TestCase(@"""actions"":{""flee"":{""speed"":null}}", "needs clip, speed and climb")]
     public void ActionOverride_Errors(string actions, string message) =>
         Assert.That(Load(FixtureSpecies.Replace(@"""sounds""", actions + @",""sounds""", StringComparison.Ordinal)).Issues,
             Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Message.Contains(message)));
+
+    [Test]
+    public void CustomAction_OnTrunkBirdIsAnError() =>
+        Assert.That(Load(@"{""id"":""test"",""name"":""Test"",""scName"":""Testus"",""template"":""base"",
+            ""defaults"":{""birdType"":""TreeTrunkBird"",""spawnPattern"":""TreeTrunkSpawner"",""actions"":{""sing"":{""do"":""stay"",""clip"":""peck""}}}}").Issues,
+            Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Message.Contains("no idle routine for custom actions")));
+
+    [Test]
+    public void CustomStayAction_IsPickedAndPlaysItsClip()
+    {
+        (BirdDefinition? definition, IReadOnlyList<ValidationIssue> issues) = Load(FixtureSpecies.Replace(
+            @"""pick"":{""walk"":3,""peck"":1}", @"""pick"":{""sing"":1}", StringComparison.Ordinal).Replace(@"""sounds"":{",
+            @"""actions"":{""sing"":{""do"":""stay"",""clip"":""peck"",""sound"":""song""}},""sounds"":{""song"":""crow"",", StringComparison.Ordinal));
+        Assert.That(issues.Where(issue => issue.Severity != IssueSeverity.Info), Is.Empty);
+        LandBird bird = new() { BirdID = 42, State = BehaviorStatus.Stopped, IsReplica = true, Services = TestBirds.Services,
+            Composition = definition!.Rules.Single().Composition!, sprite = new AnimatedSprite(), IdleRevision = 1, IdleCue = new IdleCue(0, "sing", 3) };
+
+        bird.update(new GameTime(TimeSpan.Zero, TimeSpan.FromMilliseconds(16)), null!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(bird.State, Is.EqualTo(BehaviorStatus.Stopped));
+            Assert.That(bird.sprite.CurrentAnimation, Is.Not.Null.And.Not.Empty);
+        });
+    }
 
     [Test]
     public void ActionWalkSpeed_DrivesFixtureBird()
@@ -178,7 +203,7 @@ public class CompositionTests
         BirdComposition fromPlan = MessageJson.Deserialize<DailySpawnPlan>(MessageJson.Serialize(plan)).Locations["Forest"][0].Composition!;
         LandBird bird = new() { BirdID = 42, Composition = composition, sprite = new AnimatedSprite() };
         // Full bird deserialization loads textures; the composition token is what the reader binds.
-        BirdComposition fromBird = Newtonsoft.Json.Linq.JArray.Parse(MessageJson.Serialize(new List<BirdCritter> { bird }))[0]["composition"]!.ToObject<BirdComposition>()!;
+        BirdComposition fromBird = Newtonsoft.Json.Linq.JArray.Parse(BirdSnapshots.Serialize(new[] { bird }))[0]["Composition"]!.ToObject<BirdComposition>()!;
 
         foreach (BirdComposition copy in new[] { fromPlan, fromBird })
         {

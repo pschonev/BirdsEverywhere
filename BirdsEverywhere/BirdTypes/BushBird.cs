@@ -1,6 +1,5 @@
 using BirdsEverywhere.BirdTypes.Behaviors;
 using Microsoft.Xna.Framework;
-using Newtonsoft.Json;
 using StardewValley;
 using StardewValley.TerrainFeatures;
 
@@ -11,14 +10,20 @@ internal sealed class BushBird : BirdCritter
     private Bush? _bush;
 
     public override string BirdTypeName { get; } = "BushBird";
-    [JsonProperty("index")]
-    public int Index { get; set; }
-    [JsonProperty("locationName")]
+    public Vector2 AnchorTile { get; set; }
     public string? LocationName { get; set; }
-    [JsonProperty("flightDistance")]
     public int FlightDistance { get; set; }
 
     public BushBird() { }
+
+    internal override BirdState CaptureExtras(BirdState state) =>
+        state with { AnchorTile = AnchorTile, LocationName = LocationName, FlightDistance = FlightDistance };
+
+    internal override void RestoreExtras(BirdState state)
+    {
+        SetAnchor(state.AnchorTile ?? Vector2.Zero, state.LocationName);
+        FlightDistance = state.FlightDistance;
+    }
 
     public BushBird(int tileX, int tileY, string birdName, string texture, BirdServices services)
         : base(0, tileX, tileY, birdName, texture, services)
@@ -27,11 +32,11 @@ internal sealed class BushBird : BirdCritter
         sprite.loop = true;
     }
 
-    public BushBird SetAnchor(int index, string? locationName)
+    public BushBird SetAnchor(Vector2 tile, string? locationName)
     {
-        Index = index;
+        AnchorTile = tile;
         LocationName = locationName;
-        _bush = new TerrainAnchor(locationName, index).ResolveBush();
+        _bush = new TerrainAnchor(locationName, tile).ResolveBush();
         if (_bush == null)
         {
             return this;

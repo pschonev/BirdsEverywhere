@@ -51,11 +51,24 @@ public static class ContentValidator
         {
             report(IssueSeverity.Error, routinePath, $"{rule.BirdType} has no idle routine.");
         }
+
+        Dictionary<string, string> sounds = new(profile.Sounds, StringComparer.Ordinal);
+        foreach ((string role, string cue) in rule.Sounds ?? new Dictionary<string, string>())
+        {
+            sounds[role] = cue;
+        }
+
+        Dictionary<string, ActionDefinition> actions = Actions(rule, path, file, profile, definitions, sounds, report);
+        foreach (string role in (rule.Sounds?.Keys ?? Enumerable.Empty<string>()).Where(role => !profile.Sounds.ContainsKey(role) && actions.Values.All(action => action.Sound != role)))
+        {
+            report(IssueSeverity.Warn, $"{path}.sounds.{role}", $"{rule.BirdType} never plays sound role '{role}'. Known: {string.Join(", ", profile.Sounds.Keys)}.");
+        }
         if (routine is not null)
         {
-            foreach (string action in routine.Pick.Select(option => option.Id).Distinct().Where(action => !profile.Actions.Contains(action)))
+            List<string> pickable = profile.Actions.Concat(actions.Keys.Where(action => !profile.ActionPrimitives.ContainsKey(action))).ToList();
+            foreach (string action in routine.Pick.Select(option => option.Id).Distinct().Where(action => !pickable.Contains(action)))
             {
-                report(IssueSeverity.Error, routinePath + ".pick", $"{rule.BirdType} cannot perform action '{action}'. Known: {string.Join(", ", profile.Actions)}.");
+                report(IssueSeverity.Error, routinePath + ".pick", $"{rule.BirdType} cannot perform action '{action}'. Known: {string.Join(", ", pickable)}.");
             }
             foreach ((string action, IReadOnlyList<WeightedId> options) in routine.Next)
             {
@@ -71,17 +84,7 @@ public static class ContentValidator
             }
         }
 
-        Dictionary<string, string> sounds = new(profile.Sounds, StringComparer.Ordinal);
-        foreach ((string role, string cue) in rule.Sounds ?? new Dictionary<string, string>())
-        {
-            if (!profile.Sounds.ContainsKey(role))
-            {
-                report(IssueSeverity.Warn, $"{path}.sounds.{role}", $"{rule.BirdType} never plays sound role '{role}'. Known: {string.Join(", ", profile.Sounds.Keys)}.");
-            }
-            sounds[role] = cue;
-        }
-
-        return new BirdComposition(routine, sounds, Actions(rule, path, file, profile, definitions, sounds, report));
+        return new BirdComposition(routine, sounds, actions);
     }
 
     private static Dictionary<string, ActionDefinition> Actions(SpawnRuleJson rule, string path, string file, BirdTypeProfile profile,
@@ -97,7 +100,35 @@ public static class ContentValidator
         JObject overrides = rule.Actions ?? new JObject();
         foreach (JProperty extra in overrides.Properties().Where(entry => !profile.ActionPrimitives.ContainsKey(entry.Name)))
         {
-            report(IssueSeverity.Error, $"{path}.actions.{extra.Name}", $"{rule.BirdType} has no action '{extra.Name}'. Known: {string.Join(", ", profile.ActionPrimitives.Keys)}.");
+            string actionPath = $"{path}.actions.{extra.Name}";
+            if (profile.DefaultRoutine is null)
+            {
+                report(IssueSeverity.Error, actionPath, $"{rule.BirdType} has no action '{extra.Name}' and no idle routine for custom actions. Known: {string.Join(", ", profile.ActionPrimitives.Keys)}.");
+                continue;
+            }
+            if (extra.Value is not JObject custom)
+            {
+                report(IssueSeverity.Error, actionPath, "Action must be an object.");
+                continue;
+            }
+            try
+            {
+                ActionDefinition action = ActionLoader.Parse(custom, file, actionPath);
+                if (action.Do != "stay" || action.Clip is null)
+                {
+                    report(IssueSeverity.Error, actionPath, $"Custom action '{extra.Name}' must be 'stay' with a clip. Built-in: {string.Join(", ", profile.ActionPrimitives.Keys)}.");
+                    continue;
+                }
+                if (action.Sound is { } role && !sounds.ContainsKey(role))
+                {
+                    report(IssueSeverity.Warn, actionPath + ".sound", $"Sound role '{role}' has no cue; the action is silent.");
+                }
+                actions[extra.Name] = action;
+            }
+            catch (FormatException exception)
+            {
+                report(IssueSeverity.Error, actionPath, exception.Message);
+            }
         }
 
         foreach ((string id, string primitive) in profile.ActionPrimitives)

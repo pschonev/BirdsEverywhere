@@ -1,7 +1,6 @@
 using BirdsEverywhere.BirdTypes.Behaviors;
 using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework;
-using Newtonsoft.Json;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
 using StardewValley.TerrainFeatures;
@@ -15,14 +14,20 @@ internal sealed class TreeTrunkBird : BirdCritter
     private Tree? _tree;
 
     public override string BirdTypeName { get; } = "TreeTrunkBird";
-    [JsonProperty("index")]
-    public int Index { get; set; }
-    [JsonProperty("locationName")]
+    public Vector2 AnchorTile { get; set; }
     public string? LocationName { get; set; }
-    [JsonProperty("peckTimer")]
     public int PeckTimer { get; set; }
 
     public TreeTrunkBird() { }
+
+    internal override BirdState CaptureExtras(BirdState state) =>
+        state with { AnchorTile = AnchorTile, LocationName = LocationName, PeckTimer = PeckTimer };
+
+    internal override void RestoreExtras(BirdState state)
+    {
+        PeckTimer = state.PeckTimer;
+        SetAnchor(state.AnchorTile ?? Vector2.Zero, state.LocationName);
+    }
 
     public TreeTrunkBird(int tileX, int tileY, string birdName, string texture, BirdServices services)
         : base(0, tileX, tileY, birdName, texture, services, 16, 16)
@@ -31,11 +36,11 @@ internal sealed class TreeTrunkBird : BirdCritter
         startingPosition = position;
     }
 
-    public TreeTrunkBird SetAnchor(int index, string? locationName)
+    public TreeTrunkBird SetAnchor(Vector2 tile, string? locationName)
     {
-        Index = index;
+        AnchorTile = tile;
         LocationName = locationName;
-        _tree = new TerrainAnchor(locationName, index).ResolveTree();
+        _tree = new TerrainAnchor(locationName, tile).ResolveTree();
         return this;
     }
 

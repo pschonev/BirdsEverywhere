@@ -1,7 +1,6 @@
 using BirdsEverywhere.BirdTypes.Behaviors;
 using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework;
-using Newtonsoft.Json;
 using StardewValley;
 
 namespace BirdsEverywhere.BirdTypes;
@@ -13,12 +12,18 @@ internal sealed class LandBird : BirdCritter
     private IReadOnlyList<IBirdBehavior>? _behaviors;
 
     public override string BirdTypeName { get; } = "LandBird";
-    [JsonProperty("flightOffset")]
     public float FlightOffset { get; set; }
-    [JsonProperty("walkTimer")]
     public int WalkTimer { get; set; }
 
     public LandBird() { }
+
+    internal override BirdState CaptureExtras(BirdState state) => state with { FlightOffset = FlightOffset, WalkTimer = WalkTimer };
+
+    internal override void RestoreExtras(BirdState state)
+    {
+        FlightOffset = state.FlightOffset;
+        WalkTimer = state.WalkTimer;
+    }
 
     public LandBird(int tileX, int tileY, string birdName, string texture, BirdServices services, BehaviorStatus state = BehaviorStatus.Pecking)
         : base(0, tileX, tileY, birdName, texture, services)
@@ -50,7 +55,7 @@ internal sealed class LandBird : BirdCritter
         Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
         BirdAction idleAction = AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
-        _behaviors ??= BirdBehaviors.Land(IdleRoutine, Action("sleep").EndChance ?? 0, Action("walk").EndChance);
+        _behaviors ??= BirdBehaviors.Land(Action("sleep").EndChance ?? 0, Action("walk").EndChance);
         Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(_behaviors, context), threat, environment);
 
         switch (State)
