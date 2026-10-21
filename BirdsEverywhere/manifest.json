@@ -1,9 +1,9 @@
 ﻿{
-  "Name": "BirdsEverywhere",
-  "Author": "Ragoo",
+  "Name": "Birding",
+  "Author": "pschonev",
   "Version": "%ProjectVersion%",
   "Description": "Adds many birds to the game and allows tracking observations.",
-  "UniqueID": "Ragoo.BirdsEverywhere",
+  "UniqueID": "pschonev.Birding",
   "EntryDll": "BirdsEverywhere.dll",
   "MinimumApiVersion": "4.1.0",
   "UpdateKeys": []
