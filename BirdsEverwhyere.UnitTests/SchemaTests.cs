@@ -19,7 +19,7 @@ public class SchemaTests
     private static Dictionary<string, JsonSchema> LoadSchemas()
     {
         BuildOptions build = new() { SchemaRegistry = new SchemaRegistry() };
-        return new[] { "common", "routine", "rule", "regions", "bird", "template", "compat", "layout" }.ToDictionary(
+        return new[] { "common", "routine", "action", "rule", "regions", "bird", "template", "compat", "layout" }.ToDictionary(
             name => name,
             name => JsonSchema.FromFile(Path.Combine(_schemasDir, $"{name}.schema.json"), build));
     }
@@ -38,6 +38,7 @@ public class SchemaTests
         ["compat"] = "compat",
         ["layouts"] = "layout",
         ["routines"] = "routine",
+        ["actions"] = "action",
     };
 
     /// <summary>Schema for an asset path relative to <c>assets/</c>; null if no schema covers it.</summary>
@@ -135,6 +136,23 @@ public class SchemaTests
     [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""cooldown"":{}}", false)]
     public void Routine_SchemaAndLoaderAgree(string json, bool valid) =>
         AssertAgreement("routine", json, valid, () => RoutineLoader.Parse(Newtonsoft.Json.Linq.JToken.Parse(json), "x.json", "$"));
+
+    [TestCase(@"{""a"":{""do"":""stay"",""clip"":""peck""}}", true)]
+    [TestCase(@"{""a"":{""do"":""walk"",""clip"":""walk"",""speed"":1,""durationMs"":[500,1400,100]}}", true)]
+    [TestCase(@"{""a"":{""do"":""walk"",""clip"":""walk"",""speed"":2,""endChance"":0.005}}", true)]
+    [TestCase(@"{""a"":{""do"":""flyOff"",""clip"":""fly"",""speed"":6,""climb"":2,""sound"":""alarm"",""soundChance"":0.85}}", true)]
+    [TestCase(@"{""a"":{""do"":""hop"",""impulse"":2,""turn"":true}}", true)]
+    [TestCase(@"{""a"":{""do"":""fly""}}", false)]
+    [TestCase(@"{""a"":{""clip"":""peck""}}", false)]
+    [TestCase(@"{""a"":{""do"":""stay""}}", false)]
+    [TestCase(@"{""a"":{""do"":""walk"",""clip"":""walk"",""speed"":1}}", false)]
+    [TestCase(@"{""a"":{""do"":""hop""}}", false)]
+    [TestCase(@"{""a"":{""do"":""flyOff"",""clip"":""fly"",""speed"":6}}", false)]
+    [TestCase(@"{""a"":{""do"":""stay"",""clip"":""peck"",""soundChance"":2}}", false)]
+    [TestCase(@"{""a"":{""do"":""stay"",""clip"":""peck"",""speed"":-1}}", false)]
+    [TestCase(@"{""a"":{""do"":""stay"",""clip"":""peck"",""extra"":1}}", false)]
+    public void Action_SchemaAndLoaderAgree(string json, bool valid) =>
+        AssertAgreement("action", json, valid, () => ActionLoader.ParseSet(Newtonsoft.Json.Linq.JObject.Parse(json), "x.json"));
 
     private static void AssertAgreement(string schemaName, string json, bool valid, Action load)
     {

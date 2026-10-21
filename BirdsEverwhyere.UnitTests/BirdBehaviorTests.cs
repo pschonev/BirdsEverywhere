@@ -21,8 +21,11 @@ internal sealed class BirdBehaviorTests
         public override int Next(int maxValue) => _int;
     }
 
+    private static readonly IReadOnlyList<IBirdBehavior> _land = BirdBehaviors.Land(TestBirds.Services.Routines["land_idle"], 0.003, walkStopChance: null);
+    private static readonly IReadOnlyList<IBirdBehavior> _waterLand = BirdBehaviors.WaterLand(TestBirds.Services.Routines["waterland_idle"], 0.005);
+
     private static BirdAction Decide(BehaviorStatus state, bool threat = false, bool idle = true, bool airborne = false, double roll = 0.0, int pick = 0) =>
-        BirdBehaviors.Decide(BirdBehaviors.Land, new BirdContext(state, threat, idle, airborne, new FixedRandom(roll, pick)));
+        BirdBehaviors.Decide(_land, new BirdContext(state, threat, idle, airborne, new FixedRandom(roll, pick)));
 
     [TestCase(BehaviorStatus.Stopped)]
     [TestCase(BehaviorStatus.Sleeping)]
@@ -61,7 +64,7 @@ internal sealed class BirdBehaviorTests
         Assert.That(Decide(state), Is.EqualTo(BirdAction.None));
 
     private static BirdAction DecideWaterLand(BehaviorStatus state, bool threat = false, bool idle = true, double roll = 0.0, int pick = 0) =>
-        BirdBehaviors.Decide(BirdBehaviors.WaterLand, new BirdContext(state, threat, idle, false, new FixedRandom(roll, pick)));
+        BirdBehaviors.Decide(_waterLand, new BirdContext(state, threat, idle, false, new FixedRandom(roll, pick)));
 
     [TestCase(BehaviorStatus.Stopped)]
     [TestCase(BehaviorStatus.Swimming)]

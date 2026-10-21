@@ -1,0 +1,7 @@
+{
+    "flee": {
+        "do": "runToBush",
+        "clip": "run",
+        "speed": 6
+    }
+}

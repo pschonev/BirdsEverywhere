@@ -32,7 +32,7 @@ public class CompositionTests
             [ContentPaths.Template(Root, "base")] = _template,
         };
         (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, _, _) = ContentLoader.LoadBird(Root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Definitions,
             path => files.GetValueOrDefault(path), _ => true);
         return (bird, issues);
     }
@@ -110,6 +110,56 @@ public class CompositionTests
         bird.sprite.CurrentAnimation[^1].frameStartBehavior(null!);
 
         Assert.That(bird.State, Is.EqualTo(BehaviorStatus.Sleeping));
+    }
+
+    [Test]
+    public void ActionOverride_ChangesSingleFieldsAndKeepsTheRest()
+    {
+        (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues) = Load(FixtureSpecies.Replace(@"""sounds""",
+            @"""actions"":{""flee"":{""speed"":3,""sound"":null},""walk"":{""durationMs"":[200,400]}},""sounds""", StringComparison.Ordinal));
+        Assert.That(issues.Where(issue => issue.Severity != IssueSeverity.Info), Is.Empty);
+        IReadOnlyDictionary<string, ActionDefinition> actions = bird!.Rules.Single().Composition!.Actions!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(actions["flee"].Speed, Is.EqualTo(3));
+            Assert.That(actions["flee"].Climb, Is.EqualTo(2));
+            Assert.That(actions["flee"].Sound, Is.Null);
+            Assert.That(actions["walk"].DurationMs, Is.EqualTo(new StepRange(200, 400, 1)));
+            Assert.That(actions["sleep"].EndChance, Is.EqualTo(0.003));
+        });
+    }
+
+    [TestCase(@"""actions"":{""sing"":{""do"":""stay"",""clip"":""stand""}}", "has no action 'sing'")]
+    [TestCase(@"""actions"":{""walk"":{""do"":""stay""}}", "runs 'walk' as 'walk', not 'stay'")]
+    [TestCase(@"""actions"":{""flee"":{""speed"":null}}", "needs clip, speed and climb")]
+    public void ActionOverride_Errors(string actions, string message) =>
+        Assert.That(Load(FixtureSpecies.Replace(@"""sounds""", actions + @",""sounds""", StringComparison.Ordinal)).Issues,
+            Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Message.Contains(message)));
+
+    [Test]
+    public void ActionWalkSpeed_DrivesFixtureBird()
+    {
+        BirdComposition composition = FixtureComposition();
+        Dictionary<string, ActionDefinition> actions = new(composition.Actions!) { ["walk"] = composition.Actions!["walk"] with { DurationMs = new StepRange(300, 300, 1) } };
+        LandBird bird = new() { BirdID = 42, Services = TestBirds.Services, Composition = composition with { Actions = actions }, sprite = new AnimatedSprite() };
+
+        bird.StartWalk();
+
+        Assert.That(bird.WalkTimer, Is.EqualTo(300));
+    }
+
+    [TestCase("LandBird", "land_actions")]
+    [TestCase("WaterLandBird", "waterland_actions")]
+    [TestCase("TreeTrunkBird", "trunk_actions")]
+    [TestCase("BushBird", "bush_actions")]
+    public void ShippedActionSets_CoverTheirBirdType(string birdType, string set)
+    {
+        BirdTypeProfile profile = BirdTypeProfiles.ByBirdType[birdType];
+        IReadOnlyDictionary<string, ActionDefinition> actions = TestBirds.Services.Actions[set];
+
+        Assert.That(profile.DefaultActions, Is.EqualTo(set));
+        Assert.That(actions.ToDictionary(entry => entry.Key, entry => entry.Value.Do), Is.EquivalentTo(profile.ActionPrimitives));
     }
 
     [Test]

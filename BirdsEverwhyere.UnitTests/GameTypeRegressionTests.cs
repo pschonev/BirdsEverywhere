@@ -74,7 +74,7 @@ public class GameTypeRegressionTests
     [Test]
     public void ReplicaState_UsesOwnerPoseAndInterpolatesPosition()
     {
-        LandBird replica = new() { IsReplica = true, position = new Vector2(0, 0), sprite = new AnimatedSprite() };
+        LandBird replica = new() { IsReplica = true, position = new Vector2(0, 0), sprite = new AnimatedSprite(), Services = TestBirds.Services };
         LandBird owner = new()
         {
             BirdID = 23,
@@ -111,7 +111,7 @@ public class GameTypeRegressionTests
             new(6, 70), new(7, 60)
         });
         owner.sprite.loop = true;
-        LandBird replica = new() { IsReplica = true, sprite = new AnimatedSprite() };
+        LandBird replica = new() { IsReplica = true, sprite = new AnimatedSprite(), Services = TestBirds.Services };
         GameTime tick = new(TimeSpan.Zero, TimeSpan.FromMilliseconds(75));
 
         AnimatedSprite firstSprite = new();
@@ -161,7 +161,7 @@ public class GameTypeRegressionTests
     [Test]
     public void ReplicaIdle_FleeRevokesPendingCue()
     {
-        LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite() };
+        LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite(), Services = TestBirds.Services };
         LandBird owner = new() { State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 1,
             IdleCue = new IdleCue(12, BirdAction.Sleep, 4), sprite = new AnimatedSprite() };
         replica.ApplyReplicaState(owner);
@@ -179,7 +179,7 @@ public class GameTypeRegressionTests
     [Test]
     public void ReplicaRun_ContinuesWithoutSnapshots()
     {
-        BushBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite() };
+        BushBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite(), Services = TestBirds.Services };
         BushBird owner = new() { State = BehaviorStatus.Running, position = new Vector2(100, 0), flip = true,
             sprite = new AnimatedSprite() };
         replica.ApplyReplicaState(owner);
@@ -202,7 +202,7 @@ public class GameTypeRegressionTests
             new(0, 30), new(1, 30, secondaryArm: false, flip: false, _ => callbackCalled = true)
         });
         animation.loop = true;
-        LandBird replica = new() { IsReplica = true, sprite = new AnimatedSprite() };
+        LandBird replica = new() { IsReplica = true, sprite = new AnimatedSprite(), Services = TestBirds.Services };
         LandBird owner = new() { State = BehaviorStatus.FlyingAway, sprite = animation };
 
         replica.ApplyReplicaState(owner);

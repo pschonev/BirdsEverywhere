@@ -1,10 +1,12 @@
 namespace BirdsEverywhere.Content;
 
-/// <summary>Hardcoded composition of a shipped bird type until bodies move to JSON: layout, clips and events it plays, routine actions, follow-ups allowed in routine <c>next</c>, and default sounds.</summary>
+/// <summary>Hardcoded composition of a shipped bird type until bodies move to JSON. <c>Poses</c> are single-cell clips shown directly; <c>ActionPrimitives</c> maps each action id the class runs to its primitive; <c>Actions</c> are the ids a routine may pick.</summary>
 public sealed record BirdTypeProfile(
     string LayoutId,
-    IReadOnlyList<string> Clips,
+    IReadOnlyList<string> Poses,
     IReadOnlyList<string> Events,
+    IReadOnlyDictionary<string, string> ActionPrimitives,
+    string DefaultActions,
     IReadOnlyList<string> Actions,
     IReadOnlyDictionary<string, IReadOnlyList<string>> FollowUps,
     string? DefaultRoutine,

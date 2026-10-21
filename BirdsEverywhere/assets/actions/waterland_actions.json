@@ -1,0 +1,33 @@
+{
+    "peck": {
+        "do": "stay",
+        "clip": "peck"
+    },
+    "rest": {
+        "do": "stay",
+        "clip": "rest"
+    },
+    "hop": {
+        "do": "hop",
+        "clip": "hop",
+        "impulse": 4
+    },
+    "walk": {
+        "do": "walk",
+        "clip": "walk",
+        "speed": 2,
+        "endChance": 0.005
+    },
+    "swim": {
+        "do": "swim",
+        "clip": "swim"
+    },
+    "flee": {
+        "do": "flyOff",
+        "clip": "fly",
+        "speed": 4,
+        "climb": 2,
+        "sound": "alarm",
+        "soundChance": 0.25
+    }
+}

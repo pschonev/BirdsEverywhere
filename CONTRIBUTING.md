@@ -98,12 +98,19 @@ flowchart LR
 - `routine` is a shared id from `assets/routines/` (schema `schemas/routine.schema.json`) or an inline object. Without it the bird type's default applies (`land_idle`, `waterland_idle`). Tree-trunk and bush birds have no idle routine.
 - `pick` weights are integers; one roll picks an action. Allowed actions and `next` follow-ups per bird type are in `BirdTypeProfiles.ByBirdType`; the validator lists them on error.
 - `sounds` maps roles (`alarm`, `flap`, `peck`) to vanilla cue names and merges over the bird type's defaults; `""` silences a role. Changing a shipped routine file changes the idle-schedule goldens in `AnimationCharacterizationTests`.
+- `actions` overrides single fields of the bird type's action set (`assets/actions/<type>_actions.json`, schema `schemas/action.schema.json`), e.g. a shyer, faster flier and a shorter walk:
+
+  ```json
+  "actions": { "flee": { "speed": 8, "soundChance": 1 }, "walk": { "durationMs": [300, 800, 100] } }
+  ```
+
+  Action ids and their primitive are fixed per bird type for now (`BirdTypeProfiles.ByBirdType`); each primitive has required fields (e.g. `flyOff` needs `clip`, `speed`, `climb`).
 
 **New behavior** (a new primitive, event, trigger or bird type) needs C#; follow [REFACTOR.md Phase 10](docs/REFACTOR.md#10-fully-modular-config-driven-birds) for where it goes.
 
 ## Editor JSON schemas
 
-`schemas/` holds JSON Schemas for bird, template, regions, compat, layout and routine files, with shared definitions in `common.schema.json`. They are editor-only, not shipped, and checked against all shipped assets by `SchemaTests`; a test fails if any `assets/**/*.json` has no schema, and a table checks that schema and loader agree. Runtime validation stays in `ContentValidator`/`LayoutValidator`. Content files must not contain `$schema`; `.vscode/settings.json` maps the schemas for VS Code. Update the schemas when changing content fields or enums.
+`schemas/` holds JSON Schemas for bird, template, regions, compat, layout, routine and action files, with shared definitions in `common.schema.json`. They are editor-only, not shipped, and checked against all shipped assets by `SchemaTests`; a test fails if any `assets/**/*.json` has no schema, and a table checks that schema and loader agree. Runtime validation stays in `ContentValidator`/`LayoutValidator`. Content files must not contain `$schema`; `.vscode/settings.json` maps the schemas for VS Code. Update the schemas when changing content fields or enums.
 
 ## Translations
 

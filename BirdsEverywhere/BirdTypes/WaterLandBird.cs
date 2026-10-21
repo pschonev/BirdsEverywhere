@@ -1,4 +1,5 @@
 using BirdsEverywhere.BirdTypes.Behaviors;
+using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework;
 using StardewValley;
 
@@ -7,6 +8,9 @@ namespace BirdsEverywhere.BirdTypes;
 internal sealed class WaterLandBird : BirdCritter
 {
     private const int ThreatRadiusTiles = 4;
+
+    private IReadOnlyList<IBirdBehavior>? _behaviors;
+    private int? _walkTimer;
 
     public override string BirdTypeName { get; } = "WaterLandBird";
 
@@ -22,11 +26,12 @@ internal sealed class WaterLandBird : BirdCritter
 
     public override bool update(GameTime time, GameLocation environment)
     {
+        ActionDefinition flee = Action("flee");
         if (IsReplica)
         {
             ApplyReplicaIdle(AdvanceReplicaIdle());
-            return UpdateReplica(time, State == BehaviorStatus.FlyingAway ? new Vector2(flip ? 4f : -4f, 0f) : default,
-                State == BehaviorStatus.FlyingAway ? -2f : 0f);
+            return UpdateReplica(time, State == BehaviorStatus.FlyingAway ? new Vector2(flip ? flee.Speed!.Value : -flee.Speed!.Value, 0f) : default,
+                State == BehaviorStatus.FlyingAway ? -flee.Climb!.Value : 0f);
         }
 
         Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
@@ -36,19 +41,20 @@ internal sealed class WaterLandBird : BirdCritter
         }
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
         BirdAction idleAction = AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
-        Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(BirdBehaviors.WaterLand, context), threat, environment);
+        _behaviors ??= BirdBehaviors.WaterLand(IdleRoutine, Action("walk").EndChance);
+        Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(_behaviors, context), threat, environment);
 
         switch (State)
         {
             case BehaviorStatus.Walking:
-                Walk(environment);
+                Walk(time, environment);
                 break;
             case BehaviorStatus.Swimming:
                 Swim(time, environment);
                 break;
             case BehaviorStatus.FlyingAway:
-                position.X += flip ? 4f : -4f;
-                yOffset -= 2f;
+                position.X += flip ? flee.Speed!.Value : -flee.Speed!.Value;
+                yOffset -= flee.Climb!.Value;
                 break;
             case BehaviorStatus.Stopped:
                 if (sprite.CurrentAnimation == null)
@@ -109,50 +115,58 @@ internal sealed class WaterLandBird : BirdCritter
 
     private void StartFlee(Character threat, GameLocation environment)
     {
-        if (Rng.NextDouble() < 0.25)
-        {
-            PlaySound("alarm");
-        }
+        PlayActionSound(Action("flee"));
         State = BehaviorStatus.FlyingAway;
         AddBirdObservation(BirdName, environment.Name);
         flip = threat.Position.X <= position.X;
         StartFlyAnimation();
     }
 
-    internal void StartFlyAnimation() => PlayClip("fly", VisualRng);
+    internal void StartFlyAnimation() => PlayClip(Action("flee").Clip!, VisualRng);
 
-    internal void StartRest() => PlayClip("rest", VisualRng);
+    internal void StartRest() => PlayClip(Action("rest").Clip!, VisualRng);
 
-    internal void StartPeck() => PlayClip("peck", VisualRng);
+    internal void StartPeck() => PlayClip(Action("peck").Clip!, VisualRng);
 
-    internal void StartHop() => PlayClip("hop", VisualRng);
+    internal void StartHop() => PlayClip(Action("hop").Clip!, VisualRng);
 
     internal void StartWalk()
     {
+        ActionDefinition walk = Action("walk");
         State = BehaviorStatus.Walking;
-        PlayClip("walk", VisualRng);
+        PlayClip(walk.Clip!, VisualRng);
         flip = VisualRng.NextDouble() < 0.5;
         if (VisualRng.NextDouble() < 0.33)
         {
             flip = position.X <= startingPosition.X;
         }
+        _walkTimer = walk.DurationMs?.Roll(VisualRng);
     }
 
-    private void Walk(GameLocation environment)
+    private void Walk(GameTime time, GameLocation environment)
     {
-        if (!flip && !IsBlocked(environment, -2))
+        float speed = Action("walk").Speed!.Value;
+        if (!flip && !IsBlocked(environment, -(int)speed))
         {
-            position.X -= 2f;
+            position.X -= speed;
         }
-        else if (flip && !IsBlocked(environment, 2))
+        else if (flip && !IsBlocked(environment, (int)speed))
         {
-            position.X += 2f;
+            position.X += speed;
+        }
+        if (_walkTimer is { } remaining)
+        {
+            _walkTimer = remaining - time.ElapsedGameTime.Milliseconds;
+            if (_walkTimer < 0)
+            {
+                Apply(BirdAction.Stop, null, environment);
+            }
         }
     }
 
     private void Swim(GameTime time, GameLocation environment)
     {
-        ShowPose("swim");
+        ShowPose(Action("swim").Clip!);
         float previousYOffset = yOffset;
         yOffset = (time.TotalGameTime.TotalMilliseconds + ((int)position.X * 4)) % 2000.0 < 1000.0 ? 2f : 0f;
         if (yOffset > previousYOffset)
@@ -169,7 +183,7 @@ internal sealed class WaterLandBird : BirdCritter
 
     private void Hop(Farmer who)
     {
-        gravityAffectedDY = -4f;
+        gravityAffectedDY = -Action("hop").Impulse!.Value;
     }
 
     protected override AnimatedSprite.endOfAnimationBehavior ClipEvent(string name) =>

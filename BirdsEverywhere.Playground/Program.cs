@@ -20,11 +20,11 @@ internal static class Program
         SpawnPatternId[] patterns = patternNames.Select(id => new SpawnPatternId(id)).ToArray();
         string[] typeNames = { "LandBird", "WaterLandBird", "TreeTrunkBird", "BushBird" };
         BirdTypeId[] types = typeNames.Select(id => new BirdTypeId(id)).ToArray();
-        IReadOnlyDictionary<string, Routine> routines = RoutineLoader.LoadAll(assets).Routines;
+        SharedDefinitions definitions = SharedDefinitions.Load(assets, out _);
         Dictionary<string, BirdDefinition> catalog = new(StringComparer.Ordinal);
         foreach (string id in ContentPaths.BirdIds(assets))
         {
-            (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, _, _) = ContentLoader.LoadBird(assets, id, groups, patterns, types, routines, Read, File.Exists);
+            (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, _, _) = ContentLoader.LoadBird(assets, id, groups, patterns, types, definitions, Read, File.Exists);
             foreach (ValidationIssue issue in issues.Where(issue => issue.Severity == IssueSeverity.Error))
             {
                 Console.Error.WriteLine(issue);

@@ -475,7 +475,7 @@ Planned design for [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds).
 |---|---|---|
 | Layouts and clips | implemented (step 2) | `assets/layouts/*.json`, `Content/LayoutLoader`, `Content/LayoutValidator`, `BirdTypes/ClipPlayer`, `BirdCritter.PlayClip`/`ShowPose` |
 | Routine (`chance`, `pick`, `next`) and sound roles | implemented (step 3a) | `assets/routines/*.json`, rule fields `routine`/`sounds`, `Content/RoutineLoader`, `ContentValidator` → `SpawnRule.Composition`, `BirdCritter.AdvanceIdle`/`PlaySound` |
-| Actions | planned (step 3b) | today: `BirdAction` enum; durations, end chances and impulses in code |
+| Actions | parameters implemented (step 3b); custom ids planned (3c) | `assets/actions/*.json` per bird type, rule field `actions` (per-field overrides), `Content/ActionLoader`, `BirdCritter.Action(id)`; the class still decides when each action id runs |
 | Routine `cooldown`, `rare` | planned (step 5) | not supported yet; rejected as unknown fields |
 | Reactions | planned (step 4) | today: `FleeBehavior` with a fixed radius per bird class |
 | Bodies, single sealed `Bird` | planned (step 3) | today: four sealed `BirdCritter` classes |
@@ -569,6 +569,7 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 - Common fields: `clip`, `sound` (role played when the action starts), `soundChance`, and how the action ends: clip end (default for non-looping clips), `durationMs`, or `endChance` (per-tick chance, legacy `Wake`/`StopWalking`).
 - Primitive-specific fields (`speed`, `impulse`, `turn`, `hiddenMs`, `target`, `speedFactor`, ...) are validated per `do`.
 - Action ids are strings. They replace the `BirdAction` enum, and `IdleCue.Action` becomes the action id.
+- Implemented (step 3b): action sets per bird type in `assets/actions/<type>_actions.json` (one file per set rather than one per action, since shipped actions are small and belong to a body). A rule's `actions` overrides single fields per id. Ids are fixed per bird type (`BirdTypeProfiles.ActionPrimitives`) until the single `Bird` dispatches by primitive in 3c; `soundChance` is rolled on the owner RNG only when the action has a `sound`.
 
 #### 3. Routine (idle)
 

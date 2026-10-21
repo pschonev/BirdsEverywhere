@@ -8,8 +8,6 @@ namespace BirdsEverywhere.BirdTypes;
 
 internal sealed class BushBird : BirdCritter
 {
-    private const float RunSpeed = 6f;
-
     private Bush? _bush;
 
     public override string BirdTypeName { get; } = "BushBird";
@@ -46,9 +44,10 @@ internal sealed class BushBird : BirdCritter
 
     public override bool update(GameTime time, GameLocation environment)
     {
+        float runSpeed = Action("flee").Speed!.Value;
         if (IsReplica)
         {
-            return UpdateReplica(time, State == BehaviorStatus.Running ? new Vector2(flip ? RunSpeed : -RunSpeed, 0f) : default);
+            return UpdateReplica(time, State == BehaviorStatus.Running ? new Vector2(flip ? runSpeed : -runSpeed, 0f) : default);
         }
 
         if (_bush == null)
@@ -57,7 +56,7 @@ internal sealed class BushBird : BirdCritter
         }
         if (State == BehaviorStatus.Running)
         {
-            position.X += flip ? RunSpeed : -RunSpeed;
+            position.X += flip ? runSpeed : -runSpeed;
             if (CheckIntervalElapsed(time) && ReachedBush())
             {
                 _bush.performUseAction(_bush.Tile);
@@ -80,10 +79,11 @@ internal sealed class BushBird : BirdCritter
 
     private void StartRun(GameLocation environment)
     {
+        PlayActionSound(Action("flee"));
         State = BehaviorStatus.Running;
         AddBirdObservation(BirdName, environment.Name);
         StartRunAnimation();
     }
 
-    internal void StartRunAnimation() => PlayClip("run", Rng);
+    internal void StartRunAnimation() => PlayClip(Action("flee").Clip!, Rng);
 }

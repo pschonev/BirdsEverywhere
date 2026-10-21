@@ -5,13 +5,15 @@
         { "fileMatch": ["BirdsEverywhere/assets/compat/*.json"], "url": "./schemas/compat.schema.json" },
         { "fileMatch": ["BirdsEverywhere/assets/layouts/*.json"], "url": "./schemas/layout.schema.json" },
         { "fileMatch": ["BirdsEverywhere/assets/routines/*.json"], "url": "./schemas/routine.schema.json" },
+        { "fileMatch": ["BirdsEverywhere/assets/actions/*.json"], "url": "./schemas/action.schema.json" },
         {
             "fileMatch": [
                 "BirdsEverywhere/assets/*/*.json",
                 "!BirdsEverywhere/assets/templates/*.json",
                 "!BirdsEverywhere/assets/compat/*.json",
                 "!BirdsEverywhere/assets/layouts/*.json",
-                "!BirdsEverywhere/assets/routines/*.json"
+                "!BirdsEverywhere/assets/routines/*.json",
+                "!BirdsEverywhere/assets/actions/*.json"
             ],
             "url": "./schemas/bird.schema.json"
         }

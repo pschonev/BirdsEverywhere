@@ -1,0 +1,38 @@
+{
+    "sleep": {
+        "do": "stay",
+        "clip": "sleep",
+        "endChance": 0.003
+    },
+    "peck": {
+        "do": "stay",
+        "clip": "peck"
+    },
+    "hop": {
+        "do": "hop",
+        "impulse": 2
+    },
+    "turnAndHop": {
+        "do": "hop",
+        "impulse": 2,
+        "turn": true
+    },
+    "walk": {
+        "do": "walk",
+        "clip": "walk",
+        "speed": 1,
+        "durationMs": [
+            500,
+            1400,
+            100
+        ]
+    },
+    "flee": {
+        "do": "flyOff",
+        "clip": "fly",
+        "speed": 6,
+        "climb": 2,
+        "sound": "alarm",
+        "soundChance": 0.85
+    }
+}

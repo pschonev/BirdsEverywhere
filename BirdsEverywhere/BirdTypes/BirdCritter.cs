@@ -82,6 +82,19 @@ internal abstract class BirdCritter : Critter
         }
     }
 
+    /// <summary>The rule's action, or the bird type's default for birds from older snapshots.</summary>
+    internal ActionDefinition Action(string id) =>
+        Composition?.Actions is { } actions ? actions[id] : RequireServices().Actions[Profile.DefaultActions][id];
+
+    /// <summary>Rolls the sound chance on the owner RNG when the action has a sound role, matching the legacy alarm rolls.</summary>
+    protected void PlayActionSound(ActionDefinition action)
+    {
+        if (action.Sound is { } role && Rng.NextDouble() < action.SoundChance)
+        {
+            PlaySound(role);
+        }
+    }
+
     [JsonIgnore]
     private SpriteLayout Layout => _layout ??= RequireServices().Layouts[Profile.LayoutId];
 

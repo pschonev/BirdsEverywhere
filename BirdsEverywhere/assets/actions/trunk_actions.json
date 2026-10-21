@@ -1,0 +1,16 @@
+{
+    "peck": {
+        "do": "stay",
+        "clip": "peck",
+        "pauseMs": [
+            1000,
+            2999
+        ]
+    },
+    "flee": {
+        "do": "flyOff",
+        "clip": "fly",
+        "speed": 6,
+        "climb": 1
+    }
+}
