@@ -588,7 +588,7 @@ Goals, not designs; Phase 6 decides the implementation.
 
 ## Out of scope for now
 
-- Public mod API for other mods, Content Patcher integration beyond the regions asset, JSON schema files.
+- Public mod API for other mods, Content Patcher integration beyond the regions asset. Editor-only JSON schemas live in `schemas/`; they are not deployed and not used at runtime.
 - Spatial indexing or other performance work without a profile showing the need.
 
 These are tracked as Phase 10 in [REFACTOR.md](REFACTOR.md#10-nice-to-haves-and-future-improvements).

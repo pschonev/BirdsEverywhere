@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://birdseverywhere.invalid/schemas/template.schema.json",
+    "title": "Bird template",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "template": {
+            "type": "string",
+            "minLength": 1
+        },
+        "defaults": {
+            "$ref": "rule.schema.json"
+        },
+        "rules": {
+            "type": "object",
+            "additionalProperties": {
+                "$ref": "rule.schema.json"
+            }
+        }
+    }
+}

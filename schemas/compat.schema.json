@@ -1,0 +1,19 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://birdseverywhere.invalid/schemas/compat.schema.json",
+    "title": "Regions compat file",
+    "description": "Extends regions from regions.schema.json; only the base file may set ratio.",
+    "type": "object",
+    "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+            "species": {
+                "$ref": "regions.schema.json#/$defs/species"
+            },
+            "groups": {
+                "$ref": "regions.schema.json#/$defs/groups"
+            }
+        }
+    }
+}
