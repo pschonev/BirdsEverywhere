@@ -123,7 +123,7 @@ public static class LayoutLoader
         return new ClipFrame(frame[0].Value<int>(), ParseRange(frame[1], file, path), eventName, flip);
     }
 
-    private static StepRange ParseRange(JToken? token, string file, string path)
+    internal static StepRange ParseRange(JToken? token, string file, string path)
     {
         if (token?.Type == JTokenType.Integer && token.Value<int>() >= 0)
         {

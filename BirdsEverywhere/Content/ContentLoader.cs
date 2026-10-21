@@ -15,7 +15,7 @@ public static class ContentLoader
         IReadOnlyDictionary<string, IReadOnlyList<string>> groups,
         IReadOnlyCollection<SpawnPatternId> patterns,
         IReadOnlyCollection<BirdTypeId> birdTypes,
-        IReadOnlyDictionary<string, Routine> routines,
+        SharedDefinitions definitions,
         Func<string, string?> read,
         Func<string, bool> textureExists)
     {
@@ -92,7 +92,7 @@ public static class ContentLoader
                 }
             }
 
-            (BirdDefinition? bird, IReadOnlyList<ValidationIssue> validation) = ContentValidator.Validate(document, file, chain, sources, groups, patterns, birdTypes, routines, textureExists);
+            (BirdDefinition? bird, IReadOnlyList<ValidationIssue> validation) = ContentValidator.Validate(document, file, chain, sources, groups, patterns, birdTypes, definitions, textureExists);
             issues.AddRange(validation);
             return (issues.Any(issue => issue.Severity == IssueSeverity.Error) ? null : bird, issues, document, sources);
         }

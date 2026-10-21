@@ -1,4 +1,5 @@
 using BirdsEverywhere.BirdTypes.Behaviors;
+using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework;
 using Newtonsoft.Json;
 using Microsoft.Xna.Framework.Graphics;
@@ -10,7 +11,6 @@ namespace BirdsEverywhere.BirdTypes;
 internal sealed class TreeTrunkBird : BirdCritter
 {
     private const int ThreatRadiusTiles = 6;
-    private const float FlyingSpeed = 6f;
 
     private Tree? _tree;
 
@@ -51,10 +51,11 @@ internal sealed class TreeTrunkBird : BirdCritter
 
     public override bool update(GameTime time, GameLocation environment)
     {
+        ActionDefinition flee = Action("flee");
         if (IsReplica)
         {
-            return UpdateReplica(time, State == BehaviorStatus.FlyingAway ? new Vector2(flip ? FlyingSpeed : -FlyingSpeed, 0f) : default,
-                State == BehaviorStatus.FlyingAway ? -1f : 0f);
+            return UpdateReplica(time, State == BehaviorStatus.FlyingAway ? new Vector2(flip ? flee.Speed!.Value : -flee.Speed!.Value, 0f) : default,
+                State == BehaviorStatus.FlyingAway ? -flee.Climb!.Value : 0f);
         }
 
         if (environment == null || sprite == null || _tree == null)
@@ -82,23 +83,24 @@ internal sealed class TreeTrunkBird : BirdCritter
 
         if (State == BehaviorStatus.FlyingAway)
         {
-            position.X += flip ? FlyingSpeed : -FlyingSpeed;
-            yOffset -= 1f;
+            position.X += flip ? flee.Speed!.Value : -flee.Speed!.Value;
+            yOffset -= flee.Climb!.Value;
         }
         return base.update(time, environment);
     }
 
-    internal void StartPeck() => PlayClip("peck", Rng, DonePecking);
+    internal void StartPeck() => PlayClip(Action("peck").Clip!, Rng, DonePecking);
 
     private void StartFlee(Character? threat, GameLocation environment)
     {
+        PlayActionSound(Action("flee"));
         State = BehaviorStatus.FlyingAway;
         AddBirdObservation(BirdName, environment.Name);
         flip = threat == null || threat.Position.X <= position.X;
         StartFlyAnimation();
     }
 
-    internal void StartFlyAnimation() => PlayClip("fly", VisualRng);
+    internal void StartFlyAnimation() => PlayClip(Action("flee").Clip!, VisualRng);
 
     private void HopDrift(GameLocation environment)
     {
@@ -117,7 +119,7 @@ internal sealed class TreeTrunkBird : BirdCritter
 
     private void DonePecking(Farmer who)
     {
-        PeckTimer = Rng.Next(1000, 3000);
+        PeckTimer = Action("peck").PauseMs is { } pause ? pause.Roll(Rng) : 0;
     }
 
     private void PlayFlap(Farmer who)

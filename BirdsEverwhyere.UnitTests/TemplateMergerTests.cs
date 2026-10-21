@@ -133,7 +133,7 @@ public class TemplateMergerTests
         };
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Definitions,
             path => files.GetValueOrDefault(path), _ => true);
 
         Assert.Multiple(() =>
@@ -171,7 +171,7 @@ public class TemplateMergerTests
         files[birdFile] = bird.ToString();
 
         (var loaded, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Definitions,
             path => files.GetValueOrDefault(path), path => !path.EndsWith("missing.png", System.StringComparison.Ordinal));
 
         Assert.Multiple(() =>
@@ -192,7 +192,7 @@ public class TemplateMergerTests
         string text = $"{{\"id\":\"test\",\"name\":\"Test\",\"scName\":\"Testus\",\"{field}\":{value}}}";
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Definitions,
             path => path == birdFile ? text : null, _ => true);
 
         Assert.Multiple(() =>
@@ -215,7 +215,7 @@ public class TemplateMergerTests
         };
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Definitions,
             path => files.GetValueOrDefault(path), _ => true);
 
         Assert.Multiple(() =>
@@ -233,7 +233,7 @@ public class TemplateMergerTests
         string text = @"{""id"":""test"",""name"":""Test"",""scName"":""Testus"",""rules"":{""spring"":{""when"":{},""locations"":[""Forest""],""spawnPattern"":""GroundSpawner"",""birdType"":""LandBird"",""groupCount"":[1,2],""groupSize"":[1,2],""textures"":{"""":1},""typo"":true}}}";
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Definitions,
             path => path == birdFile ? text : null, _ => true);
 
         Assert.That(bird, Is.Null);

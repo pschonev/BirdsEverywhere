@@ -2,7 +2,7 @@ namespace BirdsEverywhere.Content;
 
 public static class ContentPaths
 {
-    private static readonly HashSet<string> _nonBirdDirectories = new(StringComparer.Ordinal) { "templates", "compat", "layouts", "routines" };
+    private static readonly HashSet<string> _nonBirdDirectories = new(StringComparer.Ordinal) { "templates", "compat", "layouts", "routines", "actions" };
 
     public static IEnumerable<string> BirdIds(string root) =>
         Directory.GetDirectories(root).Select(path => Path.GetFileName(path)).Where(name => !_nonBirdDirectories.Contains(name));
@@ -12,6 +12,8 @@ public static class ContentPaths
     public static string Layout(string root, string id) => Path.Combine(LayoutsDirectory(root), $"{id}.json");
 
     public static string RoutinesDirectory(string root) => Path.Combine(root, "routines");
+
+    public static string ActionsDirectory(string root) => Path.Combine(root, "actions");
 
     public static string Regions(string root) => Path.Combine(root, "regions.json");
 

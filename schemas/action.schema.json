@@ -1,0 +1,206 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://birdseverywhere.invalid/schemas/action.schema.json",
+    "title": "Action set",
+    "description": "Action id to definition. A rule's \"actions\" overrides single fields of its bird type's set (null removes a field).",
+    "type": "object",
+    "additionalProperties": {
+        "$ref": "#/$defs/action"
+    },
+    "$defs": {
+        "action": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "do"
+            ],
+            "properties": {
+                "do": {
+                    "enum": [
+                        "stay",
+                        "walk",
+                        "hop",
+                        "flyOff",
+                        "runToBush",
+                        "swim"
+                    ]
+                },
+                "clip": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "sound": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "soundChance": {
+                    "$ref": "#/$defs/chance"
+                },
+                "durationMs": {
+                    "$ref": "common.schema.json#/$defs/intOrStepRange"
+                },
+                "endChance": {
+                    "$ref": "#/$defs/chance"
+                },
+                "speed": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "climb": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "impulse": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "turn": {
+                    "type": "boolean"
+                },
+                "pauseMs": {
+                    "$ref": "common.schema.json#/$defs/intOrStepRange"
+                }
+            },
+            "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "do": {
+                                "enum": [
+                                    "stay",
+                                    "swim"
+                                ]
+                            }
+                        }
+                    },
+                    "then": {
+                        "required": [
+                            "clip"
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "do": {
+                                "const": "walk"
+                            }
+                        }
+                    },
+                    "then": {
+                        "required": [
+                            "clip",
+                            "speed"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "durationMs"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "endChance"
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "do": {
+                                "const": "hop"
+                            }
+                        }
+                    },
+                    "then": {
+                        "required": [
+                            "impulse"
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "do": {
+                                "const": "flyOff"
+                            }
+                        }
+                    },
+                    "then": {
+                        "required": [
+                            "clip",
+                            "speed",
+                            "climb"
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "do": {
+                                "const": "runToBush"
+                            }
+                        }
+                    },
+                    "then": {
+                        "required": [
+                            "clip",
+                            "speed"
+                        ]
+                    }
+                }
+            ]
+        },
+        "chance": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        },
+        "partialAction": {
+            "description": "Rule-level override: any subset of action fields.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "do": {
+                    "$ref": "#/$defs/action/properties/do"
+                },
+                "clip": {
+                    "$ref": "#/$defs/action/properties/clip"
+                },
+                "sound": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "minLength": 1
+                },
+                "soundChance": {
+                    "$ref": "#/$defs/chance"
+                },
+                "durationMs": {
+                    "$ref": "#/$defs/action/properties/durationMs"
+                },
+                "endChance": {
+                    "$ref": "#/$defs/chance"
+                },
+                "speed": {
+                    "$ref": "#/$defs/action/properties/speed"
+                },
+                "climb": {
+                    "$ref": "#/$defs/action/properties/climb"
+                },
+                "impulse": {
+                    "$ref": "#/$defs/action/properties/impulse"
+                },
+                "turn": {
+                    "$ref": "#/$defs/action/properties/turn"
+                },
+                "pauseMs": {
+                    "$ref": "#/$defs/action/properties/pauseMs"
+                }
+            }
+        }
+    }
+}

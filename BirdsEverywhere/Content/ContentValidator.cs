@@ -7,8 +7,8 @@ namespace BirdsEverywhere.Content;
 
 public static class ContentValidator
 {
-    /// <summary>Resolves the rule's routine (ref, inline, or bird-type default) and merges its sounds over the bird type's defaults.</summary>
-    private static BirdComposition? Composition(SpawnRuleJson rule, string path, string file, IReadOnlyDictionary<string, Routine> routines,
+    /// <summary>Resolves the rule's routine (ref, inline, or bird-type default), actions (bird-type set with per-field overrides) and sounds (merged over defaults).</summary>
+    private static BirdComposition? Composition(SpawnRuleJson rule, string path, string file, SharedDefinitions definitions,
         Action<IssueSeverity, string, string> report)
     {
         if (!BirdTypeProfiles.ByBirdType.TryGetValue(rule.BirdType, out BirdTypeProfile? profile))
@@ -16,6 +16,7 @@ public static class ContentValidator
             return null;
         }
 
+        IReadOnlyDictionary<string, Routine> routines = definitions.Routines;
         Routine? routine = null;
         string routinePath = path + ".routine";
         if (rule.Routine is { Type: JTokenType.String } reference)
@@ -80,7 +81,52 @@ public static class ContentValidator
             sounds[role] = cue;
         }
 
-        return new BirdComposition(routine, sounds);
+        return new BirdComposition(routine, sounds, Actions(rule, path, file, profile, definitions, sounds, report));
+    }
+
+    private static Dictionary<string, ActionDefinition> Actions(SpawnRuleJson rule, string path, string file, BirdTypeProfile profile,
+        SharedDefinitions definitions, Dictionary<string, string> sounds, Action<IssueSeverity, string, string> report)
+    {
+        Dictionary<string, ActionDefinition> actions = new(StringComparer.Ordinal);
+        if (!definitions.ActionSets.TryGetValue(profile.DefaultActions, out JObject? defaults))
+        {
+            report(IssueSeverity.Error, path + ".actions", $"Default action set '{profile.DefaultActions}' for {rule.BirdType} is missing.");
+            return actions;
+        }
+
+        JObject overrides = rule.Actions ?? new JObject();
+        foreach (JProperty extra in overrides.Properties().Where(entry => !profile.ActionPrimitives.ContainsKey(entry.Name)))
+        {
+            report(IssueSeverity.Error, $"{path}.actions.{extra.Name}", $"{rule.BirdType} has no action '{extra.Name}'. Known: {string.Join(", ", profile.ActionPrimitives.Keys)}.");
+        }
+
+        foreach ((string id, string primitive) in profile.ActionPrimitives)
+        {
+            string actionPath = $"{path}.actions.{id}";
+            JObject merged = defaults[id] is JObject inherited ? (JObject)inherited.DeepClone() : new JObject();
+            if (overrides[id] is JObject own)
+            {
+                merged = TemplateMerger.Merge(merged, own);
+            }
+            try
+            {
+                ActionDefinition action = ActionLoader.Parse(merged, file, actionPath);
+                if (action.Do != primitive)
+                {
+                    report(IssueSeverity.Error, actionPath + ".do", $"{rule.BirdType} runs '{id}' as '{primitive}', not '{action.Do}'.");
+                }
+                if (action.Sound is { } role && !sounds.ContainsKey(role))
+                {
+                    report(IssueSeverity.Warn, actionPath + ".sound", $"Sound role '{role}' has no cue; the action is silent.");
+                }
+                actions[id] = action;
+            }
+            catch (FormatException exception)
+            {
+                report(IssueSeverity.Error, actionPath, exception.Message);
+            }
+        }
+        return actions;
     }
 
     public static (BirdDefinition? Bird, IReadOnlyList<ValidationIssue> Issues) Validate(
@@ -91,7 +137,7 @@ public static class ContentValidator
         IReadOnlyDictionary<string, IReadOnlyList<string>> groups,
         IReadOnlyCollection<SpawnPatternId> patterns,
         IReadOnlyCollection<BirdTypeId> birdTypes,
-        IReadOnlyDictionary<string, Routine> routines,
+        SharedDefinitions definitions,
         Func<string, bool> textureExists)
     {
         List<ValidationIssue> issues = new();
@@ -269,7 +315,7 @@ public static class ContentValidator
             rules.Add(new SpawnRule(entry.Key, new SpawnConditions(seasons.ToImmutable(), weather.ToImmutable(), days, times),
                 locations.Distinct(StringComparer.Ordinal).ToImmutableArray(), new SpawnPatternId(rule.SpawnPattern), new BirdTypeId(rule.BirdType),
                 count, size, textures.ToImmutableDictionary(StringComparer.Ordinal), rule.Weight, new SpawnParams(shoreDistance),
-                Composition(rule, path, file, routines, Report)));
+                Composition(rule, path, file, definitions, Report)));
         }
 
         foreach (Season season in Enum.GetValues<Season>())

@@ -1,4 +1,5 @@
 using BirdsEverywhere.BirdTypes.Behaviors;
+using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework;
 using Newtonsoft.Json;
 using StardewValley;
@@ -8,6 +9,8 @@ namespace BirdsEverywhere.BirdTypes;
 internal sealed class LandBird : BirdCritter
 {
     private const int ThreatRadiusTiles = 4;
+
+    private IReadOnlyList<IBirdBehavior>? _behaviors;
 
     public override string BirdTypeName { get; } = "LandBird";
     [JsonProperty("flightOffset")]
@@ -31,11 +34,12 @@ internal sealed class LandBird : BirdCritter
 
     public override bool update(GameTime time, GameLocation environment)
     {
+        ActionDefinition flee = Action("flee");
         if (IsReplica)
         {
             ApplyReplicaIdle(AdvanceReplicaIdle());
-            return UpdateReplica(time, State == BehaviorStatus.FlyingAway ? new Vector2(flip ? 6f : -6f, 0f) : default,
-                State == BehaviorStatus.FlyingAway ? -2f - FlightOffset : 0f);
+            return UpdateReplica(time, State == BehaviorStatus.FlyingAway ? new Vector2(flip ? flee.Speed!.Value : -flee.Speed!.Value, 0f) : default,
+                State == BehaviorStatus.FlyingAway ? -flee.Climb!.Value - FlightOffset : 0f);
         }
 
         if (yJumpOffset < 0f && State != BehaviorStatus.FlyingAway)
@@ -46,7 +50,8 @@ internal sealed class LandBird : BirdCritter
         Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
         BirdAction idleAction = AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
-        Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(BirdBehaviors.Land, context), threat, environment);
+        _behaviors ??= BirdBehaviors.Land(IdleRoutine, Action("sleep").EndChance ?? 0, Action("walk").EndChance);
+        Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(_behaviors, context), threat, environment);
 
         switch (State)
         {
@@ -57,13 +62,13 @@ internal sealed class LandBird : BirdCritter
                 }
                 break;
             case BehaviorStatus.FlyingAway:
-                position.X += flip ? 6f : -6f;
-                yOffset -= 2f + FlightOffset;
+                position.X += flip ? flee.Speed!.Value : -flee.Speed!.Value;
+                yOffset -= flee.Climb!.Value + FlightOffset;
                 break;
             case BehaviorStatus.Sleeping:
                 if (sprite.CurrentAnimation == null)
                 {
-                    ShowPose("sleep");
+                    ShowPose(Action("sleep").Clip!);
                 }
                 break;
             case BehaviorStatus.Walking:
@@ -97,11 +102,10 @@ internal sealed class LandBird : BirdCritter
                 };
                 break;
             case BirdAction.Hop:
-                Hop();
+                Hop(Action("hop"));
                 break;
             case BirdAction.TurnAndHop:
-                flip = !flip;
-                Hop();
+                Hop(Action("turnAndHop"));
                 break;
             case BirdAction.Walk:
                 StartWalk();
@@ -116,7 +120,7 @@ internal sealed class LandBird : BirdCritter
             case BirdAction.Sleep:
                 State = BehaviorStatus.Sleeping;
                 sprite.CurrentAnimation = null;
-                ShowPose("sleep");
+                ShowPose(Action("sleep").Clip!);
                 break;
             case BirdAction.Peck:
                 State = BehaviorStatus.Pecking;
@@ -124,7 +128,7 @@ internal sealed class LandBird : BirdCritter
                 break;
             case BirdAction.Hop:
             case BirdAction.TurnAndHop:
-                if (action == BirdAction.TurnAndHop)
+                if (Action(action == BirdAction.Hop ? "hop" : "turnAndHop").Turn)
                 {
                     flip = !flip;
                 }
@@ -137,27 +141,25 @@ internal sealed class LandBird : BirdCritter
 
     private void StartFlee(Character threat, GameLocation environment)
     {
-        if (Rng.NextDouble() < 0.85)
-        {
-            PlaySound("alarm");
-        }
+        PlayActionSound(Action("flee"));
         State = BehaviorStatus.FlyingAway;
         AddBirdObservation(BirdName, environment.Name);
         flip = threat.Position.X <= position.X;
         StartFlyAnimation();
     }
 
-    internal void StartFlyAnimation() => PlayClip("fly", VisualRng);
+    internal void StartFlyAnimation() => PlayClip(Action("flee").Clip!, VisualRng);
 
     internal void StartWalk()
     {
+        ActionDefinition walk = Action("walk");
         State = BehaviorStatus.Walking;
-        PlayClip("walk", VisualRng);
+        PlayClip(walk.Clip!, VisualRng);
         flip = position.X < startingPosition.X;
-        WalkTimer = VisualRng.Next(5, 15) * 100;
+        WalkTimer = walk.DurationMs is { } duration ? duration.Roll(VisualRng) : int.MaxValue;
     }
 
-    internal void StartPeckAnimation() => PlayClip("peck", VisualRng, DonePecking);
+    internal void StartPeckAnimation() => PlayClip(Action("peck").Clip!, VisualRng, DonePecking);
 
     private void HopDrift(GameLocation environment)
     {
@@ -173,13 +175,14 @@ internal sealed class LandBird : BirdCritter
 
     private void Walk(GameTime time, GameLocation environment)
     {
-        if (!flip && !IsBlocked(environment, -1))
+        float speed = Action("walk").Speed!.Value;
+        if (!flip && !IsBlocked(environment, -(int)speed))
         {
-            position.X -= 1f;
+            position.X -= speed;
         }
-        else if (flip && !IsBlocked(environment, 1))
+        else if (flip && !IsBlocked(environment, (int)speed))
         {
-            position.X += 1f;
+            position.X += speed;
         }
         WalkTimer -= time.ElapsedGameTime.Milliseconds;
         if (WalkTimer < 0)
@@ -194,9 +197,13 @@ internal sealed class LandBird : BirdCritter
     private bool IsBlocked(GameLocation environment, int dx) =>
         environment.isCollidingPosition(getBoundingBox(dx, 0), Game1.viewport, isFarmer: false, 0, glider: false, null, pathfinding: false, projectile: false, ignoreCharacterRequirement: true);
 
-    private void Hop()
+    private void Hop(ActionDefinition hop)
     {
-        gravityAffectedDY = -2f;
+        if (hop.Turn)
+        {
+            flip = !flip;
+        }
+        gravityAffectedDY = -hop.Impulse!.Value;
     }
 
     private void DonePecking(Farmer who)

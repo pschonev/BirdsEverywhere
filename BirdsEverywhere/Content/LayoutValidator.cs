@@ -26,7 +26,7 @@ public static class LayoutValidator
                 continue;
             }
 
-            issues.AddRange(Requirement(layout, requirement).Select(message => Error(file, bird, path, message)));
+            issues.AddRange(Requirement(layout, requirement, rule.Composition).Select(message => Error(file, bird, path, message)));
             foreach (string variant in rule.Textures.Keys)
             {
                 string texture = ContentPaths.Texture(root, bird.Id.Value, variant);
@@ -46,9 +46,12 @@ public static class LayoutValidator
         return issues.Distinct().ToList();
     }
 
-    public static IEnumerable<string> Requirement(SpriteLayout layout, BirdTypeProfile requirement)
+    public static IEnumerable<string> Requirement(SpriteLayout layout, BirdTypeProfile requirement, BirdComposition? composition)
     {
-        foreach (string clip in requirement.Clips.Where(clip => !layout.Clips.ContainsKey(clip)))
+        IEnumerable<string> clips = requirement.Poses
+            .Concat(composition?.Actions?.Values.Select(action => action.Clip).OfType<string>() ?? Enumerable.Empty<string>())
+            .Distinct();
+        foreach (string clip in clips.Where(clip => !layout.Clips.ContainsKey(clip)))
         {
             yield return $"Layout '{layout.Id}' has no clip '{clip}'.";
         }

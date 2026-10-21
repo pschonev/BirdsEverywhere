@@ -37,6 +37,9 @@ public sealed record SpawnRuleJson
 
     [JsonProperty("sounds")]
     public Dictionary<string, string>? Sounds { get; init; }
+
+    [JsonProperty("actions")]
+    public JObject? Actions { get; init; }
 }
 
 public sealed record SpawnParamsJson

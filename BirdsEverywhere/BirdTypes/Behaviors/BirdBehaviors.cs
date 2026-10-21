@@ -1,20 +1,33 @@
+using BirdsEverywhere.Domain;
+
 namespace BirdsEverywhere.BirdTypes.Behaviors;
 
 internal static class BirdBehaviors
 {
-    public static readonly IReadOnlyList<IBirdBehavior> Land = new IBirdBehavior[]
+    /// <summary>Flee, stop walking (only with a walk end chance), wake after sleeping, then the idle routine.</summary>
+    public static IReadOnlyList<IBirdBehavior> Land(Routine routine, double wakeChance, double? walkStopChance)
     {
-        new FleeBehavior(),
-        new WakeBehavior(chance: 0.003),
-        new IdleRoutineBehavior(chance: 0.008, new[] { BirdAction.Sleep, BirdAction.Peck, BirdAction.Hop, BirdAction.TurnAndHop, BirdAction.Walk, BirdAction.Walk }),
-    };
+        List<IBirdBehavior> behaviors = new() { new FleeBehavior() };
+        if (walkStopChance is { } stop)
+        {
+            behaviors.Add(new StopWalkingBehavior(stop));
+        }
+        behaviors.Add(new WakeBehavior(wakeChance));
+        behaviors.Add(new IdleRoutineBehavior(routine));
+        return behaviors;
+    }
 
-    public static readonly IReadOnlyList<IBirdBehavior> WaterLand = new IBirdBehavior[]
+    /// <summary>Flee, stop walking (only with a walk end chance), then the idle routine.</summary>
+    public static IReadOnlyList<IBirdBehavior> WaterLand(Routine routine, double? walkStopChance)
     {
-        new FleeBehavior(),
-        new StopWalkingBehavior(chance: 0.005),
-        new IdleRoutineBehavior(chance: 0.003, new[] { BirdAction.Peck, BirdAction.Rest, BirdAction.Hop, BirdAction.Walk }),
-    };
+        List<IBirdBehavior> behaviors = new() { new FleeBehavior() };
+        if (walkStopChance is { } stop)
+        {
+            behaviors.Add(new StopWalkingBehavior(stop));
+        }
+        behaviors.Add(new IdleRoutineBehavior(routine));
+        return behaviors;
+    }
 
     public static readonly IReadOnlyList<IBirdBehavior> FleeOnly = new IBirdBehavior[]
     {

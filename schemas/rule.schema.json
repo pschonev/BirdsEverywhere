@@ -147,6 +147,13 @@
             "additionalProperties": {
                 "type": "string"
             }
+        },
+        "actions": {
+            "description": "Per-field overrides of the bird type's action set (assets/actions), keyed by action id.",
+            "type": "object",
+            "additionalProperties": {
+                "$ref": "action.schema.json#/$defs/partialAction"
+            }
         }
     },
     "$defs": {

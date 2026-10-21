@@ -30,7 +30,7 @@ public partial class ModEntry : Mod
     private MultiplayerSync _sync = null!;
     private BirdServices _birdServices = null!;
     private IReadOnlyDictionary<string, SpriteLayout> _layouts = new Dictionary<string, SpriteLayout>();
-    private IReadOnlyDictionary<string, Routine> _routines = new Dictionary<string, Routine>();
+    private SharedDefinitions _definitions = new(new Dictionary<string, Routine>(), new Dictionary<string, Newtonsoft.Json.Linq.JObject>());
     private bool _populatesCurrentVisit = true;
     private long _birdOwnerId;
     private string _birdVisitId = "";
@@ -49,12 +49,13 @@ public partial class ModEntry : Mod
         _config = helper.ReadConfig<ModConfig>();
         _sync = new MultiplayerSync(helper.Multiplayer, Monitor, ModManifest.UniqueID);
         (_layouts, IReadOnlyList<ValidationIssue> layoutIssues) = LayoutLoader.LoadAll(Path.Combine(helper.DirectoryPath, "assets"));
-        (_routines, IReadOnlyList<ValidationIssue> routineIssues) = RoutineLoader.LoadAll(Path.Combine(helper.DirectoryPath, "assets"));
-        foreach (ValidationIssue issue in layoutIssues.Concat(routineIssues))
+        _definitions = SharedDefinitions.Load(Path.Combine(helper.DirectoryPath, "assets"), out IReadOnlyList<ValidationIssue> definitionIssues);
+        foreach (ValidationIssue issue in layoutIssues.Concat(definitionIssues))
         {
             LogIssue(issue);
         }
-        _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation, _layouts, _routines);
+        _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation, _layouts, _definitions.Routines,
+            _definitions.ParsedActions());
         _locationSpawner = new LocationSpawner(_spawnPatterns, _birdTypes, _birdServices);
 
         helper.Events.GameLoop.DayStarted += OnDayStarted;
@@ -124,7 +125,7 @@ public partial class ModEntry : Mod
         foreach (string id in ContentPaths.BirdIds(root))
         {
             (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, JObject? document, IReadOnlyDictionary<string, string> sources) =
-                ContentLoader.LoadBird(root, id, groups, _spawnPatterns.Ids, _birdTypes.Ids, _routines, Read, File.Exists);
+                ContentLoader.LoadBird(root, id, groups, _spawnPatterns.Ids, _birdTypes.Ids, _definitions, Read, File.Exists);
             foreach (ValidationIssue issue in issues)
             {
                 LogIssue(issue);

@@ -24,7 +24,7 @@ public class ContentTests
     {
         string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
         var (regions, groupIssues) = ContentLoader.LoadRegions(_assetsDir, System.Array.Empty<string>(), Read, ContentPaths.BirdIds(_assetsDir).ToList());
-        var (bird, issues, _, _) = ContentLoader.LoadBird(_assetsDir, id, Region.AllGroups(regions), Patterns, BirdTypes, TestBirds.Services.Routines, Read, File.Exists);
+        var (bird, issues, _, _) = ContentLoader.LoadBird(_assetsDir, id, Region.AllGroups(regions), Patterns, BirdTypes, TestBirds.Definitions, Read, File.Exists);
         Assert.That(groupIssues.Concat(issues).Where(issue => issue.Severity != IssueSeverity.Info), Is.Empty);
         Assert.That(bird, Is.Not.Null);
         Assert.That(bird!.Id.Value, Is.EqualTo(id));
