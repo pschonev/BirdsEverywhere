@@ -104,7 +104,15 @@ flowchart LR
   "actions": { "flee": { "speed": 8, "soundChance": 1 }, "walk": { "durationMs": [300, 800, 100] } }
   ```
 
-  Action ids and their primitive are fixed per bird type for now (`BirdTypeProfiles.ByBirdType`); each primitive has required fields (e.g. `flyOff` needs `clip`, `speed`, `climb`).
+  Built-in action ids and their primitive are fixed per bird type (`BirdTypeProfiles.ByBirdType`); each primitive has required fields (e.g. `flyOff` needs `clip`, `speed`, `climb`). Land and water-land rules may add new ids as `stay` actions with a clip and pick them in the routine:
+
+  ```json
+  "actions": { "sing": { "do": "stay", "clip": "sing", "sound": "song" } },
+  "routine": { "chance": 0.008, "pick": { "peck": 3, "sing": 1 } },
+  "sounds": { "song": "<cue>" }
+  ```
+
+  `birds_dump <bird>` prints each rule's resolved routine, sounds and actions.
 
 **New behavior** (a new primitive, event, trigger or bird type) needs C#; follow [REFACTOR.md Phase 10](docs/REFACTOR.md#10-fully-modular-config-driven-birds) for where it goes.
 

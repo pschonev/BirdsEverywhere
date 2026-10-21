@@ -149,7 +149,7 @@
             }
         },
         "actions": {
-            "description": "Per-field overrides of the bird type's action set (assets/actions), keyed by action id.",
+            "description": "Per-field overrides of the bird type's action set (assets/actions), keyed by action id. New ids on routine-driven bird types (Land, WaterLand) define custom 'stay' actions with a clip that the routine can pick.",
             "type": "object",
             "additionalProperties": {
                 "$ref": "action.schema.json#/$defs/partialAction"

@@ -3,7 +3,6 @@ using BirdsEverywhere.BirdTypes.Behaviors;
 using BirdsEverywhere.Content;
 using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework.Graphics;
-using Newtonsoft.Json;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.BellsAndWhistles;
@@ -21,24 +20,15 @@ internal abstract class BirdCritter : Critter
     private long _nextScheduleTick;
     private long _playedIdleRevision = -1;
 
-    [JsonProperty("birdTypeName")]
     public abstract string BirdTypeName { get; }
-    [JsonProperty("state")]
     public BehaviorStatus State { get; set; }
-    [JsonProperty("birdName")]
     public string BirdName { get; set; } = "";
-    [JsonProperty("texture")]
     public string Texture { get; set; } = "";
-    [JsonProperty("characterCheckTimer")]
     public int CharacterCheckTimer { get; set; } = ThreatCheckIntervalMs;
-    [JsonProperty("idleTick")]
     public long IdleTick { get; set; }
-    [JsonProperty("idleRevision")]
     public long IdleRevision { get; set; }
-    [JsonProperty("idleCue")]
     public IdleCue? IdleCue { get; set; }
 
-    [JsonProperty("birdID")]
     public long BirdID
     {
         get => _birdID;
@@ -49,27 +39,29 @@ internal abstract class BirdCritter : Critter
         }
     }
 
-    [JsonIgnore]
     protected Random Rng { get; private set; } = new();
 
-    [JsonIgnore]
     protected Random VisualRng { get; private set; } = new();
 
     internal Random OwnerRandom => Rng;
+
+    /// <summary>Adds the type-specific fields to a snapshot.</summary>
+    internal virtual BirdState CaptureExtras(BirdState state) => state;
+
+    /// <summary>Restores the type-specific fields from a snapshot.</summary>
+    internal virtual void RestoreExtras(BirdState state) { }
 
     internal Random VisualRandom => VisualRng;
 
     internal void SeedVisualRandom(int seed) => VisualRng = new Random(seed);
 
     /// <summary>The spawn rule's resolved routine and sounds; null for birds from older snapshots, which use the bird type's defaults.</summary>
-    [JsonProperty("composition")]
     public BirdComposition? Composition { get; set; }
 
     private BirdTypeProfile Profile => BirdTypeProfiles.ByBirdType[BirdTypeName];
 
     private BirdServices RequireServices() => Services ?? throw new InvalidOperationException($"{BirdTypeName} has no services.");
 
-    [JsonIgnore]
     internal Routine IdleRoutine => Composition?.Routine
         ?? RequireServices().Routines[Profile.DefaultRoutine ?? throw new InvalidOperationException($"{BirdTypeName} has no idle routine.")];
 
@@ -95,7 +87,6 @@ internal abstract class BirdCritter : Critter
         }
     }
 
-    [JsonIgnore]
     private SpriteLayout Layout => _layout ??= RequireServices().Layouts[Profile.LayoutId];
 
     private SpriteLayout? _layout;
@@ -112,10 +103,8 @@ internal abstract class BirdCritter : Critter
     protected virtual AnimatedSprite.endOfAnimationBehavior ClipEvent(string name) =>
         throw new InvalidOperationException($"{BirdTypeName} has no clip event '{name}'.");
 
-    [JsonIgnore]
     public BirdServices? Services { get; set; }
 
-    [JsonIgnore]
     public bool IsReplica { get; set; }
 
     public void ApplyReplicaState(BirdCritter source)
@@ -186,7 +175,7 @@ internal abstract class BirdCritter : Critter
                 {
                     continue;
                 }
-                IdleCue = new IdleCue(tick, BirdActionIds.Parse(Routine.Roll(routine.Pick, _scheduleRandom)), _scheduleRandom.Next());
+                IdleCue = new IdleCue(tick, Routine.Roll(routine.Pick, _scheduleRandom), _scheduleRandom.Next());
                 IdleRevision++;
                 _nextScheduleTick = tick;
                 break;
@@ -200,11 +189,28 @@ internal abstract class BirdCritter : Critter
         {
             return BirdAction.None;
         }
-        BirdAction action = IdleCue.Action;
+        string action = IdleCue.Action;
         VisualRng = new Random(IdleCue.Seed);
         IdleCue = null;
         IdleRevision++;
-        return action;
+        return ResolveIdle(action);
+    }
+
+    /// <summary>Built-in ids map to the class's actions; custom ids (data-only <c>stay</c> actions) play their clip here and leave the bird stopped.</summary>
+    private BirdAction ResolveIdle(string id)
+    {
+        if (BirdActionIds.TryParse(id, out BirdAction action))
+        {
+            return action;
+        }
+
+        ActionDefinition custom = Action(id);
+        if (!IsReplica)
+        {
+            PlayActionSound(custom);
+        }
+        PlayClip(custom.Clip!, VisualRng);
+        return BirdAction.None;
     }
 
     protected BirdAction AdvanceReplicaIdle()
@@ -216,7 +222,7 @@ internal abstract class BirdCritter : Critter
         }
         _playedIdleRevision = IdleRevision;
         VisualRng = new Random(IdleCue.Seed);
-        return IdleCue.Action;
+        return ResolveIdle(IdleCue.Action);
     }
 
     protected bool UpdateReplica(GameTime time, Vector2 velocity = default, float verticalVelocity = 0f)

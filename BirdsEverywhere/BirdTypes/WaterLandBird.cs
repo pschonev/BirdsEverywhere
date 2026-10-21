@@ -41,7 +41,7 @@ internal sealed class WaterLandBird : BirdCritter
         }
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
         BirdAction idleAction = AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
-        _behaviors ??= BirdBehaviors.WaterLand(IdleRoutine, Action("walk").EndChance);
+        _behaviors ??= BirdBehaviors.WaterLand(Action("walk").EndChance);
         Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(_behaviors, context), threat, environment);
 
         switch (State)

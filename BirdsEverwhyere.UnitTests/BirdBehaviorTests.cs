@@ -21,8 +21,8 @@ internal sealed class BirdBehaviorTests
         public override int Next(int maxValue) => _int;
     }
 
-    private static readonly IReadOnlyList<IBirdBehavior> _land = BirdBehaviors.Land(TestBirds.Services.Routines["land_idle"], 0.003, walkStopChance: null);
-    private static readonly IReadOnlyList<IBirdBehavior> _waterLand = BirdBehaviors.WaterLand(TestBirds.Services.Routines["waterland_idle"], 0.005);
+    private static readonly IReadOnlyList<IBirdBehavior> _land = BirdBehaviors.Land(0.003, walkStopChance: null);
+    private static readonly IReadOnlyList<IBirdBehavior> _waterLand = BirdBehaviors.WaterLand(0.005);
 
     private static BirdAction Decide(BehaviorStatus state, bool threat = false, bool idle = true, bool airborne = false, double roll = 0.0, int pick = 0) =>
         BirdBehaviors.Decide(_land, new BirdContext(state, threat, idle, airborne, new FixedRandom(roll, pick)));
@@ -43,19 +43,11 @@ internal sealed class BirdBehaviorTests
     public void Sleeping_WakesOnRollWhenIdle(double roll, bool idle, BirdAction expected) =>
         Assert.That(Decide(BehaviorStatus.Sleeping, idle: idle, roll: roll), Is.EqualTo(expected));
 
-    [TestCase(0, BirdAction.Sleep)]
-    [TestCase(1, BirdAction.Peck)]
-    [TestCase(2, BirdAction.Hop)]
-    [TestCase(3, BirdAction.TurnAndHop)]
-    [TestCase(4, BirdAction.Walk)]
-    [TestCase(5, BirdAction.Walk)]
-    public void Stopped_PicksIdleRoutine(int pick, BirdAction expected) =>
-        Assert.That(Decide(BehaviorStatus.Stopped, pick: pick), Is.EqualTo(expected));
-
     [TestCase(0.5, true, false)]
     [TestCase(0.0, false, false)]
     [TestCase(0.0, true, true)]
-    public void Stopped_NoRoutineWhenRollFailsBusyOrAirborne(double roll, bool idle, bool airborne) =>
+    [TestCase(0.0, true, false)]
+    public void Stopped_ListNeverPicksIdle(double roll, bool idle, bool airborne) =>
         Assert.That(Decide(BehaviorStatus.Stopped, idle: idle, airborne: airborne, roll: roll), Is.EqualTo(BirdAction.None));
 
     [TestCase(BehaviorStatus.Pecking)]
@@ -76,12 +68,9 @@ internal sealed class BirdBehaviorTests
     public void WaterLand_WalkingStopsOnRoll(double roll, BirdAction expected) =>
         Assert.That(DecideWaterLand(BehaviorStatus.Walking, roll: roll), Is.EqualTo(expected));
 
-    [TestCase(0, BirdAction.Peck)]
-    [TestCase(1, BirdAction.Rest)]
-    [TestCase(2, BirdAction.Hop)]
-    [TestCase(3, BirdAction.Walk)]
-    public void WaterLand_StoppedPicksIdleRoutine(int pick, BirdAction expected) =>
-        Assert.That(DecideWaterLand(BehaviorStatus.Stopped, pick: pick), Is.EqualTo(expected));
+    [Test]
+    public void WaterLand_StoppedListNeverPicksIdle() =>
+        Assert.That(DecideWaterLand(BehaviorStatus.Stopped), Is.EqualTo(BirdAction.None));
 
     [Test]
     public void WaterLand_SwimmingHasNoRoutine() =>

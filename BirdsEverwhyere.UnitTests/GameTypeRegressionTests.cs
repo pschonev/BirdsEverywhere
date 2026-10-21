@@ -140,7 +140,7 @@ public class GameTypeRegressionTests
     {
         LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite(), Services = TestBirds.Services };
         LandBird owner = new() { State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 1,
-            IdleCue = new IdleCue(12, BirdAction.Sleep, 4), sprite = new AnimatedSprite() };
+            IdleCue = new IdleCue(12, "sleep", 4), sprite = new AnimatedSprite() };
         GameTime tick = new(TimeSpan.Zero, TimeSpan.FromMilliseconds(16));
 
         replica.ApplyReplicaState(owner);
@@ -163,7 +163,7 @@ public class GameTypeRegressionTests
     {
         LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite(), Services = TestBirds.Services };
         LandBird owner = new() { State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 1,
-            IdleCue = new IdleCue(12, BirdAction.Sleep, 4), sprite = new AnimatedSprite() };
+            IdleCue = new IdleCue(12, "sleep", 4), sprite = new AnimatedSprite() };
         replica.ApplyReplicaState(owner);
 
         owner.State = BehaviorStatus.FlyingAway;
@@ -216,13 +216,33 @@ public class GameTypeRegressionTests
     public void BirdSnapshot_RoundTrip_PreservesIdleSchedule()
     {
         LandBird bird = new() { BirdID = 42, State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 3,
-            IdleCue = new IdleCue(30, BirdAction.Peck, 12), sprite = new AnimatedSprite() };
+            IdleCue = new IdleCue(30, "peck", 12), sprite = new AnimatedSprite() };
 
-        string json = MessageJson.Serialize(bird);
+        string json = BirdSnapshots.Serialize(new[] { bird });
 
-        Assert.That(json, Does.Contain("\"idleRevision\":3"));
+        Assert.That(json, Does.Contain("\"IdleRevision\":3"));
         Assert.That(json, Does.Contain("\"Tick\":30"));
         Assert.That(json, Does.Contain("\"Seed\":12"));
+    }
+
+    [Test]
+    public void BirdState_RoundTrip_KeepsTypeSpecificFields()
+    {
+        TreeTrunkBird trunk = new() { BirdID = 7, BirdName = "black_woodpecker", AnchorTile = new Vector2(12, 34), LocationName = "Forest",
+            PeckTimer = 1500, State = BehaviorStatus.Pecking, sprite = new AnimatedSprite() };
+        LandBird land = new() { BirdID = 8, FlightOffset = 0.25f, WalkTimer = 700, flip = true, sprite = new AnimatedSprite() };
+
+        List<BirdState> states = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BirdState>>(BirdSnapshots.Serialize(new BirdCritter[] { trunk, land }))!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(states[0] with { Sprite = null! }, Is.EqualTo(BirdSnapshots.Capture(trunk) with { Sprite = null! }));
+            Assert.That(states[0].AnchorTile, Is.EqualTo(new Vector2(12, 34)));
+            Assert.That(states[0].PeckTimer, Is.EqualTo(1500));
+            Assert.That(states[1].FlightOffset, Is.EqualTo(0.25f));
+            Assert.That(states[1].WalkTimer, Is.EqualTo(700));
+            Assert.That(states[1].Flip, Is.True);
+        });
     }
 
     [Test]
@@ -250,7 +270,7 @@ public class GameTypeRegressionTests
     {
         BirdPlacement tile = new("blue_tit", "spring", "LandBird", "GroundSpawner", new Vector2(4, 5), null,
             new List<IntRange> { new IntRange(600, 2400) }, "blue_tit", 42);
-        BirdPlacement tree = tile with { BirdType = "TreeTrunkBird", SpawnPattern = "TreeTrunkSpawner", FeatureIndex = 3, Times = new List<IntRange>() };
+        BirdPlacement tree = tile with { BirdType = "TreeTrunkBird", SpawnPattern = "TreeTrunkSpawner", FeatureTile = new Vector2(7, 8), Times = new List<IntRange>() };
         DailySpawnPlan original = new(new Dictionary<string, IReadOnlyList<BirdPlacement>> { ["Forest"] = new[] { tile, tree } });
 
         DailySpawnPlan reloaded = MessageJson.Deserialize<DailySpawnPlan>(MessageJson.Serialize(original));

@@ -475,10 +475,10 @@ Planned design for [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds).
 |---|---|---|
 | Layouts and clips | implemented (step 2) | `assets/layouts/*.json`, `Content/LayoutLoader`, `Content/LayoutValidator`, `BirdTypes/ClipPlayer`, `BirdCritter.PlayClip`/`ShowPose` |
 | Routine (`chance`, `pick`, `next`) and sound roles | implemented (step 3a) | `assets/routines/*.json`, rule fields `routine`/`sounds`, `Content/RoutineLoader`, `ContentValidator` → `SpawnRule.Composition`, `BirdCritter.AdvanceIdle`/`PlaySound` |
-| Actions | parameters implemented (step 3b); custom ids planned (3c) | `assets/actions/*.json` per bird type, rule field `actions` (per-field overrides), `Content/ActionLoader`, `BirdCritter.Action(id)`; the class still decides when each action id runs |
+| Actions | parameters implemented (step 3b); custom `stay` ids implemented (3c) | `assets/actions/*.json` per bird type, rule field `actions` (per-field overrides, plus new `stay` ids with a clip on Land/WaterLand that the routine can pick), `Content/ActionLoader`, `BirdCritter.Action(id)`/`ResolveIdle`; the class still decides when each built-in id runs |
 | Routine `cooldown`, `rare` | planned (step 5) | not supported yet; rejected as unknown fields |
 | Reactions | planned (step 4) | today: `FleeBehavior` with a fixed radius per bird class |
-| Bodies, single sealed `Bird` | planned (step 3) | today: four sealed `BirdCritter` classes |
+| Bodies, single sealed `Bird` | partly (step 3c): tile `TerrainAnchor`, `BirdState` snapshots (`BirdTypes/BirdSnapshots`) | today: four sealed `BirdCritter` classes |
 | Groups, stages, spacing | planned (steps 6–7) | today: `groupCount` × `groupSize` |
 
 Until bodies move to JSON, each bird class is a hardcoded composition: `BirdTypeProfiles.ByBirdType` maps it to a layout, its required clips, the event names it understands, the routine actions it can perform, its default routine and its default sound cues; the class decides which clip to play and when.
@@ -569,7 +569,7 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 - Common fields: `clip`, `sound` (role played when the action starts), `soundChance`, and how the action ends: clip end (default for non-looping clips), `durationMs`, or `endChance` (per-tick chance, legacy `Wake`/`StopWalking`).
 - Primitive-specific fields (`speed`, `impulse`, `turn`, `hiddenMs`, `target`, `speedFactor`, ...) are validated per `do`.
 - Action ids are strings. They replace the `BirdAction` enum, and `IdleCue.Action` becomes the action id.
-- Implemented (step 3b): action sets per bird type in `assets/actions/<type>_actions.json` (one file per set rather than one per action, since shipped actions are small and belong to a body). A rule's `actions` overrides single fields per id. Ids are fixed per bird type (`BirdTypeProfiles.ActionPrimitives`) until the single `Bird` dispatches by primitive in 3c; `soundChance` is rolled on the owner RNG only when the action has a `sound`.
+- Implemented (step 3b): action sets per bird type in `assets/actions/<type>_actions.json` (one file per set rather than one per action, since shipped actions are small and belong to a body). A rule's `actions` overrides single fields per id. Built-in ids are fixed per bird type (`BirdTypeProfiles.ActionPrimitives`); `soundChance` is rolled on the owner RNG only when the action has a `sound`. Step 3c: `IdleCue.Action` is a string id, and a rule on a routine-driven bird type may add new ids with `do: "stay"` and a `clip`; the routine can pick them, and the bird plays the clip (and sound) while staying stopped.
 
 #### 3. Routine (idle)
 
@@ -583,7 +583,7 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 }
 ```
 
-- Implemented: `chance`, `pick`, `next` (step 3a). Pick ids are routine actions of the bird type (`BirdTypeProfiles`: land `sleep`, `peck`, `hop`, `turnAndHop`, `walk`; water-land `peck`, `rest`, `hop`, `walk`); `next` is limited to the follow-ups a bird type reports (land: after `peck` → `peck`, `sleep` or `stop`). A missing `next` entry stops without drawing from the RNG.
+- Implemented: `chance`, `pick`, `next` (step 3a). Pick ids are routine actions of the bird type (`BirdTypeProfiles`: land `sleep`, `peck`, `hop`, `turnAndHop`, `walk`; water-land `peck`, `rest`, `hop`, `walk`) or the rule's custom `stay` actions (3c); `next` is limited to the follow-ups a bird type reports (land: after `peck` → `peck`, `sleep` or `stop`). A missing `next` entry stops without drawing from the RNG.
 - `chance`: per-tick chance to schedule an idle cue while eligible (legacy 0.008 land, 0.003 water-land).
 - `pick`: integer weights; one roll `Next(sum)` walked cumulatively in key order after merging. A list with a duplicate (legacy `Walk, Walk`) becomes weight 2 and consumes the RNG identically.
 - `next`: sparse follow-up weights when a specific action ends; actions without an entry fall back to idle scheduling. Not an N×N transition matrix, and no frame-level probabilities.

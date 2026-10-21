@@ -2,13 +2,10 @@ using Newtonsoft.Json;
 
 namespace BirdsEverywhere;
 
-/// <summary>Serializes mod messages that carry spawn plans or birds, which need the mod's converters.</summary>
+/// <summary>Serializes mod message payloads (plans) with explicit settings instead of process-wide defaults.</summary>
 internal static class MessageJson
 {
-    public static JsonSerializerSettings CreateSettings() => new()
-    {
-        Converters = { new CustomBirdTypeConverterWriter(), new CustomBirdTypeConverterReader() },
-    };
+    public static JsonSerializerSettings CreateSettings() => new();
 
     public static string Serialize<T>(T value) => JsonConvert.SerializeObject(value, CreateSettings());
 

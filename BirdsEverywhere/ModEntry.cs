@@ -7,6 +7,7 @@ using BirdsEverywhere.Multiplayer;
 using BirdsEverywhere.Observations;
 using BirdsEverywhere.Registries;
 using BirdsEverywhere.Spawners;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
@@ -199,6 +200,10 @@ public partial class ModEntry : Mod
             foreach (KeyValuePair<string, string> source in entry.Sources.Where(source => source.Key.StartsWith($"$.rules.{rule.Name}.", StringComparison.Ordinal)))
             {
                 Monitor.Log($"  {source.Key}: {source.Value}", LogLevel.Info);
+            }
+            if (bird.Rules.FirstOrDefault(resolved => resolved.Id == rule.Name)?.Composition is { } composition)
+            {
+                Monitor.Log($"  resolved composition: {JsonConvert.SerializeObject(composition, Newtonsoft.Json.Formatting.None)}", LogLevel.Info);
             }
         }
     }
@@ -411,7 +416,7 @@ public partial class ModEntry : Mod
     }
 
     private static string SerializeCurrentBirds(GameLocation location) =>
-        MessageJson.Serialize(location.critters.OfType<BirdCritter>().ToList());
+        BirdSnapshots.Serialize(location.critters.OfType<BirdCritter>());
 
     private void ReceiveLocationBirds(LocationBirdsState state, long senderId)
     {
@@ -423,7 +428,7 @@ public partial class ModEntry : Mod
             return;
         }
 
-        List<BirdCritter> birds = MessageJson.Deserialize<List<BirdCritter>>(state.BirdsJson);
+        List<BirdCritter> birds = BirdSnapshots.Deserialize(state.BirdsJson);
         GameLocation location = Game1.currentLocation;
         location.instantiateCrittersList();
         Dictionary<long, BirdCritter> existing = location.critters.OfType<BirdCritter>().ToDictionary(bird => bird.BirdID);
@@ -515,7 +520,7 @@ public partial class ModEntry : Mod
         GameLocation location = Game1.currentLocation;
         _locationSpawner.Clear(location);
         location.instantiateCrittersList();
-        foreach (BirdCritter bird in MessageJson.Deserialize<List<BirdCritter>>(birdsJson))
+        foreach (BirdCritter bird in BirdSnapshots.Deserialize(birdsJson))
         {
             bird.Services = _birdServices;
             bird.sprite.CurrentAnimation = null;

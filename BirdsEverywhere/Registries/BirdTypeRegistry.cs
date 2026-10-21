@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using BirdsEverywhere.BirdTypes;
 using BirdsEverywhere.Domain;
 using BirdsEverywhere.Spawners;
+using Microsoft.Xna.Framework;
 using StardewValley;
 
 namespace BirdsEverywhere.Registries;
@@ -18,11 +19,11 @@ internal sealed class BirdTypeRegistry
     {
         [new BirdTypeId("LandBird")] = (p, _, s) => new LandBird((int)p.Tile.X, (int)p.Tile.Y, p.BirdId, p.Texture, s),
         [new BirdTypeId("WaterLandBird")] = (p, _, s) => new WaterLandBird((int)p.Tile.X, (int)p.Tile.Y, p.BirdId, p.Texture, s),
-        [new BirdTypeId("TreeTrunkBird")] = (p, l, s) => p.FeatureIndex is int index
-            ? new TreeTrunkBird((int)p.Tile.X, (int)p.Tile.Y, p.BirdId, p.Texture, s).SetAnchor(index, l.Name)
+        [new BirdTypeId("TreeTrunkBird")] = (p, l, s) => p.FeatureTile is Vector2 anchor
+            ? new TreeTrunkBird((int)p.Tile.X, (int)p.Tile.Y, p.BirdId, p.Texture, s).SetAnchor(anchor, l.Name)
             : null,
-        [new BirdTypeId("BushBird")] = (p, l, s) => p.FeatureIndex is int index
-            ? new BushBird((int)p.Tile.X, (int)p.Tile.Y, p.BirdId, p.Texture, s).SetAnchor(index, l.Name)
+        [new BirdTypeId("BushBird")] = (p, l, s) => p.FeatureTile is Vector2 anchor
+            ? new BushBird((int)p.Tile.X, (int)p.Tile.Y, p.BirdId, p.Texture, s).SetAnchor(anchor, l.Name)
             : null,
     });
 

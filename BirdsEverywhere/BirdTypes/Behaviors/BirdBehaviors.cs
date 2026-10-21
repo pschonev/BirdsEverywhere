@@ -1,11 +1,9 @@
-using BirdsEverywhere.Domain;
-
 namespace BirdsEverywhere.BirdTypes.Behaviors;
 
 internal static class BirdBehaviors
 {
-    /// <summary>Flee, stop walking (only with a walk end chance), wake after sleeping, then the idle routine.</summary>
-    public static IReadOnlyList<IBirdBehavior> Land(Routine routine, double wakeChance, double? walkStopChance)
+    /// <summary>Flee, stop walking (only with a walk end chance), then wake after sleeping. Idle actions come from the scheduled cue, not this list.</summary>
+    public static IReadOnlyList<IBirdBehavior> Land(double wakeChance, double? walkStopChance)
     {
         List<IBirdBehavior> behaviors = new() { new FleeBehavior() };
         if (walkStopChance is { } stop)
@@ -13,19 +11,17 @@ internal static class BirdBehaviors
             behaviors.Add(new StopWalkingBehavior(stop));
         }
         behaviors.Add(new WakeBehavior(wakeChance));
-        behaviors.Add(new IdleRoutineBehavior(routine));
         return behaviors;
     }
 
-    /// <summary>Flee, stop walking (only with a walk end chance), then the idle routine.</summary>
-    public static IReadOnlyList<IBirdBehavior> WaterLand(Routine routine, double? walkStopChance)
+    /// <summary>Flee, then stop walking (only with a walk end chance).</summary>
+    public static IReadOnlyList<IBirdBehavior> WaterLand(double? walkStopChance)
     {
         List<IBirdBehavior> behaviors = new() { new FleeBehavior() };
         if (walkStopChance is { } stop)
         {
             behaviors.Add(new StopWalkingBehavior(stop));
         }
-        behaviors.Add(new IdleRoutineBehavior(routine));
         return behaviors;
     }
 

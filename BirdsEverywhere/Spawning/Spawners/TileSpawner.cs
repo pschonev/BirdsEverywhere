@@ -86,7 +86,7 @@ public abstract class Spawner
 
     public abstract bool IsStillValid(GameLocation location, BirdPlacement placement);
 
-    protected static BirdPlacement Place(BirdDefinition data, SpawnRule rule, Vector2 tile, int? featureIndex, Random random) =>
-        new(data.Id.Value, rule.Id, rule.BirdType.Value, rule.SpawnPattern.Value, tile, featureIndex, rule.When.Times, rule.PickTexture(data.Id, random), random.Next());
+    protected static BirdPlacement Place(BirdDefinition data, SpawnRule rule, Vector2 tile, Vector2? featureTile, Random random) =>
+        new(data.Id.Value, rule.Id, rule.BirdType.Value, rule.SpawnPattern.Value, tile, featureTile, rule.When.Times, rule.PickTexture(data.Id, random), random.Next());
 }
 
