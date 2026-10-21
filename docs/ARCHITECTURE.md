@@ -74,6 +74,9 @@ BirdsEverywhere/
     LandBird.cs, WaterLandBird.cs, TreeTrunkBird.cs, BushBird.cs (sealed)
     Behaviors/                IBirdBehavior + small behavior implementations
     TerrainAnchor.cs          location + tile + feature kind
+                              Phase 10: one sealed Bird + Bodies/, Actions/, Reactions/, Routine, SoundSet, Layouts/ (clip playback)
+  assets/layouts|actions|routines|reactions/   Phase 10: shared composition definitions, <id>.json
+  schemas/                    editor/test JSON schemas, one per file kind + common.schema.json
   Registries/
     BirdTypeRegistry.cs, SpawnPatternRegistry.cs
   Observations/
@@ -154,7 +157,8 @@ A rule is one situation in which the bird can appear. `defaults` has the same fi
 | `groupCount`, `groupSize` | `[min, max]` | inclusive |
 | `textures` | `{ "<variant>": weight }` | `""` is the base sprite; other keys are texture variants |
 | `weight` | number > 0 | selection weight among eligible rules; C# fallback `1` |
-| `routineWeights`, `threatResponse` | reserved | Phase 5; same merge rules apply |
+| `body`, `layout`, `actions`, `routine`, `reactions`, `sounds`, `stages` | ref or inline | planned, [Bird composition](#bird-composition-config-driven-behavior); replace `birdType` and the reserved `routineWeights`/`threatResponse` |
+| `group`, `groupSpacing`, `near`, `avoid`, `space`, `packing`, `speciesDistance` | see [Spawning v2](#spawning-v2-groups-stages-spacing) | planned; same merge rules apply |
 
 Required after merging: `locations`, `spawnPattern`, `birdType`, `groupCount`, `groupSize`, `textures`.
 
@@ -457,7 +461,319 @@ classDiagram
 
 Implemented so far: land and water-land stopped routines prepare one cue up to 120 ticks ahead with an isolated schedule RNG, tick, revision, action and visual seed. Cues can fire immediately when a bird becomes idle, preserving the prior per-tick action chance; short-lead cues may occur before the next six-tick snapshot reaches a peer. Replicas advance flight and bush-run motion and animation locally, correcting drift against six-tick snapshots. Walking, hopping and collisions remain owner-driven and are not predicted. In-game multiplayer timing, lag and owner handoff still need verification.
 
-The migration is gradual: inheritance stays where it is simple and stable; composition replaces it only where combining behaviors would otherwise need more subclasses.
+The migration is gradual: inheritance stays where it is simple and stable; composition replaces it only where combining behaviors would otherwise need more subclasses. The end state is [Bird composition](#bird-composition-config-driven-behavior), implemented in [REFACTOR.md → Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds).
+
+## Bird composition (config-driven behavior)
+
+Planned design for [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds). Goal: a species' animation, idle routine, reactions, sounds, spawn grouping and life stages are JSON; C# provides a small, closed vocabulary of verbs and nouns.
+
+**Rule of thumb:** a new noun or verb (primitive, trigger, body, effect, target search, condition key) needs code; a new combination of existing ones is config. There is no expression language or scripting in JSON.
+
+### Layers
+
+Five layers, each referenced by name or defined inline (see [Ref or inline](#ref-or-inline)). All use the same merge rules as [TemplateMerger](#merge-algorithm): objects merge key by key, arrays replace, `null` removes.
+
+```mermaid
+flowchart LR
+    L["Layout<br/>sheet grid + clips"] --> A["Actions<br/>primitive + clip + params + sound role"]
+    A --> R["Routine<br/>weighted idle picks"]
+    A --> X["Reactions<br/>trigger → response"]
+    R & X & L & S["Sounds<br/>role → cue"] --> C["Species composition"]
+```
+
+#### 1. Layout (sheet grid and clips)
+
+A layout describes one sprite-sheet arrangement and the named clips played from it. Clips are tied to the art, so the layout is the reusable unit; textures (male, female, juvenile variants) share a layout.
+
+```json
+"land_32": {
+  "frameSize": [32, 32],
+  "clips": {
+    "stand": [[0, 1000]],
+    "walk":  { "frames": [[0, 100], [1, 100]], "loop": true },
+    "peck":  {
+      "frames": [[2, 480], [3, 170], [4, 170]],
+      "repeat": { "frames": [[3, 70], [4, 100, "peck"]], "count": [1, 4] },
+      "end":    [[3, 100], [2, 70], [1, 70], [0, 500]]
+    },
+    "sleep": [[5, 0]],
+    "fly":   { "frames": [[6, 70], [7, 60, "flap"], [8, 70], [7, 60]], "loop": true }
+  }
+}
+```
+
+- `frameSize` is `[width, height]` in source pixels. Frame index = cell counted left to right, top to bottom, exactly like `AnimatedSprite` (which wraps by texture width).
+- A clip is either a frame list or an object `{ frames, repeat?, end?, loop? }`. Played sequence: `frames`, then `repeat.frames` rolled `repeat.count` times, then `end`. `loop: true` repeats the whole sequence until the action ends.
+- A frame is `[cell, ms]` or `[cell, ms, event]`. `ms` is an integer or a [range](#ranges), e.g. `[6, [500, 3999]]`.
+- An event string names a sound role (played via the species' `sounds`) or a code-registered effect (`hop`, later `splash`, `feathers`, `hide`). A name may not be both; unknown names fail validation.
+- Clip end is reported to the running action (replaces legacy `DonePecking`-style callbacks).
+- **Sheet rule:** append new poses at the end of a sheet; never insert or reorder cells, so every existing clip stays valid. A different cell size is a new layout, usually one that `extends` an existing one.
+
+#### Ranges
+
+`[min, max]` inclusive, or `[min, max, step]`. Rolled as `rng.Next(min / step, max / step + 1) * step` (step defaults to 1), i.e. one `Next` call, so legacy `VisualRng.Next(5, 15) * 100` is exactly `[500, 1400, 100]` and `VisualRng.Next(1, 5)` is `[1, 4]`. Same convention for every range in this section.
+
+#### 2. Actions
+
+An action binds a code primitive (`do`) to a clip, parameters and an optional sound role.
+
+```json
+"peck":   { "do": "stay", "clip": "peck" },
+"forage": { "do": "walk", "clip": "walk", "durationMs": [500, 1500] },
+"sing":   { "do": "stay", "clip": "sing", "sound": "song" },
+"dive":   { "do": "dive", "clip": "dive", "hiddenMs": [2000, 5000], "resurfaceTiles": [1, 3] }
+```
+
+- Primitives are a closed C# vocabulary: `stay`, `walk`, `hop`, `flyOff`, `flyTo`, `runToBush`, `swim`, `swimAway`, `dive`, `hide`, `follow`.
+- Common fields: `clip`, `sound` (role played when the action starts), `soundChance`, and how the action ends: clip end (default for non-looping clips), `durationMs`, or `endChance` (per-tick chance, legacy `Wake`/`StopWalking`).
+- Primitive-specific fields (`speed`, `impulse`, `turn`, `hiddenMs`, `target`, `speedFactor`, ...) are validated per `do`.
+- Action ids are strings. They replace the `BirdAction` enum, and `IdleCue.Action` becomes the action id.
+
+#### 3. Routine (idle)
+
+```json
+"garden_ground": {
+  "chance": 0.008,
+  "pick": { "peck": 4, "forage": 2, "hop": 1, "stand": 2, "sing": 1 },
+  "next": { "forage": { "peck": 3, "stand": 1 } },
+  "cooldown": { "sing": 10000 },
+  "rare": { "wormPull": { "weight": 0.05, "when": { "weather": ["rain"] } } }
+}
+```
+
+- `chance`: per-tick chance to schedule an idle cue while eligible (legacy 0.008 land, 0.003 water-land).
+- `pick`: integer weights; one roll `Next(sum)` walked cumulatively in key order after merging. A list with a duplicate (legacy `Walk, Walk`) becomes weight 2 and consumes the RNG identically.
+- `next`: sparse follow-up weights when a specific action ends; actions without an entry fall back to idle scheduling. Not an N×N transition matrix, and no frame-level probabilities.
+- `cooldown`: minimum ms between two starts of an action.
+- `rare`: probability-weighted extras with optional `when` [conditions](#context-conditions), rolled before `pick`. Shipped birds have no `rare` entries, so their RNG consumption is unchanged.
+
+#### 4. Reactions
+
+```json
+"skittish_ground": {
+  "threat": {
+    "alert": { "radius": 6, "do": "stay", "clip": "alert", "sound": "alarm" },
+    "flee":  { "radius": 3, "do": "flyOff", "sound": "alarm" }
+  },
+  "playerEnters": { "chance": 0.3, "sound": "call" }
+},
+"relocating_tree": {
+  "threat": { "flee": { "radius": 5, "do": "flyTo", "target": "otherTree", "maxRelocations": 2, "then": "flyOff" } }
+}
+```
+
+- Triggers are code: `threat`, `playerEnters`, `treeShaken`, `toolUsed`, `timeOfDay` (legacy felled-tree flee becomes a trunk-body trigger feeding `flee`).
+- Two-radius threat response: inside `alert.radius` the bird freezes (head-up clip), inside `flee.radius` it responds, and it resumes idling a short while after the threat leaves the outer radius.
+- A running farmer counts as closer (optional `runningMultiplier` in JSON; C# fallback in code).
+- `BirdContext` carries the threat distance instead of a bool. Decision order: `Flee(inner) → Alert(outer) → Wake → IdleRoutine`.
+- The observation registers on any visible response (alert, flee, relocate), not only flee.
+- `flyTo` uses a target search (`otherTree`, `otherBush`, `water`, `groupRole:<role>`), backed by `TileSelection`/`ILocationQuery`; on arrival the bird updates its `TerrainAnchor`. After `maxRelocations`, `then` applies.
+
+#### 5. Species composition
+
+```json
+{
+  "id": "great_tit",
+  "template": "garden_resident",
+  "body": "ground",
+  "layout": "songbird_32",
+  "routine": "garden_ground",
+  "reactions": ["skittish_ground"],
+  "sounds": { "call": "great_tit_call", "song": "great_tit_song", "alarm": "great_tit_alarm", "flap": "batFlap", "peck": "shiny4" }
+}
+```
+
+- Composition fields live on rules (and therefore `defaults` and templates), so they merge and can vary by rule like every other rule field.
+- Sound roles are indirect: clips, actions and reactions name a role; the species maps roles to cues. A missing role is silent, not an error.
+- Cues are vanilla cue names or mod cues registered via SMAPI `Data/AudioChanges` with `<ModId>_` ids, played through `Game1.playSound`. Prototype audio: jsfxr/ChipTone or synthesized tones; real recordings only with a compatible license (Freesound CC0; many Xeno-canto clips are CC BY-NC). Mono `.ogg`/`.wav`.
+- Sound features: distance-based volume, per-role cooldowns, a volume setting in `ModConfig`, and a player-enters-location hook (`playerEnters` trigger).
+
+### Ref or inline
+
+Every composable field (`layout`, `routine`, each `reactions` entry, each action, `stages` overrides) is either a string reference to a shared definition or an object with optional `extends` plus overrides. The schema is the same for shared files and inline objects.
+
+```json
+{
+  "id": "black_woodpecker",
+  "body": "trunk",
+  "layout": {
+    "extends": "trunk_16",
+    "frameSize": [48, 32],
+    "clips": { "drum": { "frames": [[5, 40]], "repeat": { "frames": [[6, 30, "drum"], [5, 30]], "count": [8, 20] } } }
+  },
+  "actions": { "drum": { "do": "stay", "clip": "drum", "sound": "drumroll" } },
+  "routine": { "extends": "trunk_feeder", "pick": { "drum": 1 }, "cooldown": { "drum": 15000 } },
+  "sounds": { "drumroll": "BirdsEverywhere_black_woodpecker_drum" }
+}
+```
+
+- The floor of customization is code: primitives, triggers, effects, bodies, target searches, condition keys.
+- Promote an inline definition to a shared file only when a second species needs it (WET first).
+- Inline definitions are local to their species; they cannot be referenced from elsewhere. An inline name that shadows a shared one is reported at `Info`.
+- Large species files may split definitions into files next to them (`assets/<bird>/layout.json`, `routine.json`), merged as if inline.
+- `birds_dump <bird> [<rule>]` prints the resolved composition with the source file of each value (same provenance as merge diagnostics).
+
+Shared definitions live in `assets/layouts/`, `assets/actions/`, `assets/routines/`, `assets/reactions/`, one id per file (`<id>.json`).
+
+### Code shape
+
+```mermaid
+classDiagram
+    Critter <|-- Bird
+    Bird o-- IBody
+    Bird o-- Routine
+    Bird o-- "0..*" IReaction
+    Bird o-- SoundSet
+    Bird ..> IAction : runs
+    class Bird { <<sealed>> }
+    class IBody { <<interface>> ground, water, trunk, bush, canopy, air }
+    class IAction { <<interface>> stay, walk, hop, flyOff, flyTo, runToBush, swim, swimAway, dive, hide, follow }
+```
+
+- One sealed `Bird : Critter` composed of an `IBody` (anchoring, drawing offsets, movement physics, collision, body triggers), a `Routine`, `IReaction`s, a `SoundSet`, and `IAction` primitives created from action definitions.
+- Bodies, primitives, triggers, effects, target searches, condition keys and formations are registered by string id in `ModEntry` (same registry pattern, no reflection). No combinatorial subclasses (no `FlyingWaterBirdWithSongAndCallWhichIsShy`).
+- Capabilities are derived from data: a bird can fly if its layout has a `fly` clip and it has a `flyOff` action.
+- Migration: the four current classes first become bodies with hardcoded compositions (behavior unchanged), then the compositions move into JSON.
+- `BirdState` serializes body kind, current action id, action progress, clip index and anchor; old saves map legacy `birdTypeName` values to bodies.
+
+### Config vs code
+
+| Config (JSON) | Code (C#) |
+|---|---|
+| clips, frame timings, repeat counts | primitives (`stay`, `walk`, `flyOff`, ...) |
+| routine weights, `next`, cooldowns, rare actions | physics, collision, movement |
+| reaction radii, chances, targets, responses | trigger detection (`threat`, `treeShaken`, ...) |
+| sound role → cue mappings | target searches (`otherTree`, `groupRole:*`) |
+| conditions (`when`, `if`) using fixed keys | bodies and their anchoring/drawing |
+| composition, stages, groups, formations, spacing | effects (splash, feathers, hide sprite) |
+| | multiplayer, observations, despawn |
+
+### Multiplayer
+
+- The owner picks the next action id plus a seed (the existing `IdleCue(Tick, Action, Seed)`); peers replay the clip deterministically from the seed. Clip ranges roll on the cue's visual RNG; routine and reaction decisions roll on the owner's RNGs only.
+- Committed movement (`flyOff`, `flyTo`, `runToBush`, `swimAway`, `follow`) carries start pose, direction and velocity, as today.
+- Today replicas advance frames without running frame callbacks, so peers play no frame sounds. **Open decision:** make sounds owner-committed (sent with the cue) or local cosmetic events fired by peers from replayed clips.
+
+### Spawning v2: groups, stages, spacing
+
+A rule may gain a `group` block; without it a rule spawns as today (`groupCount` × `groupSize`).
+
+```json
+"group": {
+  "formation": "cluster",
+  "radius": 2,
+  "members": {
+    "parent":   { "count": [1, 2], "stage": "adult" },
+    "duckling": { "count": [3, 8], "stage": "duckling" }
+  }
+}
+```
+
+**Stages** are richer variants of a species: a stage overrides any composition field. The existing `textures` weights still pick plumage within a stage.
+
+```json
+"stages": {
+  "adult": {},
+  "duckling": {
+    "layout": "duckling_16",
+    "routine": { "extends": "dabbling", "pick": { "dive": null } },
+    "reactions": [{ "threat": { "flee": { "radius": 3, "do": "follow", "target": "groupRole:parent", "speedFactor": 1.4 } } }]
+  }
+}
+```
+
+#### Context conditions
+
+Reactions (and routine `rare.when`) can branch on context. A list of alternatives; the first match wins.
+
+```json
+"threat": [
+  { "if": { "groupHasRole": "duckling" }, "flee": { "radius": 4, "do": "swimAway", "sound": "alarm" } },
+  { "flee": { "radius": 5, "do": "flyOff", "sound": "alarm" } }
+]
+```
+
+Condition keys are a fixed C# vocabulary: `groupHasRole`, `nearWater`, `season`, `timeOfDay`, `weather`, `stage`. Keys in one object are ANDed; there is no OR/NOT inside an object (use separate alternatives).
+
+#### Group runtime
+
+- Each bird carries `groupId` and `role` (also in `BirdState`).
+- Group-level reactions are possible (one member's flee triggers the group).
+- The owner of the group leader owns the whole group.
+- `follow` is committed movement relative to the leader; later reused for cattle egrets on farm animals (moving anchor).
+
+#### Placement controls
+
+| Field | Meaning |
+|---|---|
+| `group.formation` | `cluster`, `scattered`, `line`, `perched` (registered by id) |
+| `group.radius` | tiles around the group center |
+| `groupSpacing` | `[min, max]` tiles between groups of the same rule |
+| `near` / `avoid` | `[{ "kind": "tree", "within": 3 }, { "kind": "water", "within": 1 }, { "kind": "crop" }]`; kinds backed by `ILocationQuery` |
+| `spawnParams.shoreDistance` | unchanged |
+| `space` | per-species body radius in tiles; C# fallback 0.5 (gull ≈ 1, heron ≈ 1.5) |
+| `packing` | factor < 1 lets clusters pack tighter than `space` |
+| `speciesDistance` | gap to groups of other species; default `TileSelection.MinSpeciesDistance` (8), now overridable per rule |
+
+- Two birds A and B are valid neighbours when their distance is at least $(r_A + r_B) \cdot packing$.
+- Placement is rejection sampling (Poisson-disk style) with N tries per bird and no spatial index. Partial placement is accepted; below the rule's minimum count, the existing feasibility fallback applies.
+- Formation, spacing, `near`/`avoid` and `space` are pure planner logic over `ILocationQuery`, testable on arm64.
+- `birdType` is mostly replaced by `body` plus behavior refs. The validator checks body vs spawn-pattern compatibility (e.g. `trunk` needs `TreeTrunkSpawner`).
+
+### Validation
+
+`ContentValidator` (runtime) checks the resolved composition:
+
+- every clip referenced by an action exists in the layout; every action referenced by a routine, `next`, reaction or stage exists;
+- frame indices fit the texture: e.g. `layout land_32 clip peck: frame 9 outside 9-cell sheet great_tit.png`;
+- each primitive fits the body (`dive` needs a water-capable body; `flyTo otherTree` needs a tree anchor);
+- unknown sound roles, effects, primitives, triggers, condition keys, formations and `near` kinds; unreachable `next` entries;
+- `extends` targets exist and have no cycles; texture and sound files exist.
+
+Error format and severity follow [Validation](#validation).
+
+### Schemas
+
+- One schema per file kind in `schemas/`: existing `bird`, `template`, `rule`, `regions`, `compat`, plus `layout`, `routine`, `reaction` and possibly `action`. `common.schema.json` holds shared `$defs`: `range`, `weightMap` (values may be `null`), `refOrInline`, `condition`, `soundRole`.
+- Schemas describe partial files: no `required` on mergeable fields, and `null` allowed wherever merging allows removal.
+- Primitive-specific fields use `if`/`then` on the `do` discriminator instead of deep `oneOf`, so editor errors stay readable.
+- Editor mapping via `.vscode/settings.json` `json.schemas` globs. Assets get no `$schema` key, because strict deserialization (`MissingMemberHandling.Error`) would reject it.
+- JsonSchema.Net stays test-only; never `Newtonsoft.Json.Schema` (AGPL).
+- `SchemaTests`:
+  - `AssetFiles` becomes a folder → schema table;
+  - a guard test fails when any `assets/**/*.json` matches no schema;
+  - `SchemaEnums_MatchCode` becomes a per-registry table (bodies, primitives, triggers, effects, conditions, target searches, formations, `near` kinds, spawn patterns);
+  - an agreement table runs the same JSON through schema and `ContentValidator` and expects the same verdict.
+- Duplication between schemas and the `*Json` records is accepted and guarded by the drift and agreement tests.
+
+### Art workflow
+
+- Artists get a per-layout reference: cell size plus a cell → pose list, generated from the layout JSON, or a numbered template PNG.
+- Preview: `birds_anim <bird> <clip>` console command in game, and later the browser preview from the [Backlog](REFACTOR.md#backlog). Optional later: Aseprite tag export to clips.
+- Developer effort: about 15 lines of JSON per new layout; one line per species that reuses one.
+
+### Preserving shipped birds
+
+The first extraction is pure: zero behavior change, PNGs unchanged. Target layouts, extracted 1:1 from the current classes:
+
+| Layout | Cells | Clips (cell, ms; events) |
+|---|---|---|
+| `land_32` | 0–8 | stand 0; walk 0/1 @100 loop; peck 2(480) 3(170) 4(170), repeat [1,4] × [3(70), 4(100, `peck`)], end 3(100) 2(70) 1(70) 0(500); sleep 5; fly 6(70) 7(60, `flap`) 8(70) 7(60) loop |
+| `waterland_32` | 0–13 | walk 0/1 @200 loop; peck 2(100) 3(100) 4(200) 5(200), repeat [0,4] × [4(200), 5(200)]; rest 6([500,3999]); hop 6(500) 7(100, `hop`) 8(100), repeat [0,2] × [7(100), 8(100)]; swim 9 (static, body bobs ±2 px per second with ripple); fly 10/11/12(80) 13(100) loop |
+| `trunk_16` | 0–4 | peck repeat [2,7] × [0(100), 1(100, `peck`)], end 0(200); fly 2(70) 3(60, `flap`) 4(70) 3(60) loop |
+| `bush_32` | 0–5 (4 unused) | run 0/1/2(40) 3(100) 5(70) 5(40) loop |
+
+| Shipped type | Composition after extraction |
+|---|---|
+| Land | routine chance 0.008, pick `{sleep:1, peck:1, hop:1, turnAndHop:1, walk:2}` (legacy list order); `sleep` endChance 0.003; `peck` `next {peck:1, stop:1}` rolled on `Rng`; walk 1 px/tick, `durationMs [500,1400,100]`; hop impulse 2 (`turnAndHop` flips first); flee radius 4, `flyOff` ±6 px, climb 2 + spawn jitter, sound role `alarm` = `SpringBirds` at 0.85; `flap` = `batFlap`, `peck` = `shiny4` (on screen only) |
+| WaterLand | routine chance 0.003, pick `{peck:1, rest:1, hop:1, walk:1}`; walk 2 px/tick, endChance 0.005; `hop` effect impulse 4; swims when stopped on water; flee radius 4, `flyOff` ±4 px, climb 2, `alarm` = `seagulls` at 0.25 |
+| TreeTrunk | owner-only peck loop, clip repeat rolled on `Rng` (legacy), then wait `[1000,2999]` ms on `Rng`; flee radius 6 or tree felled, `flyOff` ±6 px, climb 1; `flap` = `batFlap`, `peck` = `Cowboy_gunshot` |
+| Bush | flee radius = anchor distance − 1, only on screen; `runToBush` at 6 px/tick, then the bush's use action and despawn |
+
+- Keep the same RNG streams (`Rng`, `VisualRng`, schedule RNG) and call order. Legacy `DonePecking` 50% becomes a `next` rule rolled on `Rng`.
+- Legacy frame callbacks become frame events mapped to the same vanilla cues and effects.
+- Legacy passes the bird's `flip` on some frames and `false` on others; check in game whether `AnimationFrame.flip` is visible for critters before deciding whether clips need it.
+- A characterization test records each bird type's generated frame sequence (cell, ms, event, flip) for fixed seeds before the extraction; the extracted clips must reproduce it exactly. `BirdBehaviorTests` stay green; then in-game checks per type.
 
 ## Vanilla critters
 
@@ -543,7 +859,7 @@ Tests assert observable outcomes (a bird flees when a farmer is near), not class
 
 ## Future design goals
 
-Goals, not designs; Phase 6 decides the implementation.
+Goals, not designs, unless marked implemented. Composition, groups and spacing are designed in [Bird composition](#bird-composition-config-driven-behavior).
 
 ### Spawn selection: luck, rarity, experience
 
@@ -583,6 +899,8 @@ Goals, not designs; Phase 6 decides the implementation.
 
 ### Behaviors: alert and foraging
 
+Designed in [Bird composition → Reactions](#4-reactions) and implemented in [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds) steps 4 and 5.
+
 - Threat response has two radii instead of instant flee: inside the outer radius the bird freezes (`Alert` state, head-up frame), inside the inner radius it flees, and it resumes idling a short while after the threat leaves the outer radius. A running farmer counts as closer, so sneaking pays off. `BirdContext` carries the threat distance instead of a bool; order becomes `Flee(inner) → Alert(outer) → Wake → IdleRoutine`.
 - Rare forage events are data-selected behaviors: worm pull (e.g. blackbird), fish strike near water (e.g. egret, reusing the vanilla splash sprite), and diving while swimming (ducks, grebes: hide, then resurface on a nearby water tile).
 
@@ -591,4 +909,4 @@ Goals, not designs; Phase 6 decides the implementation.
 - Public mod API for other mods, Content Patcher integration beyond the regions asset. Editor-only JSON schemas live in `schemas/`; they are not deployed and not used at runtime.
 - Spatial indexing or other performance work without a profile showing the need.
 
-These are tracked as Phase 10 in [REFACTOR.md](REFACTOR.md#10-nice-to-haves-and-future-improvements).
+These are tracked in the [REFACTOR.md Backlog](REFACTOR.md#backlog) under Technical improvements.
