@@ -4,7 +4,7 @@ Modernize the mod without changing its intended gameplay: make it safe to refact
 
 > First protect existing behavior with tests; then improve the architecture in small, verified steps.
 
-Phases 0–10 cover structure and correctness. Feature work and observed bugs not yet tied to a phase live in the [Backlog](#backlog).
+A phase is work we actually implement, in order. Phases 0–9 cover structure and correctness; Phase 10 makes birds fully config-driven. Everything else (feature ideas, technical improvements, observed bugs not yet tied to a phase) lives in the [Backlog](#backlog), in priority order where stated. New phases are pulled from the Backlog.
 
 ## Phase order
 
@@ -19,7 +19,7 @@ flowchart LR
     P4 --> P5["5 Bird composition"]
     P2 --> P8["8 Host-authoritative MP"]
     P7["7 Stability fixes"] -.-> P3 & P5 & P6 & P8
-    P5 & P6 & P8 --> P10["10 Nice-to-haves"]
+    P5 & P6 & P8 --> P10["10 Modular config-driven birds"]
 ```
 
 Phase 7 is not a separate step: each defect is fixed in the phase that touches its code (see [Known defects](#known-defects)). Phase 9 (in-game verification) runs at the end of every phase.
@@ -359,28 +359,103 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 
 ---
 
-## 10. Nice-to-haves and future improvements
+## 10. Fully modular, config-driven birds
 
-After phases 0–9.
+**Goal:** a species' animation, idle routine, reactions, sounds, spawn grouping and life stages are JSON; C# is a small closed vocabulary of primitives, triggers, bodies, effects, target searches and condition keys. Completes Phase 5's open item (JSON-selected behavior lists) and replaces the reserved `routineWeights`/`threatResponse` fields. The full design, with examples, is [ARCHITECTURE.md → Bird composition](ARCHITECTURE.md#bird-composition-config-driven-behavior); this section is the order and the exit criteria.
 
-- **Performance:** profile bird-heavy scenes first. If proximity checks dominate, centralize farmer-position lookup; a spatial grid only if the profile demands it.
-- **Public API:** small, versioned `IBirdsEverywhereApi` via `Helper.ModRegistry` for registering bird types, spawn patterns, behaviors, and validated definitions. Decide separately on Content Patcher support for data-only birds.
-- **Content tooling:** console command or CI job that validates all content and reports ids, templates, spawn patterns, locations, unresolved references, and inheritance chains. Editor JSON schemas exist in `schemas/` (test-checked against shipped assets); runtime validation stays in `ContentValidator`.
-- **Lifecycle audit:** event subscriptions, cached references, and long-lived collections cleaned up on save change and location unload. `IDisposable` only where the code owns subscriptions or unmanaged resources.
-- **Docs:** keep [ARCHITECTURE.md](ARCHITECTURE.md) current for merge rules, save format, and multiplayer ownership.
+**Principles**
+
+- A new noun or verb needs code; a new combination is config. No expression language or scripting in JSON.
+- Every composable field is a ref or an inline object with `extends`; promote inline definitions to shared files only on their second user.
+- Build each layer only when content needs it. Prove every step with 2–3 dissimilar species: great tit (ground), herring gull (water-land), black woodpecker (trunk).
+- Risks to avoid: a general system before there is content, too many layers up front, and indirection that hurts debugging (`birds_dump` shows the resolved composition with sources).
+
+**Every step includes**
+
+- JSON records + `TemplateMerger` support (same merge rules; `extends` resolution with cycle detection and provenance).
+- `ContentValidator` checks for the new fields ([Validation](ARCHITECTURE.md#validation-1)).
+- The matching schema in `schemas/` and `SchemaTests` updates ([Schemas](ARCHITECTURE.md#schemas)).
+- Pure tests on arm64 where possible; x64 tests for anything touching `AnimatedSprite`.
+- Docs updated; in-game verification per [Phase 9](#9-verify-in-game-behavior-after-each-phase).
+
+### Step 1: schema and test infrastructure
+
+- `schemas/common.schema.json` with `$defs` `range`, `weightMap` (nullable values), `refOrInline`, `condition`, `soundRole`. Existing schemas refer to it.
+- `SchemaTests`: `AssetFiles` becomes a folder → schema table; a guard test fails if an `assets/**/*.json` file matches no schema; `SchemaEnums_MatchCode` becomes a per-registry table; add the schema/`ContentValidator` agreement table.
+- `.vscode/settings.json` with `json.schemas` glob mappings. No `$schema` keys in assets.
+
+**Exit:** all existing assets map to a schema; adding a file kind without a schema fails a test.
+
+### Step 2: layouts and clips (pure extraction, zero behavior change)
+
+- Add the layout model: `frameSize`, clips (`frames`, `repeat`, `end`, `loop`), frame events, ranges. A clip player builds `AnimatedSprite` frame lists and reports clip end.
+- Before touching code: a characterization test that records each bird type's generated frame sequence (cell, ms, event, flip) for fixed seeds.
+- Extract `land_32`, `waterland_32`, `trunk_16`, `bush_32` 1:1 into `assets/layouts/` ([table](ARCHITECTURE.md#preserving-shipped-birds)); PNGs unchanged. Bird classes play clips by name instead of building frame lists.
+- Frame callbacks become events mapped to the same vanilla cues/effects (`peck`, `flap`, `hop`); `DonePecking` becomes clip end. Same RNG streams and call order.
+- Validator: clip names, frame indices within the texture's cell count, known events. `birds_anim <bird> <clip>` for preview.
+
+**Exit:** characterization test identical before and after; `BirdBehaviorTests` green; every shipped bird looks and sounds unchanged in game.
+
+### Step 3: actions, routines and sound roles
+
+- Action definitions (`do`, `clip`, `sound`, end condition, primitive parameters) with primitives `stay`, `walk`, `hop`, `flyOff`, `runToBush`, `swim` covering current behavior.
+- `Routine` (`chance`, `pick`, `next`, `cooldown`, `rare`) replaces `IdleRoutineBehavior` options; `BirdAction` and `IdleCue.Action` become string action ids (save/message migration for stored cues).
+- Shipped compositions expressed in JSON with legacy weights ([table](ARCHITECTURE.md#preserving-shipped-birds)): duplicates become weights, `DonePecking` 50% becomes `next`, rolled on the same RNGs.
+- Sound roles: species `sounds` map roles to vanilla cues first; then custom audio via `Data/AudioChanges` (`<ModId>_` ids). Distance volume, cooldowns, `ModConfig` volume. Decide the open multiplayer sound question (owner-committed vs local cosmetic).
+- Migration within the step: the four classes become bodies (`ground`, `water`, `trunk`, `bush`) inside one sealed `Bird`, first with hardcoded compositions, then loaded from JSON. `birdType` maps to `body` for existing content and saves.
+- `birds_dump <bird> [<rule>]`.
+
+**Exit:** a new species with different idle weights and its own sounds is JSON-only; shipped birds unchanged (characterization and in-game).
+
+### Step 4: reactions (alert, then relocate)
+
+- `BirdContext` carries threat distance; order `Flee(inner) → Alert(outer) → Wake → IdleRoutine`; running farmer counts as closer; observation on any response.
+- Reactions with triggers `threat`, `playerEnters`, then `treeShaken`, `toolUsed`, `timeOfDay` as content needs them.
+- Relocate: `flyTo` with target searches through `TileSelection`, `TerrainAnchor` update on arrival, committed movement for replicas, `maxRelocations` and `then`.
+
+**Exit:** a skittish and a relocating species defined only in JSON; behavior-stepping tests for approach/retreat timelines; verified in game, including two-player.
+
+### Step 5: forage primitives
+
+- `dive` (hide, resurface on a nearby water tile), fish strike with the vanilla splash effect, worm pull. Routine `rare` with `when` conditions.
+
+**Exit:** each primitive used by at least one species; validator rejects primitives the body cannot do.
+
+### Step 6: spawning placement
+
+- `group.formation` (`cluster`, `scattered`, `line`, `perched`), `group.radius`, `groupSpacing`, `near`/`avoid` kinds via `ILocationQuery`, per-species `space`, `packing`, per-rule `speciesDistance`.
+- Rejection sampling with N tries, no spatial index; partial placement allowed, below minimum → existing feasibility fallback.
+- Validator: body vs spawn pattern compatibility.
+
+**Exit:** pure planner tests (arm64) for each formation and spacing rule; spawn frequency in game unchanged for rules without the new fields.
+
+### Step 7: families, stages and group runtime
+
+- `group.members` with roles and `stage`; `stages` overriding composition fields; context conditions (`groupHasRole`, `nearWater`, `season`, `timeOfDay`, `weather`, `stage`), first match wins.
+- `groupId`/`role` on birds and in `BirdState`; group-level reactions; the leader's owner owns the group; `follow` as committed movement.
+
+**Exit:** a duck family (parents + ducklings that follow and swim away together) is JSON-only and syncs in two-player SMAPI.
 
 ---
 
 ## Backlog
 
-Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md → Future design goals](ARCHITECTURE.md#future-design-goals).
+Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md → Future design goals](ARCHITECTURE.md#future-design-goals). Items marked "→ Phase 10" are covered there and stay listed only for their content.
 
-**Observed bugs** (verify in game, then fix with Phase 5 behaviors or earlier with a regression test)
+**Technical improvements** (priority order)
+
+1. **Content tooling:** console command or CI job that validates all content and reports ids, templates, spawn patterns, locations, unresolved references, and inheritance chains. Schemas are covered by Phase 10 step 1; runtime validation stays in `ContentValidator`.
+2. **Docs:** keep [ARCHITECTURE.md](ARCHITECTURE.md) current for merge rules, save format, and multiplayer ownership.
+3. **Lifecycle audit:** event subscriptions, cached references, and long-lived collections cleaned up on save change and location unload. `IDisposable` only where the code owns subscriptions or unmanaged resources.
+4. **Performance:** profile bird-heavy scenes first. If proximity checks dominate, centralize farmer-position lookup; a spatial grid only if the profile demands it.
+5. **Public API:** small, versioned `IBirdsEverywhereApi` via `Helper.ModRegistry` for registering bodies, primitives, spawn patterns, and validated definitions. Decide separately on Content Patcher support for data-only birds.
+
+**Observed bugs** (verify in game, then fix with Phase 10 or earlier with a regression test)
 
 - Bush birds sometimes misbehave when running into bushes: possibly skip small bushes, and accept any bush on the path, not only the anchored one, so they don't run out of bounds.
 - Bush birds idle before running into the bush; flight distance is off.
 
-**Bird types and behaviors** (as Phase 5 behaviors where possible; a new bird class only when anchoring or drawing differs)
+**Bird types and behaviors** (as Phase 10 composition where possible; a new body only when anchoring or drawing differs)
 
 - Birds flying into trees.
 - Water birds that swim away.
@@ -391,13 +466,13 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
   1. Feeding raptor: an ordinary placement on the ground, mantling over prey (prey hidden under the wings, a few feathers, no blood). Flees on approach and leaves the prey behind. Needs a `Feed` idle action and 2–4 frames.
   2. Hunt: the raptor dives onto a small bird in the location, the other birds startle, feathers puff, then it feeds as in stage 1. The simulation owner picks the victim and outcome.
   3. Not planned: carrying prey away (needs carry frames) or a full patrol/alarm/miss script.
-- Birds that relocate to another spot instead of fleeing the location.
-- Tame birds that don't flee.
-- Special animations, e.g. hunting or display dances.
-- Cattle egrets on farm animals (moving anchor).
-- Alert behavior: freeze in an outer radius, flee in an inner one ([design](ARCHITECTURE.md#behaviors-alert-and-foraging)).
-- Data-driven idle routines: per-type defaults, per-species weights in JSON.
-- Rare forage behaviors: worm pull, fish strike, diving.
+- Birds that relocate to another spot instead of fleeing the location. → Phase 10 step 4.
+- Tame birds that don't flee: a reactions definition without `flee`. → Phase 10 step 4.
+- Special animations, e.g. hunting or display dances: clips plus actions. → Phase 10 steps 2–3.
+- Cattle egrets on farm animals (moving anchor): via `follow`, after Phase 10 step 7.
+- Alert behavior: freeze in an outer radius, flee in an inner one ([design](ARCHITECTURE.md#4-reactions)). → Phase 10 step 4.
+- Data-driven idle routines: per-type defaults, per-species weights in JSON. → Phase 10 step 3.
+- Rare forage behaviors: worm pull, fish strike, diving. → Phase 10 step 5.
 
 **Vanilla critters** ([policy](ARCHITECTURE.md#vanilla-critters))
 
@@ -409,9 +484,9 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 **Spawning content**
 
 - Ginger Island: mostly Central American, Colombian and Caribbean species, ideally many that migrate to North America (warblers, Baltimore Oriole, Ruby-throated Hummingbird, Swainson's Hawk).
-
-- Couples (breeding season) and juveniles.
+- Couples (breeding season) and juveniles: group members, roles and stages. → Phase 10 step 7.
 - Species that often appear together (affinity between species).
+
 **Items and attraction**
 
 - Bird food: grown or processed by the player, or bought at Pierre's or JojaMart. Using it scatters it on a tile and attracts birds nearby for a while.
@@ -426,10 +501,10 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 **Dev tooling**
 
 - Web UI for the playground: minimal API in the playground project plus a React/Vite (or Blazor) frontend for plan views, odds charts, and a day stepper with observe buttons.
-- Sprite and animation preview in the browser: move frame lists from the bird classes to data (named animations of frame, ms, flip), then play them on a canvas at 4× nearest-neighbour over a game screenshot. Movement, collision, and depth stay in-game only.
+- Sprite and animation preview in the browser: frame lists become data in Phase 10 step 2 (layouts; in-game `birds_anim`), then play them on a canvas at 4× nearest-neighbour over a game screenshot. Movement, collision, and depth stay in-game only.
 
 **Release**
 
 - Translation (i18n).
-- Sounds.
+- Sounds: per-species sound roles and custom audio. → Phase 10 step 3.
 - First release.
