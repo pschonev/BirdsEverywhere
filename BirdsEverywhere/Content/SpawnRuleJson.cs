@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BirdsEverywhere.Content;
 
@@ -31,11 +32,11 @@ public sealed record SpawnRuleJson
     [JsonProperty("spawnParams")]
     public SpawnParamsJson? SpawnParams { get; init; }
 
-    [JsonProperty("routineWeights")]
-    public Dictionary<string, int>? RoutineWeights { get; init; }
+    [JsonProperty("routine")]
+    public JToken? Routine { get; init; }
 
-    [JsonProperty("threatResponse")]
-    public string? ThreatResponse { get; init; }
+    [JsonProperty("sounds")]
+    public Dictionary<string, string>? Sounds { get; init; }
 }
 
 public sealed record SpawnParamsJson

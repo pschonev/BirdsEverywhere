@@ -7,6 +7,82 @@ namespace BirdsEverywhere.Content;
 
 public static class ContentValidator
 {
+    /// <summary>Resolves the rule's routine (ref, inline, or bird-type default) and merges its sounds over the bird type's defaults.</summary>
+    private static BirdComposition? Composition(SpawnRuleJson rule, string path, string file, IReadOnlyDictionary<string, Routine> routines,
+        Action<IssueSeverity, string, string> report)
+    {
+        if (!BirdTypeProfiles.ByBirdType.TryGetValue(rule.BirdType, out BirdTypeProfile? profile))
+        {
+            return null;
+        }
+
+        Routine? routine = null;
+        string routinePath = path + ".routine";
+        if (rule.Routine is { Type: JTokenType.String } reference)
+        {
+            string id = reference.Value<string>()!;
+            if (!routines.TryGetValue(id, out routine))
+            {
+                report(IssueSeverity.Error, routinePath, $"Unknown routine '{id}'.");
+            }
+        }
+        else if (rule.Routine is JObject inline)
+        {
+            try
+            {
+                routine = RoutineLoader.Parse(inline, file, routinePath);
+            }
+            catch (FormatException exception)
+            {
+                report(IssueSeverity.Error, routinePath, exception.Message);
+            }
+        }
+        else if (rule.Routine is not null)
+        {
+            report(IssueSeverity.Error, routinePath, "Routine must be a routine id or an inline routine object.");
+        }
+        else if (profile.DefaultRoutine is { } fallback && !routines.TryGetValue(fallback, out routine))
+        {
+            report(IssueSeverity.Error, routinePath, $"Default routine '{fallback}' for {rule.BirdType} is missing.");
+        }
+
+        if (routine is not null && rule.Routine is not null && profile.DefaultRoutine is null)
+        {
+            report(IssueSeverity.Error, routinePath, $"{rule.BirdType} has no idle routine.");
+        }
+        if (routine is not null)
+        {
+            foreach (string action in routine.Pick.Select(option => option.Id).Distinct().Where(action => !profile.Actions.Contains(action)))
+            {
+                report(IssueSeverity.Error, routinePath + ".pick", $"{rule.BirdType} cannot perform action '{action}'. Known: {string.Join(", ", profile.Actions)}.");
+            }
+            foreach ((string action, IReadOnlyList<WeightedId> options) in routine.Next)
+            {
+                if (!profile.FollowUps.TryGetValue(action, out IReadOnlyList<string>? allowed))
+                {
+                    report(IssueSeverity.Error, $"{routinePath}.next.{action}", $"{rule.BirdType} has no follow-up after '{action}'. Known: {string.Join(", ", profile.FollowUps.Keys)}.");
+                    continue;
+                }
+                foreach (string target in options.Select(option => option.Id).Where(target => !allowed.Contains(target)))
+                {
+                    report(IssueSeverity.Error, $"{routinePath}.next.{action}.{target}", $"{rule.BirdType} cannot follow '{action}' with '{target}'. Known: {string.Join(", ", allowed)}.");
+                }
+            }
+        }
+
+        Dictionary<string, string> sounds = new(profile.Sounds, StringComparer.Ordinal);
+        foreach ((string role, string cue) in rule.Sounds ?? new Dictionary<string, string>())
+        {
+            if (!profile.Sounds.ContainsKey(role))
+            {
+                report(IssueSeverity.Warn, $"{path}.sounds.{role}", $"{rule.BirdType} never plays sound role '{role}'. Known: {string.Join(", ", profile.Sounds.Keys)}.");
+            }
+            sounds[role] = cue;
+        }
+
+        return new BirdComposition(routine, sounds);
+    }
+
     public static (BirdDefinition? Bird, IReadOnlyList<ValidationIssue> Issues) Validate(
         JObject document,
         string file,
@@ -15,6 +91,7 @@ public static class ContentValidator
         IReadOnlyDictionary<string, IReadOnlyList<string>> groups,
         IReadOnlyCollection<SpawnPatternId> patterns,
         IReadOnlyCollection<BirdTypeId> birdTypes,
+        IReadOnlyDictionary<string, Routine> routines,
         Func<string, bool> textureExists)
     {
         List<ValidationIssue> issues = new();
@@ -51,12 +128,17 @@ public static class ContentValidator
             Report(IssueSeverity.Error, "$.id", $"Expected id '{id}', got '{json.Id}'.");
         }
 
-        foreach ((string value, string path) in new[] { (json.Name, "$.name"), (json.ScientificName, "$.scName"), (json.Description, "$.description") })
+        foreach ((string value, string path) in new[] { (json.Name, "$.name"), (json.ScientificName, "$.scName") })
         {
             if (string.IsNullOrWhiteSpace(value))
             {
                 Report(IssueSeverity.Error, path, "Must not be empty.");
             }
+        }
+
+        if (json.Shorthand is not null && string.IsNullOrWhiteSpace(json.Shorthand))
+        {
+            Report(IssueSeverity.Error, "$.shorthand", "Must not be empty when specified.");
         }
 
         if (json.Rules.Count == 0)
@@ -186,7 +268,8 @@ public static class ContentValidator
                 : null;
             rules.Add(new SpawnRule(entry.Key, new SpawnConditions(seasons.ToImmutable(), weather.ToImmutable(), days, times),
                 locations.Distinct(StringComparer.Ordinal).ToImmutableArray(), new SpawnPatternId(rule.SpawnPattern), new BirdTypeId(rule.BirdType),
-                count, size, textures.ToImmutableDictionary(StringComparer.Ordinal), rule.Weight, new SpawnParams(shoreDistance)));
+                count, size, textures.ToImmutableDictionary(StringComparer.Ordinal), rule.Weight, new SpawnParams(shoreDistance),
+                Composition(rule, path, file, routines, Report)));
         }
 
         foreach (Season season in Enum.GetValues<Season>())
@@ -202,7 +285,7 @@ public static class ContentValidator
 
         return issues.Any(issue => issue.Severity == IssueSeverity.Error)
             ? (null, issues)
-            : (new BirdDefinition(new BirdId(json.Id), json.Name, json.ScientificName, json.Description, rules.ToImmutable()), issues);
+            : (new BirdDefinition(new BirdId(json.Id), json.Name, json.ScientificName, rules.ToImmutable()) { Shorthand = json.Shorthand }, issues);
     }
 
     private static IntRange ValidateRange(int[]? values, string path, int minimum, int maximum, Action<IssueSeverity, string, string> report)

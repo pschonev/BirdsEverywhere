@@ -1,4 +1,4 @@
-# Testing Birds Everywhere
+# Contributing to Birds Everywhere
 
 Use [the manual test cases](docs/MANUAL_TESTS.md) for in-game checks. Automated tests and builds do not verify rendering, timing, or multiplayer behavior.
 
@@ -35,27 +35,79 @@ birds_live
 | Command | Client | Purpose |
 | --- | --- | --- |
 | `birds_plan` | Either | Print today's placements, or report no plan. |
-| `birds_rules <birdId>` | Either | Show a bird's rules and today's eligibility. |
+| `birds_rules <bird>` | Either | Show a bird's rules and today's eligibility. |
 | `birds_live` | Either | List birds in this location, their type, state, tile, and plan rule. |
 | `birds_xp` | Either | Show birding level and XP. |
-| `birds_check <birdId> [<ruleId>] [-l <location>]` | Host | Check eligibility, available tiles/features, and a dry-run placement count; does not change the plan. |
-| `birds_spawn <birdId> [<ruleId>] [-l <location>] [-f]` | Host | Add placements to today's plan and populate here immediately; `-l` selects a location. `-f` bypasses day/habitat eligibility and can fall back to a free adjacent ground tile **only in the host's current location**. |
+| `birds_check <bird> [<ruleId>] [-l <location>]` | Host | Check eligibility, available tiles/features, and a dry-run placement count; does not change the plan. |
+| `birds_spawn <bird> [<ruleId>] [-l <location>] [-f]` | Host | Add placements to today's plan and populate here immediately; `-l` selects a location. `-f` bypasses day/habitat eligibility and can fall back to a free adjacent ground tile **only in the host's current location**. |
 | `birds_replan [seed]` | Host | Clear birds here, rebuild and broadcast today's plan; optional integer seed makes the plan repeatable. |
 | `birds_clear` | Host | Clear mod birds and plan entries for this location, then broadcast the new plan. |
 | `birds_reload` | Host | Reload bird definitions, replan, and broadcast; existing texture assets may remain cached until restart. |
-| `birds_dump <birdId>` | Either | Inspect merged content and field sources. |
+| `birds_dump <bird>` | Either | Inspect merged content and field sources. |
+| `birds_anim <bird> <clip>` | Either | Play a layout clip on your own (non-replica) live birds of that species here; bird logic may override it. |
 | `birds_fishareas [here]` | Either | Inspect location fish-area data. |
 | `show_all_birds` | Either | List seen and unseen species. |
 
+Bird arguments accept the ID, English name, scientific name, or optional `shorthand` value from the bird JSON (for example, `gretit1`). Matching ignores case, spaces and underscores; quote names with spaces in the console. IDs remain canonical in content, regions and saves.
+
 Use `birds_rules blue_tit` to choose a valid rule and location before testing natural placement. Force-spawned birds and replanned days are **not** evidence of normal spawn frequency. If spawning into another location, travel there after the host runs the command. For clean comparisons, note the seed, location, time, weather and whether `-f` was used.
+
+## Adding birds and animations
+
+Design and rules: [ARCHITECTURE.md → Bird configuration](docs/ARCHITECTURE.md#bird-configuration) and [Bird composition](docs/ARCHITECTURE.md#bird-composition-config-driven-behavior). Today a species is JSON plus art; behavior comes from its `birdType`, which also fixes its layout (until [Phase 10 step 3](docs/REFACTOR.md#step-3-actions-routines-and-sound-roles) makes behavior JSON too).
+
+```mermaid
+flowchart LR
+    T["assets/templates/*.json"] -->|template chain| B["assets/&lt;id&gt;/&lt;id&gt;.json"]
+    R["assets/regions.json"] -->|species ranking, @groups| B
+    B -->|birdType| L["assets/layouts/&lt;layout&gt;.json"]
+    L -->|cells| P["assets/&lt;id&gt;/&lt;id&gt;[_variant].png"]
+    B --> I["i18n/default.json"]
+```
+
+| `birdType` | Layout | Cell size | Clips the class plays |
+|---|---|---|---|
+| `LandBird` | `land_32` | 32×32 | `stand`, `walk`, `peck`, `sleep`, `fly` |
+| `WaterLandBird` | `waterland_32` | 32×32 | `stand`, `walk`, `peck`, `rest`, `hop`, `swim`, `fly` |
+| `TreeTrunkBird` | `trunk_16` | 16×16 | `peck`, `fly` |
+| `BushBird` | `bush_32` | 32×32 | `run` |
+
+**New species reusing a bird type**
+
+1. Add `assets/<id>/<id>.json` (identity + `template` and rules), `<id>.png`, optional `<id>_<variant>.png`, `<id>_icon.png` (16×16), the species in `assets/regions.json`, and `bird.<id>.description` in `i18n/default.json`.
+2. Draw the sheet to the layout: run the playground and `layout land_32 cols 5 svg land_32.svg` for a numbered template and a cell → clip list. `cols` must equal your sheet's cells per row; cells count left to right, top to bottom.
+3. `dotnet test --arch x64`: `ContentTests`, `SchemaTests` and `ShippedBird_FitsItsLayouts` catch missing files, bad fields and sheets with too few cells. In game, `birds_spawn <id> -f` then `birds_anim <id> <clip>`.
+
+**Editing a layout** (`assets/layouts/<id>.json`, schema `schemas/layout.schema.json`)
+
+- A clip is a frame list or `{ frames?, repeat: { frames, count }?, end?, loop? }`. A frame is `[cell, ms, ...tags]`; `ms` is a number or `[min, max]` / `[min, max, step]`.
+- Tags: one event name (`peck`, `flap`, `hop`; what a bird type understands is in `BirdTypeProfiles.ByBirdType`) and optionally `"flip"`, which gives the frame the bird's facing.
+- Single-frame clips used as poses (`stand`, `sleep`, `swim`) show their first cell.
+- Append new poses at the end of a sheet; never insert or reorder cells, or every clip using later cells breaks. A different cell size is a new layout.
+- Changing a shipped clip changes `AnimationCharacterizationTests`; update the golden values only for a deliberate change and say so in the commit.
+
+**Idle routine and sounds per species** (rule fields, so they can sit in `defaults`, a template, or a single rule)
+
+```json
+"defaults": {
+  "routine": { "chance": 0.01, "pick": { "walk": 3, "peck": 1 }, "next": { "peck": { "peck": 1, "stop": 2 } } },
+  "sounds": { "alarm": "crow", "peck": "" }
+}
+```
+
+- `routine` is a shared id from `assets/routines/` (schema `schemas/routine.schema.json`) or an inline object. Without it the bird type's default applies (`land_idle`, `waterland_idle`). Tree-trunk and bush birds have no idle routine.
+- `pick` weights are integers; one roll picks an action. Allowed actions and `next` follow-ups per bird type are in `BirdTypeProfiles.ByBirdType`; the validator lists them on error.
+- `sounds` maps roles (`alarm`, `flap`, `peck`) to vanilla cue names and merges over the bird type's defaults; `""` silences a role. Changing a shipped routine file changes the idle-schedule goldens in `AnimationCharacterizationTests`.
+
+**New behavior** (a new primitive, event, trigger or bird type) needs C#; follow [REFACTOR.md Phase 10](docs/REFACTOR.md#10-fully-modular-config-driven-birds) for where it goes.
 
 ## Editor JSON schemas
 
-`schemas/` holds JSON Schemas for bird, template, regions and compat files. They are editor-only, not shipped, and checked against all shipped assets by `SchemaTests`; runtime validation stays in `ContentValidator`. Content files must not contain `$schema`; associate schemas in your editor instead (e.g. VS Code `json.schemas`). Update the schemas when changing content fields or enums.
+`schemas/` holds JSON Schemas for bird, template, regions, compat, layout and routine files, with shared definitions in `common.schema.json`. They are editor-only, not shipped, and checked against all shipped assets by `SchemaTests`; a test fails if any `assets/**/*.json` has no schema, and a table checks that schema and loader agree. Runtime validation stays in `ContentValidator`/`LayoutValidator`. Content files must not contain `$schema`; `.vscode/settings.json` maps the schemas for VS Code. Update the schemas when changing content fields or enums.
 
 ## Translations
 
-Bird `name` (international English) and `scName` live in the bird JSON. `description` and an optional local `name` are translated in `i18n/<locale>.json` under `bird.<id>.description` and `bird.<id>.name`. `i18n/default.json` is the English fallback and must contain a description for every bird. A missing `bird.<id>.name` falls back to the JSON `name`.
+Bird `name` (international English), `scName`, and optional `shorthand` (an eBird code used as a command alias) live in the bird JSON. `description` and an optional local `name` are translated in `i18n/<locale>.json` under `bird.<id>.description` and `bird.<id>.name`. `i18n/default.json` is the English fallback and must contain a description for every bird. A missing `bird.<id>.name` falls back to the JSON `name`.
 
 ## Two-client multiplayer
 

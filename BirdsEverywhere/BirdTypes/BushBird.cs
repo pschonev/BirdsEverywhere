@@ -82,15 +82,8 @@ internal sealed class BushBird : BirdCritter
     {
         State = BehaviorStatus.Running;
         AddBirdObservation(BirdName, environment.Name);
-        sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
-        {
-            new FarmerSprite.AnimationFrame(baseFrame, 40),
-            new FarmerSprite.AnimationFrame(baseFrame + 1, 40),
-            new FarmerSprite.AnimationFrame(baseFrame + 2, 40),
-            new FarmerSprite.AnimationFrame(baseFrame + 3, 100),
-            new FarmerSprite.AnimationFrame(baseFrame + 5, 70),
-            new FarmerSprite.AnimationFrame(baseFrame + 5, 40)
-        });
-        sprite.loop = true;
+        StartRunAnimation();
     }
+
+    internal void StartRunAnimation() => PlayClip("run", Rng);
 }

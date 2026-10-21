@@ -29,6 +29,8 @@ public partial class ModEntry : Mod
         new Dictionary<string, (JObject, IReadOnlyDictionary<string, string>)>();
     private MultiplayerSync _sync = null!;
     private BirdServices _birdServices = null!;
+    private IReadOnlyDictionary<string, SpriteLayout> _layouts = new Dictionary<string, SpriteLayout>();
+    private IReadOnlyDictionary<string, Routine> _routines = new Dictionary<string, Routine>();
     private bool _populatesCurrentVisit = true;
     private long _birdOwnerId;
     private string _birdVisitId = "";
@@ -46,7 +48,13 @@ public partial class ModEntry : Mod
     {
         _config = helper.ReadConfig<ModConfig>();
         _sync = new MultiplayerSync(helper.Multiplayer, Monitor, ModManifest.UniqueID);
-        _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation);
+        (_layouts, IReadOnlyList<ValidationIssue> layoutIssues) = LayoutLoader.LoadAll(Path.Combine(helper.DirectoryPath, "assets"));
+        (_routines, IReadOnlyList<ValidationIssue> routineIssues) = RoutineLoader.LoadAll(Path.Combine(helper.DirectoryPath, "assets"));
+        foreach (ValidationIssue issue in layoutIssues.Concat(routineIssues))
+        {
+            LogIssue(issue);
+        }
+        _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation, _layouts, _routines);
         _locationSpawner = new LocationSpawner(_spawnPatterns, _birdTypes, _birdServices);
 
         helper.Events.GameLoop.DayStarted += OnDayStarted;
@@ -62,7 +70,7 @@ public partial class ModEntry : Mod
 
         helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.",
             (_, _) => Logging.LogBirdSeenStatus(Monitor, _saveData, _catalog));
-        helper.ConsoleCommands.Add("birds_dump", "Print effective rules and sources for a bird. Usage: birds_dump <id>", DumpBird);
+        helper.ConsoleCommands.Add("birds_dump", "Print effective rules and sources for a bird. Usage: birds_dump <bird>", DumpBird);
         helper.ConsoleCommands.Add("birds_fishareas", "List fish areas in Data/Locations. Usage: birds_fishareas [here]", DumpFishAreas);
         RegisterDebugCommands(helper);
         RegisterInspectCommands(helper);
@@ -116,13 +124,23 @@ public partial class ModEntry : Mod
         foreach (string id in ContentPaths.BirdIds(root))
         {
             (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, JObject? document, IReadOnlyDictionary<string, string> sources) =
-                ContentLoader.LoadBird(root, id, groups, _spawnPatterns.Ids, _birdTypes.Ids, Read, File.Exists);
+                ContentLoader.LoadBird(root, id, groups, _spawnPatterns.Ids, _birdTypes.Ids, _routines, Read, File.Exists);
             foreach (ValidationIssue issue in issues)
             {
                 LogIssue(issue);
             }
 
             if (bird is null || document is null)
+            {
+                continue;
+            }
+
+            IReadOnlyList<ValidationIssue> layoutIssues = LayoutValidator.ValidateBird(bird, root, _layouts, TextureSize);
+            foreach (ValidationIssue issue in layoutIssues)
+            {
+                LogIssue(issue);
+            }
+            if (layoutIssues.Count > 0)
             {
                 continue;
             }
@@ -137,6 +155,17 @@ public partial class ModEntry : Mod
             .Select(key => Habitat.Parse(key).Location).ToHashSet(StringComparer.Ordinal);
     }
 
+    private static (int Width, int Height)? TextureSize(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+        Span<byte> header = stackalloc byte[24];
+        using FileStream stream = File.OpenRead(path);
+        return stream.Read(header) == header.Length ? LayoutValidator.PngSize(header) : null;
+    }
+
     private void LogIssue(ValidationIssue issue) => Monitor.Log(issue.ToString(), issue.Severity switch
     {
         IssueSeverity.Error => LogLevel.Error,
@@ -146,15 +175,26 @@ public partial class ModEntry : Mod
 
     private void DumpBird(string command, string[] args)
     {
-        if (args.Length != 1 || !_effective.TryGetValue(args[0], out var entry))
+        if (args.Length != 1)
         {
-            Monitor.Log("Usage: birds_dump <loaded bird id>", LogLevel.Info);
+            Monitor.Log("Usage: birds_dump <bird>", LogLevel.Info);
+            return;
+        }
+
+        if (!TryGetBird(args[0], out BirdDefinition bird))
+        {
+            return;
+        }
+
+        if (!_effective.TryGetValue(bird.Id.Value, out var entry))
+        {
+            Monitor.Log($"Bird '{bird.Id.Value}' has no loaded effective content.", LogLevel.Warn);
             return;
         }
 
         foreach (JProperty rule in ((JObject?)entry.Effective["rules"] ?? new JObject()).Properties())
         {
-            Monitor.Log($"{args[0]} / {rule.Name}: {rule.Value.ToString(Newtonsoft.Json.Formatting.None)}", LogLevel.Info);
+            Monitor.Log($"{bird.Id.Value} / {rule.Name}: {rule.Value.ToString(Newtonsoft.Json.Formatting.None)}", LogLevel.Info);
             foreach (KeyValuePair<string, string> source in entry.Sources.Where(source => source.Key.StartsWith($"$.rules.{rule.Name}.", StringComparison.Ordinal)))
             {
                 Monitor.Log($"  {source.Key}: {source.Value}", LogLevel.Info);
@@ -729,7 +769,7 @@ if (!_catalog.TryGetValue(birdId, out BirdDefinition? bird))
     {
         if (e.NewMenu is GameMenu menu)
         {
-            BirdCollectionsTab.Install(menu, Helper.ModContent, Helper.Reflection, _catalog, _saveData);
+            BirdCollectionsTab.Install(menu, Helper.ModContent, Helper.Reflection, Helper.Translation, _catalog, _saveData);
         }
     }
 }

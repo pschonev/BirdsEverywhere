@@ -1,0 +1,10 @@
+{
+    "frameSize": [16, 16],
+    "clips": {
+        "peck": {
+            "repeat": { "frames": [[0, 100], [1, 100, "peck"]], "count": [2, 7] },
+            "end": [[0, 200]]
+        },
+        "fly": { "frames": [[2, 70], [3, 60, "flip", "flap"], [4, 70], [3, 60]], "loop": true }
+    }
+}

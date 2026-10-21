@@ -1,0 +1,120 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://birdseverywhere.invalid/schemas/layout.schema.json",
+    "title": "Sprite layout",
+    "description": "Cell size and named clips. Cells count left to right, top to bottom, wrapping at texture width.",
+    "type": "object",
+    "required": [
+        "frameSize",
+        "clips"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "frameSize": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+                "type": "integer",
+                "minimum": 1
+            }
+        },
+        "clips": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+                "$ref": "#/$defs/clip"
+            }
+        }
+    },
+    "$defs": {
+        "frame": {
+            "description": "[cell, ms, ...tags]; a tag is an event name or \"flip\" (frame takes the bird's facing).",
+            "type": "array",
+            "minItems": 2,
+            "prefixItems": [
+                {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                {
+                    "$ref": "common.schema.json#/$defs/intOrStepRange"
+                }
+            ],
+            "items": {
+                "type": "string",
+                "minLength": 1
+            }
+        },
+        "frames": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/frame"
+            }
+        },
+        "clip": {
+            "oneOf": [
+                {
+                    "allOf": [
+                        {
+                            "$ref": "#/$defs/frames"
+                        },
+                        {
+                            "minItems": 1
+                        }
+                    ]
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "anyOf": [
+                        {
+                            "required": [
+                                "frames"
+                            ]
+                        },
+                        {
+                            "required": [
+                                "repeat"
+                            ]
+                        }
+                    ],
+                    "properties": {
+                        "frames": {
+                            "$ref": "#/$defs/frames"
+                        },
+                        "repeat": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "required": [
+                                "frames",
+                                "count"
+                            ],
+                            "properties": {
+                                "frames": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/$defs/frames"
+                                        },
+                                        {
+                                            "minItems": 1
+                                        }
+                                    ]
+                                },
+                                "count": {
+                                    "$ref": "common.schema.json#/$defs/intOrStepRange"
+                                }
+                            }
+                        },
+                        "end": {
+                            "$ref": "#/$defs/frames"
+                        },
+                        "loop": {
+                            "type": "boolean"
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

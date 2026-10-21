@@ -8,10 +8,6 @@ namespace BirdsEverywhere.BirdTypes;
 internal sealed class LandBird : BirdCritter
 {
     private const int ThreatRadiusTiles = 4;
-    private static readonly BirdAction[] _idleOptions =
-    {
-        BirdAction.Sleep, BirdAction.Peck, BirdAction.Hop, BirdAction.TurnAndHop, BirdAction.Walk, BirdAction.Walk
-    };
 
     public override string BirdTypeName { get; } = "LandBird";
     [JsonProperty("flightOffset")]
@@ -49,7 +45,7 @@ internal sealed class LandBird : BirdCritter
 
         Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
-        BirdAction idleAction = AdvanceIdle(_idleOptions, 0.008, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
+        BirdAction idleAction = AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
         Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(BirdBehaviors.Land, context), threat, environment);
 
         switch (State)
@@ -67,7 +63,7 @@ internal sealed class LandBird : BirdCritter
             case BehaviorStatus.Sleeping:
                 if (sprite.CurrentAnimation == null)
                 {
-                    sprite.currentFrame = baseFrame + 5;
+                    ShowPose("sleep");
                 }
                 break;
             case BehaviorStatus.Walking:
@@ -76,7 +72,7 @@ internal sealed class LandBird : BirdCritter
             case BehaviorStatus.Stopped:
                 if (sprite.CurrentAnimation == null)
                 {
-                    sprite.currentFrame = baseFrame;
+                    ShowPose("stand");
                 }
                 break;
         }
@@ -120,7 +116,7 @@ internal sealed class LandBird : BirdCritter
             case BirdAction.Sleep:
                 State = BehaviorStatus.Sleeping;
                 sprite.CurrentAnimation = null;
-                sprite.currentFrame = baseFrame + 5;
+                ShowPose("sleep");
                 break;
             case BirdAction.Peck:
                 State = BehaviorStatus.Pecking;
@@ -143,55 +139,25 @@ internal sealed class LandBird : BirdCritter
     {
         if (Rng.NextDouble() < 0.85)
         {
-            Game1.playSound("SpringBirds");
+            PlaySound("alarm");
         }
         State = BehaviorStatus.FlyingAway;
         AddBirdObservation(BirdName, environment.Name);
         flip = threat.Position.X <= position.X;
-        sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
-        {
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 6), 70),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 7), 60, secondaryArm: false, flip, PlayFlap),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 8), 70),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 7), 60)
-        });
-        sprite.loop = true;
+        StartFlyAnimation();
     }
 
-    private void StartWalk()
+    internal void StartFlyAnimation() => PlayClip("fly", VisualRng);
+
+    internal void StartWalk()
     {
         State = BehaviorStatus.Walking;
-        sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
-        {
-            new FarmerSprite.AnimationFrame((short)baseFrame, 100),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 1), 100)
-        });
-        sprite.loop = true;
+        PlayClip("walk", VisualRng);
         flip = position.X < startingPosition.X;
         WalkTimer = VisualRng.Next(5, 15) * 100;
     }
 
-    private void StartPeckAnimation()
-    {
-        List<FarmerSprite.AnimationFrame> peckAnim = new()
-        {
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 2), 480),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 170, secondaryArm: false, flip),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 170, secondaryArm: false, flip),
-        };
-        int pecks = VisualRng.Next(1, 5);
-        for (int i = 0; i < pecks; i++)
-        {
-            peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 70));
-            peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 100, secondaryArm: false, flip, PlayPeck));
-        }
-        peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 100));
-        peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 2), 70, secondaryArm: false, flip));
-        peckAnim.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 1), 70, secondaryArm: false, flip));
-        peckAnim.Add(new FarmerSprite.AnimationFrame((short)baseFrame, 500, secondaryArm: false, flip, DonePecking));
-        sprite.loop = false;
-        sprite.setCurrentAnimation(peckAnim);
-    }
+    internal void StartPeckAnimation() => PlayClip("peck", VisualRng, DonePecking);
 
     private void HopDrift(GameLocation environment)
     {
@@ -221,7 +187,7 @@ internal sealed class LandBird : BirdCritter
             State = BehaviorStatus.Stopped;
             sprite.loop = false;
             sprite.CurrentAnimation = null;
-            sprite.currentFrame = baseFrame;
+            ShowPose("stand");
         }
     }
 
@@ -235,14 +201,26 @@ internal sealed class LandBird : BirdCritter
 
     private void DonePecking(Farmer who)
     {
-        State = Rng.NextDouble() < 0.5 ? BehaviorStatus.Pecking : BehaviorStatus.Stopped;
+        State = IdleRoutine.After("peck", Rng) switch
+        {
+            "peck" => BehaviorStatus.Pecking,
+            "sleep" => BehaviorStatus.Sleeping,
+            _ => BehaviorStatus.Stopped,
+        };
     }
+
+    protected override AnimatedSprite.endOfAnimationBehavior ClipEvent(string name) => name switch
+    {
+        "peck" => PlayPeck,
+        "flap" => PlayFlap,
+        _ => base.ClipEvent(name),
+    };
 
     private void PlayFlap(Farmer who)
     {
         if (Utility.isOnScreen(position, 64))
         {
-            Game1.playSound("batFlap");
+            PlaySound("flap");
         }
     }
 
@@ -250,7 +228,7 @@ internal sealed class LandBird : BirdCritter
     {
         if (Utility.isOnScreen(position, 64))
         {
-            Game1.playSound("shiny4");
+            PlaySound("peck");
         }
     }
 }

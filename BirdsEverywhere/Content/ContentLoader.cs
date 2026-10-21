@@ -7,7 +7,7 @@ namespace BirdsEverywhere.Content;
 public static class ContentLoader
 {
     private static readonly HashSet<string> _templateFields = new(StringComparer.Ordinal) { "template", "defaults", "rules" };
-    private static readonly HashSet<string> _birdFields = new(StringComparer.Ordinal) { "id", "name", "scName", "description", "template", "defaults", "rules" };
+    private static readonly HashSet<string> _birdFields = new(StringComparer.Ordinal) { "id", "name", "scName", "shorthand", "template", "defaults", "rules" };
 
     public static (BirdDefinition? Bird, IReadOnlyList<ValidationIssue> Issues, JObject? Effective, IReadOnlyDictionary<string, string> Sources) LoadBird(
         string root,
@@ -15,6 +15,7 @@ public static class ContentLoader
         IReadOnlyDictionary<string, IReadOnlyList<string>> groups,
         IReadOnlyCollection<SpawnPatternId> patterns,
         IReadOnlyCollection<BirdTypeId> birdTypes,
+        IReadOnlyDictionary<string, Routine> routines,
         Func<string, string?> read,
         Func<string, bool> textureExists)
     {
@@ -38,7 +39,7 @@ public static class ContentLoader
             foreach (string templateFile in chain.Split(" -> ").SkipLast(1))
             {
                 JObject template = Read(templateFile);
-                foreach (string field in new[] { "id", "name", "scName", "description" })
+                foreach (string field in new[] { "id", "name", "scName", "shorthand" })
                 {
                     if (template.ContainsKey(field))
                     {
@@ -91,7 +92,7 @@ public static class ContentLoader
                 }
             }
 
-            (BirdDefinition? bird, IReadOnlyList<ValidationIssue> validation) = ContentValidator.Validate(document, file, chain, sources, groups, patterns, birdTypes, textureExists);
+            (BirdDefinition? bird, IReadOnlyList<ValidationIssue> validation) = ContentValidator.Validate(document, file, chain, sources, groups, patterns, birdTypes, routines, textureExists);
             issues.AddRange(validation);
             return (issues.Any(issue => issue.Severity == IssueSeverity.Error) ? null : bird, issues, document, sources);
         }

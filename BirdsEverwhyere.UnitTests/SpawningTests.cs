@@ -79,7 +79,7 @@ public class SpawningTests
             ImmutableArray<IntRange>.Empty, ImmutableArray<IntRange>.Empty), ImmutableArray.Create("Forest"),
             new SpawnPatternId(pattern), new BirdTypeId("LandBird"), new IntRange(2, 2), new IntRange(3, 3),
             new Dictionary<string, int> { [""] = 1 }, 1, spawnParams ?? SpawnParams.None);
-        return (new BirdDefinition(new BirdId("blue_tit"), "Blue Tit", "Cyanistes caeruleus", "", ImmutableArray.Create(rule)), rule);
+        return (new BirdDefinition(new BirdId("blue_tit"), "Blue Tit", "Cyanistes caeruleus", ImmutableArray.Create(rule)), rule);
     }
 
     [TestCase("GroundSpawner", true, "✅ spring", "2-2 groups with 3-3 birds = 6-6 birds in total")]
@@ -238,7 +238,7 @@ public class SpawningTests
             ImmutableArray<IntRange>.Empty, ImmutableArray<IntRange>.Empty), locations.ToImmutableArray(),
             new SpawnPatternId("GroundSpawner"), new BirdTypeId("LandBird"), new IntRange(1, 1), new IntRange(1, 1),
             new Dictionary<string, int> { [""] = 1 }, 1, SpawnParams.None);
-        return new BirdDefinition(new BirdId(id), id, "", "", ImmutableArray.Create(rule));
+        return new BirdDefinition(new BirdId(id), id, "", ImmutableArray.Create(rule));
     }
 
     private static readonly Region[] _testRegions =

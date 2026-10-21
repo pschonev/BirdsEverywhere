@@ -1,5 +1,7 @@
 using Microsoft.Xna.Framework;
 using BirdsEverywhere.BirdTypes.Behaviors;
+using BirdsEverywhere.Content;
+using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework.Graphics;
 using Newtonsoft.Json;
 using StardewModdingAPI;
@@ -53,6 +55,50 @@ internal abstract class BirdCritter : Critter
     [JsonIgnore]
     protected Random VisualRng { get; private set; } = new();
 
+    internal Random OwnerRandom => Rng;
+
+    internal Random VisualRandom => VisualRng;
+
+    internal void SeedVisualRandom(int seed) => VisualRng = new Random(seed);
+
+    /// <summary>The spawn rule's resolved routine and sounds; null for birds from older snapshots, which use the bird type's defaults.</summary>
+    [JsonProperty("composition")]
+    public BirdComposition? Composition { get; set; }
+
+    private BirdTypeProfile Profile => BirdTypeProfiles.ByBirdType[BirdTypeName];
+
+    private BirdServices RequireServices() => Services ?? throw new InvalidOperationException($"{BirdTypeName} has no services.");
+
+    [JsonIgnore]
+    internal Routine IdleRoutine => Composition?.Routine
+        ?? RequireServices().Routines[Profile.DefaultRoutine ?? throw new InvalidOperationException($"{BirdTypeName} has no idle routine.")];
+
+    protected void PlaySound(string role)
+    {
+        IReadOnlyDictionary<string, string> sounds = Composition?.Sounds ?? Profile.Sounds;
+        if (sounds.TryGetValue(role, out string? cue) && cue.Length > 0)
+        {
+            Game1.playSound(cue);
+        }
+    }
+
+    [JsonIgnore]
+    private SpriteLayout Layout => _layout ??= RequireServices().Layouts[Profile.LayoutId];
+
+    private SpriteLayout? _layout;
+
+    internal void PlayClip(string name, Random random, AnimatedSprite.endOfAnimationBehavior? onEnd = null)
+    {
+        SpriteClip clip = Layout.Clips[name];
+        sprite.setCurrentAnimation(ClipPlayer.Frames(clip, baseFrame, flip, random, ClipEvent, onEnd));
+        sprite.loop = clip.Loop;
+    }
+
+    protected void ShowPose(string name) => sprite.currentFrame = baseFrame + ClipPlayer.FirstCell(Layout.Clips[name]);
+
+    protected virtual AnimatedSprite.endOfAnimationBehavior ClipEvent(string name) =>
+        throw new InvalidOperationException($"{BirdTypeName} has no clip event '{name}'.");
+
     [JsonIgnore]
     public BirdServices? Services { get; set; }
 
@@ -104,7 +150,7 @@ internal abstract class BirdCritter : Critter
         }
     }
 
-    protected BirdAction AdvanceIdle(IReadOnlyList<BirdAction> options, double chance, bool eligible)
+    protected BirdAction AdvanceIdle(Routine routine, bool eligible)
     {
         IdleTick++;
         if (!eligible)
@@ -123,11 +169,11 @@ internal abstract class BirdCritter : Critter
             long lastTick = IdleTick + 120;
             for (long tick = firstTick; tick <= lastTick; tick++)
             {
-                if (_scheduleRandom.NextDouble() >= chance)
+                if (_scheduleRandom.NextDouble() >= routine.Chance)
                 {
                     continue;
                 }
-                IdleCue = new IdleCue(tick, options[_scheduleRandom.Next(options.Count)], _scheduleRandom.Next());
+                IdleCue = new IdleCue(tick, BirdActionIds.Parse(Routine.Roll(routine.Pick, _scheduleRandom)), _scheduleRandom.Next());
                 IdleRevision++;
                 _nextScheduleTick = tick;
                 break;

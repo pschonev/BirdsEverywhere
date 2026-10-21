@@ -1,4 +1,5 @@
 using BirdsEverywhere.Content;
+using BirdsEverywhere.Diagnostics;
 using BirdsEverywhere.Domain;
 using NUnit.Framework;
 
@@ -23,7 +24,7 @@ public class ContentTests
     {
         string? Read(string path) => File.Exists(path) ? File.ReadAllText(path) : null;
         var (regions, groupIssues) = ContentLoader.LoadRegions(_assetsDir, System.Array.Empty<string>(), Read, ContentPaths.BirdIds(_assetsDir).ToList());
-        var (bird, issues, _, _) = ContentLoader.LoadBird(_assetsDir, id, Region.AllGroups(regions), Patterns, BirdTypes, Read, File.Exists);
+        var (bird, issues, _, _) = ContentLoader.LoadBird(_assetsDir, id, Region.AllGroups(regions), Patterns, BirdTypes, TestBirds.Services.Routines, Read, File.Exists);
         Assert.That(groupIssues.Concat(issues).Where(issue => issue.Severity != IssueSeverity.Info), Is.Empty);
         Assert.That(bird, Is.Not.Null);
         Assert.That(bird!.Id.Value, Is.EqualTo(id));
@@ -55,6 +56,29 @@ public class ContentTests
         Assert.That(birdKeys.Where(key => key.EndsWith(".description", StringComparison.Ordinal)),
             Is.EquivalentTo(BirdIds().Select(id => $"bird.{id}.description")));
         Assert.That(birdKeys.Select(key => key.Split('.')[1]).Distinct(), Is.SubsetOf(BirdIds()));
+    }
+
+    [TestCase("GREAT TIT")]
+    [TestCase("Great Tit")]
+    [TestCase("great_tit")]
+    [TestCase("Parus major")]
+    [TestCase("parus_major")]
+    [TestCase("gretit1")]
+    public void BirdLookup_ResolvesCommandAliases(string query)
+    {
+        BirdDefinition bird = LoadBird("great_tit");
+
+        Assert.That(BirdLookup.FindMatches(new[] { bird }, query).Select(match => match.Id.Value),
+            Is.EqualTo(new[] { "great_tit" }));
+    }
+
+    [Test]
+    public void BirdLookup_ReportsAmbiguousAliases()
+    {
+        BirdDefinition bird = LoadBird("great_tit");
+        BirdDefinition duplicate = bird with { Id = new BirdId("another_bird") };
+
+        Assert.That(BirdLookup.FindMatches(new[] { bird, duplicate }, "Great Tit"), Has.Count.EqualTo(2));
     }
 
     [Test]

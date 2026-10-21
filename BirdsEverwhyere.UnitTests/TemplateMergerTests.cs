@@ -128,12 +128,12 @@ public class TemplateMergerTests
         const string root = "/virtual/assets";
         Dictionary<string, string> files = new()
         {
-            [ContentPaths.Bird(root, "test")] = @"{""id"":""test"",""name"":""Test"",""scName"":""Testus"",""description"":""Test bird"",""template"":""base"",""rules"":{""wintre"":{""groupSize"":[2,3]}}}",
+            [ContentPaths.Bird(root, "test")] = @"{""id"":""test"",""name"":""Test"",""scName"":""Testus"",""template"":""base"",""rules"":{""wintre"":{""groupSize"":[2,3]}}}",
             [ContentPaths.Template(root, "base")] = @"{""defaults"":{""locations"":[""Forest""],""spawnPattern"":""GroundSpawner"",""birdType"":""LandBird"",""groupCount"":[1,2],""groupSize"":[1,2],""textures"":{"""":1}},""rules"":{""winter"":{""when"":{""seasons"":[""winter""]}}}}",
         };
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
             path => files.GetValueOrDefault(path), _ => true);
 
         Assert.Multiple(() =>
@@ -151,6 +151,11 @@ public class TemplateMergerTests
     [TestCase("{\"rules\":{\"spring\":{\"weight\":0}}}", "$.rules.spring.weight")]
     [TestCase("{\"defaults\":{\"spawnParams\":{\"shoreDistance\":[5,2]}}}", "$.rules.spring.spawnParams.shoreDistance")]
     [TestCase("{\"defaults\":{\"spawnParams\":{\"shoreDistance\":[0,99]}}}", "$.rules.spring.spawnParams.shoreDistance")]
+    [TestCase("{\"defaults\":{\"routine\":\"missing\"}}", "$.rules.spring.routine")]
+    [TestCase("{\"defaults\":{\"routine\":{\"chance\":2,\"pick\":{\"peck\":1}}}}", "$.rules.spring.routine")]
+    [TestCase("{\"defaults\":{\"routine\":{\"chance\":0.1,\"pick\":{\"rest\":1}}}}", "$.rules.spring.routine.pick")]
+    [TestCase("{\"defaults\":{\"routine\":{\"chance\":0.1,\"pick\":{\"peck\":1},\"next\":{\"walk\":{\"stop\":1}}}}}", "$.rules.spring.routine.next.walk")]
+    [TestCase("{\"defaults\":{\"routine\":{\"chance\":0.1,\"pick\":{\"peck\":1},\"next\":{\"peck\":{\"hop\":1}}}}}", "$.rules.spring.routine.next.peck.hop")]
     public void LoadBird_InvalidOverride_ReportsBirdSource(string overrideJson, string expectedPath)
     {
         const string root = "/virtual/assets";
@@ -159,14 +164,14 @@ public class TemplateMergerTests
         Dictionary<string, string> files = new()
         {
             [templateFile] = @"{""defaults"":{""locations"":[""Forest""],""spawnPattern"":""GroundSpawner"",""birdType"":""LandBird"",""groupCount"":[1,2],""groupSize"":[1,2],""textures"":{"""":1}},""rules"":{""spring"":{""when"":{""seasons"":[""spring""]}}}}",
-            [birdFile] = @"{""id"":""test"",""name"":""Test"",""scName"":""Testus"",""description"":""Test bird"",""template"":""base""}",
+            [birdFile] = @"{""id"":""test"",""name"":""Test"",""scName"":""Testus"",""template"":""base""}",
         };
         JObject bird = JObject.Parse(files[birdFile]);
         bird.Merge(JObject.Parse(overrideJson));
         files[birdFile] = bird.ToString();
 
         (var loaded, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
             path => files.GetValueOrDefault(path), path => !path.EndsWith("missing.png", System.StringComparison.Ordinal));
 
         Assert.Multiple(() =>
@@ -184,10 +189,10 @@ public class TemplateMergerTests
     {
         const string root = "/virtual/assets";
         string birdFile = ContentPaths.Bird(root, "test");
-        string text = $"{{\"id\":\"test\",\"name\":\"Test\",\"scName\":\"Testus\",\"description\":\"Test bird\",\"{field}\":{value}}}";
+        string text = $"{{\"id\":\"test\",\"name\":\"Test\",\"scName\":\"Testus\",\"{field}\":{value}}}";
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
             path => path == birdFile ? text : null, _ => true);
 
         Assert.Multiple(() =>
@@ -210,7 +215,7 @@ public class TemplateMergerTests
         };
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
             path => files.GetValueOrDefault(path), _ => true);
 
         Assert.Multiple(() =>
@@ -225,10 +230,10 @@ public class TemplateMergerTests
     {
         const string root = "/virtual/assets";
         string birdFile = ContentPaths.Bird(root, "test");
-        string text = @"{""id"":""test"",""name"":""Test"",""scName"":""Testus"",""description"":""Test bird"",""rules"":{""spring"":{""when"":{},""locations"":[""Forest""],""spawnPattern"":""GroundSpawner"",""birdType"":""LandBird"",""groupCount"":[1,2],""groupSize"":[1,2],""textures"":{"""":1},""typo"":true}}}";
+        string text = @"{""id"":""test"",""name"":""Test"",""scName"":""Testus"",""rules"":{""spring"":{""when"":{},""locations"":[""Forest""],""spawnPattern"":""GroundSpawner"",""birdType"":""LandBird"",""groupCount"":[1,2],""groupSize"":[1,2],""textures"":{"""":1},""typo"":true}}}";
 
         (var bird, var issues, _, _) = ContentLoader.LoadBird(root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Services.Routines,
             path => path == birdFile ? text : null, _ => true);
 
         Assert.That(bird, Is.Null);

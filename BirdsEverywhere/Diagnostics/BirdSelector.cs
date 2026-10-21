@@ -5,7 +5,7 @@ public sealed record BirdSelector(string BirdId, string? RuleId, string? Locatio
     public static bool TryParse(IReadOnlyList<string> args, out BirdSelector? selector, out string error)
     {
         selector = null;
-        error = "Usage: birds_spawn <birdId> [<ruleId>] [-l <location>] [-f]";
+        error = "Usage: birds_spawn <bird> [<ruleId>] [-l <location>] [-f]";
         string? birdId = null;
         string? ruleId = null;
         string? location = null;
