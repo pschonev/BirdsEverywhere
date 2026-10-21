@@ -1,0 +1,11 @@
+{
+    "threat": {
+        "fleeRadius": 3,
+        "runningMultiplier": 2,
+        "alert": {
+            "radius": 7,
+            "clip": "stand",
+            "calmMs": 2000
+        }
+    }
+}

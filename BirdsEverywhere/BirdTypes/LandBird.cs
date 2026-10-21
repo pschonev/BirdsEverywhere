@@ -7,8 +7,6 @@ namespace BirdsEverywhere.BirdTypes;
 
 internal sealed class LandBird : BirdCritter
 {
-    private const int ThreatRadiusTiles = 4;
-
     private IReadOnlyList<IBirdBehavior>? _behaviors;
 
     public override string BirdTypeName { get; } = "LandBird";
@@ -39,6 +37,7 @@ internal sealed class LandBird : BirdCritter
 
     public override bool update(GameTime time, GameLocation environment)
     {
+        CurrentLocation = environment;
         ActionDefinition flee = Action("flee");
         if (IsReplica)
         {
@@ -52,11 +51,12 @@ internal sealed class LandBird : BirdCritter
             HopDrift(environment);
         }
 
-        Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
-        BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
-        BirdAction idleAction = AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
+        (Character? threat, bool alerted) = PollThreats(time, environment);
+        BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng, alerted, TickCalm(time, alerted));
+        bool idle = State == BehaviorStatus.Stopped && threat == null && !alerted;
+        BirdAction idleAction = AdvanceIdle(IdleRoutine, idle && context.AnimationIdle && !context.Airborne);
         _behaviors ??= BirdBehaviors.Land(Action("sleep").EndChance ?? 0, Action("walk").EndChance);
-        Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(_behaviors, context), threat, environment);
+        Apply(idle ? idleAction : BirdBehaviors.Decide(_behaviors, context), threat, environment);
 
         switch (State)
         {
@@ -85,6 +85,9 @@ internal sealed class LandBird : BirdCritter
                     ShowPose("stand");
                 }
                 break;
+            case BehaviorStatus.Alert:
+                ShowAlertPose();
+                break;
         }
         return base.update(time, environment);
     }
@@ -95,6 +98,9 @@ internal sealed class LandBird : BirdCritter
         {
             case BirdAction.Flee:
                 StartFlee(threat!, environment);
+                break;
+            case BirdAction.Alert:
+                StartAlert(environment);
                 break;
             case BirdAction.Stop:
             case BirdAction.Sleep:

@@ -24,7 +24,7 @@ public class CompositionTests
             ""routine"":{""chance"":0.02,""pick"":{""walk"":3,""peck"":1},""next"":{""peck"":{""sleep"":1}}},
             ""sounds"":{""alarm"":""crow"",""peck"":""""}}}";
 
-    private static (BirdDefinition? Bird, IReadOnlyList<ValidationIssue> Issues) Load(string birdJson)
+    private static (BirdDefinition? Bird, IReadOnlyList<ValidationIssue> Issues) Load(string birdJson, Func<string, bool>? fileExists = null)
     {
         Dictionary<string, string> files = new()
         {
@@ -33,7 +33,7 @@ public class CompositionTests
         };
         (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, _, _) = ContentLoader.LoadBird(Root, "test",
             new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Definitions,
-            path => files.GetValueOrDefault(path), _ => true);
+            path => files.GetValueOrDefault(path), fileExists ?? (_ => true));
         return (bird, issues);
     }
 
@@ -74,6 +74,75 @@ public class CompositionTests
     public void SharedRoutineReference_Resolves() =>
         Assert.That(Load(FixtureSpecies.Replace(@"""routine"":{""chance"":0.02,""pick"":{""walk"":3,""peck"":1},""next"":{""peck"":{""sleep"":1}}}", @"""routine"":""land_idle""", StringComparison.Ordinal))
             .Bird!.Rules.Single().Composition!.Routine, Is.SameAs(TestBirds.Services.Routines["land_idle"]));
+
+    [TestCase("song.wav", false)]
+    [TestCase("other.ogg", true)]
+    public void ModAudioCue_NeedsAFileInAssetsAudio(string existing, bool error)
+    {
+        string existingPath = Path.Combine(ContentPaths.AudioDirectory(Root), existing);
+        IReadOnlyList<ValidationIssue> issues = Load(FixtureSpecies.Replace("\"alarm\":\"crow\"", "\"alarm\":\"audio:song\"", StringComparison.Ordinal),
+            path => !path.Contains("/audio/", StringComparison.Ordinal) || path == existingPath).Issues;
+
+        Assert.That(issues.Any(issue => issue.Severity == IssueSeverity.Error && issue.Path.EndsWith(".sounds.alarm", StringComparison.Ordinal)), Is.EqualTo(error));
+    }
+
+    [Test]
+    public void SoundCooldown_ReachesCompositionAndRejectsNegatives()
+    {
+        (BirdDefinition? bird, _) = Load(FixtureSpecies.Replace("\"sounds\"", "\"soundCooldownMs\":{\"alarm\":5000},\"sounds\"", StringComparison.Ordinal));
+        IReadOnlyList<ValidationIssue> negative = Load(FixtureSpecies.Replace("\"sounds\"", "\"soundCooldownMs\":{\"alarm\":-1},\"sounds\"", StringComparison.Ordinal)).Issues;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(bird!.Rules.Single().Composition!.SoundCooldownMs, Is.EquivalentTo(new Dictionary<string, int> { ["alarm"] = 5000 }));
+            Assert.That(negative, Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Message.Contains("Cooldown")));
+        });
+    }
+
+    [Test]
+    public void Reactions_DefaultSharedAndInline()
+    {
+        Reactions Resolve(string reactions) =>
+            Load(FixtureSpecies.Replace("\"sounds\"", reactions + ",\"sounds\"", StringComparison.Ordinal)).Bird!.Rules.Single().Composition!.Reactions!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(FixtureComposition().Reactions, Is.EqualTo(new Reactions(new ThreatReaction(4))));
+            Assert.That(Resolve("\"reactions\":\"wary\""), Is.EqualTo(new Reactions(new ThreatReaction(3, new AlertReaction(7, "stand", null, 2000), 2))));
+            Assert.That(Resolve("\"reactions\":{\"threat\":{\"runningMultiplier\":1.5}}"), Is.EqualTo(new Reactions(new ThreatReaction(4, null, 1.5))));
+        });
+    }
+
+    [Test]
+    public void Reactions_TrunkRelocatesWithSharedDefinition()
+    {
+        (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues) = Load("{\"id\":\"test\",\"name\":\"Test\",\"scName\":\"Testus\",\"template\":\"base\","
+            + "\"defaults\":{\"birdType\":\"TreeTrunkBird\",\"spawnPattern\":\"TreeTrunkSpawner\",\"reactions\":\"tree_hopper\"}}");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(issues.Where(issue => issue.Severity == IssueSeverity.Error), Is.Empty);
+            Assert.That(bird!.Rules.Single().Composition!.Reactions, Is.EqualTo(new Reactions(new ThreatReaction(6, null, 1, new RelocateReaction("otherTree", 12, 2)))));
+        });
+    }
+
+    [TestCase("LandBird", "GroundSpawner", "\"tree_hopper\"", "cannot relocate")]
+    [TestCase("TreeTrunkBird", "TreeTrunkSpawner", "{\"threat\":{\"alert\":{\"radius\":8,\"clip\":\"peck\"}}}", "cannot alert")]
+    [TestCase("BushBird", "BushSpawner", "{\"threat\":{\"fleeRadius\":3}}", "takes no reactions")]
+    [TestCase("LandBird", "GroundSpawner", "\"skittish\"", "Unknown reactions 'skittish'")]
+    [TestCase("LandBird", "GroundSpawner", "{\"threat\":{\"fleeRadius\":5,\"alert\":{\"radius\":5,\"clip\":\"stand\"}}}", "must be larger than fleeRadius")]
+    [TestCase("LandBird", "GroundSpawner", "{\"threat\":{\"alert\":{\"radius\":7,\"clip\":\"crouch\"}}}", "has no clip 'crouch'")]
+    public void Reactions_Errors(string birdType, string pattern, string reactions, string message)
+    {
+        string json = "{\"id\":\"test\",\"name\":\"Test\",\"scName\":\"Testus\",\"template\":\"base\",\"defaults\":{\"birdType\":\"" + birdType
+            + "\",\"spawnPattern\":\"" + pattern + "\",\"reactions\":" + reactions + "}}";
+        (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues) = Load(json);
+        IEnumerable<string> messages = issues.Where(issue => issue.Severity == IssueSeverity.Error).Select(issue => issue.Message)
+            .Concat(bird is null ? Enumerable.Empty<string>() : bird.Rules.SelectMany(rule =>
+                LayoutValidator.Requirement(TestBirds.Services.Layouts[BirdTypeProfiles.ByBirdType[birdType].LayoutId], BirdTypeProfiles.ByBirdType[birdType], rule.Composition)));
+
+        Assert.That(messages, Has.Some.Contains(message));
+    }
 
     [Test]
     public void UnknownSoundRole_Warns() =>

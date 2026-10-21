@@ -38,6 +38,12 @@ public sealed record SpawnRuleJson
     [JsonProperty("sounds")]
     public Dictionary<string, string>? Sounds { get; init; }
 
+    [JsonProperty("soundCooldownMs")]
+    public Dictionary<string, int>? SoundCooldownMs { get; init; }
+
+    [JsonProperty("reactions")]
+    public JToken? Reactions { get; init; }
+
     [JsonProperty("actions")]
     public JObject? Actions { get; init; }
 }

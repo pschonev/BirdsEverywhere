@@ -1,0 +1,9 @@
+{
+    "threat": {
+        "relocate": {
+            "target": "otherTree",
+            "maxDistance": 12,
+            "maxRelocations": 2
+        }
+    }
+}

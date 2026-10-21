@@ -476,9 +476,10 @@ Planned design for [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds).
 | Layouts and clips | implemented (step 2) | `assets/layouts/*.json`, `Content/LayoutLoader`, `Content/LayoutValidator`, `BirdTypes/ClipPlayer`, `BirdCritter.PlayClip`/`ShowPose` |
 | Routine (`chance`, `pick`, `next`) and sound roles | implemented (step 3a) | `assets/routines/*.json`, rule fields `routine`/`sounds`, `Content/RoutineLoader`, `ContentValidator` → `SpawnRule.Composition`, `BirdCritter.AdvanceIdle`/`PlaySound` |
 | Actions | parameters implemented (step 3b); custom `stay` ids implemented (3c) | `assets/actions/*.json` per bird type, rule field `actions` (per-field overrides, plus new `stay` ids with a clip on Land/WaterLand that the routine can pick), `Content/ActionLoader`, `BirdCritter.Action(id)`/`ResolveIdle`; the class still decides when each built-in id runs |
+| Sound playback | implemented (step 3d) | `audio:<name>` → `assets/audio/<name>.ogg\|.wav` registered via `Data/AudioChanges`; `BirdCritter.PlaySound` uses `PlayLocal` at the bird's tile, `ModConfig.SoundVolume`, rule `soundCooldownMs`; local cosmetic on every peer |
 | Routine `cooldown`, `rare` | planned (step 5) | not supported yet; rejected as unknown fields |
-| Reactions | planned (step 4) | today: `FleeBehavior` with a fixed radius per bird class |
-| Bodies, single sealed `Bird` | partly (step 3c): tile `TerrainAnchor`, `BirdState` snapshots (`BirdTypes/BirdSnapshots`) | today: four sealed `BirdCritter` classes |
+| Reactions | `threat` implemented (step 4): `fleeRadius`, `runningMultiplier`, `alert`, `relocate` (trunk `otherTree`) | `assets/reactions/*.json`, rule field `reactions`, `Content/ReactionLoader`, `BirdCritter.ScanThreats`/`StartAlert`, `AlertBehavior`/`CalmBehavior`, `TreeTrunkBird` relocation; other triggers planned |
+| Bodies, single sealed `Bird` | partly (step 3c): tile `TerrainAnchor`, `BirdState` snapshots (`BirdTypes/BirdSnapshots`); merge deferred to the first new body | today: four sealed `BirdCritter` classes |
 | Groups, stages, spacing | planned (steps 6–7) | today: `groupCount` × `groupSize` |
 
 Until bodies move to JSON, each bird class is a hardcoded composition: `BirdTypeProfiles.ByBirdType` maps it to a layout, its required clips, the event names it understands, the routine actions it can perform, its default routine and its default sound cues; the class decides which clip to play and when.
@@ -611,6 +612,7 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 - `BirdContext` carries the threat distance instead of a bool. Decision order: `Flee(inner) → Alert(outer) → Wake → IdleRoutine`.
 - The observation registers on any visible response (alert, flee, relocate), not only flee.
 - `flyTo` uses a target search (`otherTree`, `otherBush`, `water`, `groupRole:<role>`), backed by `TileSelection`/`ILocationQuery`; on arrival the bird updates its `TerrainAnchor`. After `maxRelocations`, `then` applies.
+- Implemented shape (step 4): `{"threat": {"fleeRadius": 3, "runningMultiplier": 2, "alert": {"radius": 7, "clip": "stand", "sound": "alarm", "calmMs": 2000}, "relocate": {"target": "otherTree", "maxDistance": 12, "maxRelocations": 2}}}`. The flee response is the bird's `flee` action, so reactions only set radii and alternatives; after the relocations the bird flees (`then` is implicitly the flee action). Missing fields keep the bird type's default.
 
 #### 5. Species composition
 
@@ -696,7 +698,7 @@ classDiagram
 
 - The owner picks the next action id plus a seed (the existing `IdleCue(Tick, Action, Seed)`); peers replay the clip deterministically from the seed. Clip ranges roll on the cue's visual RNG; routine and reaction decisions roll on the owner's RNGs only.
 - Committed movement (`flyOff`, `flyTo`, `runToBush`, `swimAway`, `follow`) carries start pose, direction and velocity, as today.
-- Today replicas advance frames without running frame callbacks, so peers play no frame sounds. **Open decision:** make sounds owner-committed (sent with the cue) or local cosmetic events fired by peers from replayed clips.
+- Sounds are local cosmetic (decided in step 3d): each peer plays the sounds of what it renders. Replicas fire frame events only for clips they built themselves, and alarm/alert sounds when a snapshot changes their state, rolling chances on the visual RNG.
 
 ### Spawning v2: groups, stages, spacing
 

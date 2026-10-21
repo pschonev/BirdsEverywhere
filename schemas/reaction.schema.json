@@ -1,0 +1,86 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://birdseverywhere.invalid/schemas/reaction.schema.json",
+    "title": "Reactions",
+    "description": "How a bird reacts to triggers. Missing fields keep the bird type's default (flee radius: land and water-land 4, tree trunk 6). Bush birds take no reactions.",
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "threat": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "fleeRadius": {
+                    "description": "Tiles; a farmer or character this close runs the bird's flee action.",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20
+                },
+                "runningMultiplier": {
+                    "description": "A running farmer counts this many times closer.",
+                    "type": "number",
+                    "minimum": 1,
+                    "maximum": 4
+                },
+                "relocate": {
+                    "description": "Tree-trunk only. Instead of fleeing, fly to a free target (otherTree) within maxDistance tiles and away from the threat, at most maxRelocations times; then flee as usual. Registers an observation.",
+                    "type": "object",
+                    "required": [
+                        "target"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "target": {
+                            "enum": [
+                                "otherTree"
+                            ]
+                        },
+                        "maxDistance": {
+                            "description": "Tiles, default 12.",
+                            "type": "integer",
+                            "minimum": 2,
+                            "maximum": 30
+                        },
+                        "maxRelocations": {
+                            "description": "Default 1.",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10
+                        }
+                    }
+                },
+                "alert": {
+                    "description": "Land and water-land only. Inside this radius (larger than fleeRadius) a grounded bird freezes on the clip, then resumes after calmMs without a threat in the radius. Registers an observation.",
+                    "type": "object",
+                    "required": [
+                        "radius",
+                        "clip"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "radius": {
+                            "type": "integer",
+                            "minimum": 2,
+                            "maximum": 20
+                        },
+                        "clip": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "sound": {
+                            "description": "Sound role played when the bird alerts.",
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "calmMs": {
+                            "description": "Default 1500.",
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 60000
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

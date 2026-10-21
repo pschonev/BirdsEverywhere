@@ -2,6 +2,7 @@ using BirdsEverywhere.Content;
 using BirdsEverywhere.Diagnostics;
 using BirdsEverywhere.Domain;
 using BirdsEverywhere.Spawners;
+using System.Text.RegularExpressions;
 
 namespace BirdsEverywhere.Playground;
 
@@ -45,7 +46,8 @@ internal static class Program
             {
                 return;
             }
-            string[] args = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string[] args = Regex.Matches(input, "\"([^\"]*)\"|\\S+")
+                .Select(match => match.Groups[1].Success ? match.Groups[1].Value : match.Value).ToArray();
             if (args.Length == 0)
             {
                 continue;
@@ -69,8 +71,8 @@ internal static class Program
                         state = updated;
                     }
                     break;
-                case "observe" when args.Length == 2 && catalog.ContainsKey(args[1]):
-                    state = state with { Seen = state.Seen.Append(args[1]).ToHashSet(StringComparer.Ordinal) };
+                case "observe" when args.Length == 2 && BirdLookup.FindMatches(catalog.Values, args[1]) is { Count: 1 } observed:
+                    state = state with { Seen = state.Seen.Append(observed[0].Id.Value).ToHashSet(StringComparer.Ordinal) };
                     break;
                 case "next":
                     state = state with
@@ -98,9 +100,10 @@ internal static class Program
                     }
                     Console.WriteLine($"exponent {SpawnPlanner.Exponent(state.Luck, state.Level):F2}");
                     break;
-                case "rules" when args.Length == 2 && catalog.TryGetValue(args[1], out BirdDefinition? bird):
-                    Console.WriteLine(RuleText.Header(bird, bird.EligibleRules(state.Season, state.Weather, state.Day).Count));
-                    foreach (SpawnRule rule in bird.Rules)
+                case "rules" when args.Length == 2 && BirdLookup.FindMatches(catalog.Values, args[1]) is { Count: 1 } found:
+                    BirdDefinition ruleBird = found[0];
+                    Console.WriteLine(RuleText.Header(ruleBird, ruleBird.EligibleRules(state.Season, state.Weather, state.Day).Count));
+                    foreach (SpawnRule rule in ruleBird.Rules)
                     {
                         foreach (string line in RuleText.Lines(rule, rule.When.MatchesDay(state.Season, state.Weather, state.Day)))
                         {
@@ -154,6 +157,11 @@ internal static class Program
                                              layout land_32
                                              layout land_32 cols 9 svg land_32.svg
       quit                         Leave (also: exit). Example: quit
+
+    A <bird> is its id, English name, scientific name or shorthand (ignores case, spaces, underscores).
+    Quote names with spaces. Examples: observe gretit1
+                                       rules ""Great Tit""
+                                       odds ""Parus major""
 
     Odds assume every tile is feasible; they are upper bounds, not in-game spawn rates.");
     }
@@ -263,10 +271,17 @@ internal static class Program
             Console.WriteLine("Usage: odds [bird [rule] [-l location]] [-n positiveSamples]");
             return;
         }
-        if (selector is not null && !catalog.ContainsKey(selector.BirdId))
+        if (selector is not null)
         {
-            Console.WriteLine($"Unknown bird '{selector.BirdId}'.");
-            return;
+            IReadOnlyList<BirdDefinition> matches = BirdLookup.FindMatches(catalog.Values, selector.BirdId);
+            if (matches.Count != 1)
+            {
+                Console.WriteLine(matches.Count == 0
+                    ? $"Unknown bird '{selector.BirdId}'."
+                    : $"Ambiguous bird '{selector.BirdId}'. Matches: {string.Join(", ", matches.Select(match => match.Id.Value))}.");
+                return;
+            }
+            selector = selector with { BirdId = matches[0].Id.Value };
         }
 
         Dictionary<string, int> hits = new(StringComparer.Ordinal);

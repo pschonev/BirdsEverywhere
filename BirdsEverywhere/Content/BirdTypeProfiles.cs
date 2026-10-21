@@ -12,7 +12,10 @@ public static class BirdTypeProfiles
             new[] { "sleep", "peck", "hop", "turnAndHop", "walk" },
             FollowUps(("peck", new[] { "peck", "sleep", "stop" })),
             "land_idle",
-            Map(("alarm", "SpringBirds"), ("flap", "batFlap"), ("peck", "shiny4"))),
+            Map(("alarm", "SpringBirds"), ("flap", "batFlap"), ("peck", "shiny4")),
+            Threat(4),
+            CanAlert: true,
+            Array.Empty<string>()),
         ["WaterLandBird"] = new("waterland_32",
             new[] { "stand" },
             new[] { "hop" },
@@ -21,7 +24,10 @@ public static class BirdTypeProfiles
             new[] { "peck", "rest", "hop", "walk" },
             FollowUps(),
             "waterland_idle",
-            Map(("alarm", "seagulls"))),
+            Map(("alarm", "seagulls")),
+            Threat(4),
+            CanAlert: true,
+            Array.Empty<string>()),
         ["TreeTrunkBird"] = new("trunk_16",
             Array.Empty<string>(),
             new[] { "peck", "flap" },
@@ -30,7 +36,10 @@ public static class BirdTypeProfiles
             Array.Empty<string>(),
             FollowUps(),
             null,
-            Map(("flap", "batFlap"), ("peck", "Cowboy_gunshot"))),
+            Map(("flap", "batFlap"), ("peck", "Cowboy_gunshot")),
+            Threat(6),
+            CanAlert: false,
+            new[] { "otherTree" }),
         ["BushBird"] = new("bush_32",
             Array.Empty<string>(),
             Array.Empty<string>(),
@@ -39,8 +48,13 @@ public static class BirdTypeProfiles
             Array.Empty<string>(),
             FollowUps(),
             null,
-            Map()),
+            Map(),
+            null,
+            CanAlert: false,
+            Array.Empty<string>()),
     };
+
+    private static Domain.Reactions Threat(int fleeRadius) => new(new Domain.ThreatReaction(fleeRadius));
 
     private static Dictionary<string, IReadOnlyList<string>> FollowUps(params (string Action, string[] Next)[] followUps) =>
         followUps.ToDictionary(entry => entry.Action, entry => (IReadOnlyList<string>)entry.Next, StringComparer.Ordinal);

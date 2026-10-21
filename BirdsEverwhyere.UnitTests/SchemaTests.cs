@@ -19,7 +19,7 @@ public class SchemaTests
     private static Dictionary<string, JsonSchema> LoadSchemas()
     {
         BuildOptions build = new() { SchemaRegistry = new SchemaRegistry() };
-        return new[] { "common", "routine", "action", "rule", "regions", "bird", "template", "compat", "layout" }.ToDictionary(
+        return new[] { "common", "routine", "action", "reaction", "rule", "regions", "bird", "template", "compat", "layout" }.ToDictionary(
             name => name,
             name => JsonSchema.FromFile(Path.Combine(_schemasDir, $"{name}.schema.json"), build));
     }
@@ -39,6 +39,7 @@ public class SchemaTests
         ["layouts"] = "layout",
         ["routines"] = "routine",
         ["actions"] = "action",
+        ["reactions"] = "reaction",
     };
 
     /// <summary>Schema for an asset path relative to <c>assets/</c>; null if no schema covers it.</summary>
@@ -153,6 +154,23 @@ public class SchemaTests
     [TestCase(@"{""a"":{""do"":""stay"",""clip"":""peck"",""extra"":1}}", false)]
     public void Action_SchemaAndLoaderAgree(string json, bool valid) =>
         AssertAgreement("action", json, valid, () => ActionLoader.ParseSet(Newtonsoft.Json.Linq.JObject.Parse(json), "x.json"));
+
+    [TestCase(@"{}", true)]
+    [TestCase(@"{""threat"":{""fleeRadius"":3}}", true)]
+    [TestCase(@"{""threat"":{""fleeRadius"":3,""runningMultiplier"":1.5,""alert"":{""radius"":7,""clip"":""stand"",""sound"":""alarm"",""calmMs"":2000}}}", true)]
+    [TestCase(@"{""threat"":{""fleeRadius"":0}}", false)]
+    [TestCase(@"{""threat"":{""fleeRadius"":21}}", false)]
+    [TestCase(@"{""threat"":{""runningMultiplier"":0.5}}", false)]
+    [TestCase(@"{""threat"":{""alert"":{""radius"":7}}}", false)]
+    [TestCase(@"{""threat"":{""alert"":{""clip"":""stand""}}}", false)]
+    [TestCase(@"{""threat"":{""alert"":{""radius"":7,""clip"":""stand"",""calmMs"":-1}}}", false)]
+    [TestCase(@"{""threat"":{""flee"":3}}", false)]
+    [TestCase(@"{""threat"":{""relocate"":{""target"":""otherTree"",""maxDistance"":10,""maxRelocations"":2}}}", true)]
+    [TestCase(@"{""threat"":{""relocate"":{""maxDistance"":10}}}", false)]
+    [TestCase(@"{""threat"":{""relocate"":{""target"":""otherTree"",""maxRelocations"":0}}}", false)]
+    [TestCase(@"{""playerEnters"":{}}", false)]
+    public void Reaction_SchemaAndLoaderAgree(string json, bool valid) =>
+        AssertAgreement("reaction", json, valid, () => ReactionLoader.Parse(Newtonsoft.Json.Linq.JToken.Parse(json), new Reactions(new ThreatReaction(1)), "x.json", "$"));
 
     private static void AssertAgreement(string schemaName, string json, bool valid, Action load)
     {

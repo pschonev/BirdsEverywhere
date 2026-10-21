@@ -213,6 +213,24 @@ public class GameTypeRegressionTests
     }
 
     [Test]
+    public void ReplicaClip_KeepsSoundEventsButDropsEndCallback()
+    {
+        LandBird owner = new() { State = BehaviorStatus.Pecking, sprite = new AnimatedSprite(), Services = TestBirds.Services };
+        LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Pecking, sprite = new AnimatedSprite(), Services = TestBirds.Services };
+
+        owner.StartPeckAnimation();
+        replica.StartPeckAnimation();
+
+        static IEnumerable<string> Callbacks(LandBird bird) => bird.sprite.CurrentAnimation
+            .SelectMany(frame => frame.frameStartBehavior?.GetInvocationList() ?? Array.Empty<Delegate>()).Select(callback => callback.Method.Name);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Callbacks(owner), Does.Contain("DonePecking").And.Contain("PlayPeck"));
+            Assert.That(Callbacks(replica), Does.Not.Contain("DonePecking").And.Contain("PlayPeck"));
+        });
+    }
+
+    [Test]
     public void BirdSnapshot_RoundTrip_PreservesIdleSchedule()
     {
         LandBird bird = new() { BirdID = 42, State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 3,
@@ -229,7 +247,7 @@ public class GameTypeRegressionTests
     public void BirdState_RoundTrip_KeepsTypeSpecificFields()
     {
         TreeTrunkBird trunk = new() { BirdID = 7, BirdName = "black_woodpecker", AnchorTile = new Vector2(12, 34), LocationName = "Forest",
-            PeckTimer = 1500, State = BehaviorStatus.Pecking, sprite = new AnimatedSprite() };
+            PeckTimer = 1500, State = BehaviorStatus.Relocating, Relocations = 1, RelocateTarget = new Vector2(15, 30), sprite = new AnimatedSprite() };
         LandBird land = new() { BirdID = 8, FlightOffset = 0.25f, WalkTimer = 700, flip = true, sprite = new AnimatedSprite() };
 
         List<BirdState> states = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BirdState>>(BirdSnapshots.Serialize(new BirdCritter[] { trunk, land }))!;
@@ -239,9 +257,28 @@ public class GameTypeRegressionTests
             Assert.That(states[0] with { Sprite = null! }, Is.EqualTo(BirdSnapshots.Capture(trunk) with { Sprite = null! }));
             Assert.That(states[0].AnchorTile, Is.EqualTo(new Vector2(12, 34)));
             Assert.That(states[0].PeckTimer, Is.EqualTo(1500));
+            Assert.That(states[0].Relocations, Is.EqualTo(1));
+            Assert.That(states[0].RelocateTarget, Is.EqualTo(new Vector2(15, 30)));
             Assert.That(states[1].FlightOffset, Is.EqualTo(0.25f));
             Assert.That(states[1].WalkTimer, Is.EqualTo(700));
             Assert.That(states[1].Flip, Is.True);
+        });
+    }
+
+    [Test]
+    public void ReplicaTrunk_FollowsOwnerRelocation()
+    {
+        TreeTrunkBird replica = new() { IsReplica = true, State = BehaviorStatus.Pecking, sprite = new AnimatedSprite(), Services = TestBirds.Services };
+        TreeTrunkBird owner = new() { State = BehaviorStatus.Relocating, Relocations = 1, RelocateTarget = new Vector2(3, 0), sprite = new AnimatedSprite() };
+
+        replica.ApplyReplicaState(owner);
+        replica.update(new GameTime(TimeSpan.Zero, TimeSpan.FromMilliseconds(16)), null!);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(replica.State, Is.EqualTo(BehaviorStatus.Relocating));
+            Assert.That(replica.Relocations, Is.EqualTo(1));
+            Assert.That(replica.position.X, Is.GreaterThan(0f), "committed flight towards the target tree");
         });
     }
 
