@@ -135,6 +135,13 @@ public class SchemaTests
     [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1.5}}", false)]
     [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""next"":{""peck"":{}}}", false)]
     [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""cooldown"":{}}", false)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""wormPull"":{""chance"":0.05,""when"":{""weather"":[""rain""],""seasons"":[""spring""],""times"":[[600,1000]]}}}}", true)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""wormPull"":{""chance"":0.05}}}", true)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""wormPull"":{""weight"":0.05}}}", false)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""wormPull"":{""chance"":0}}}", false)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""wormPull"":{""chance"":0.1,""when"":{""weather"":[""hail""]}}}}", false)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""wormPull"":{""chance"":0.1,""when"":{""times"":[[500,900]]}}}}", false)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""wormPull"":{""chance"":0.1,""when"":{""moon"":[""full""]}}}}", false)]
     public void Routine_SchemaAndLoaderAgree(string json, bool valid) =>
         AssertAgreement("routine", json, valid, () => RoutineLoader.Parse(Newtonsoft.Json.Linq.JToken.Parse(json), "x.json", "$"));
 
@@ -144,6 +151,9 @@ public class SchemaTests
     [TestCase(@"{""a"":{""do"":""flyOff"",""clip"":""fly"",""speed"":6,""climb"":2,""sound"":""alarm"",""soundChance"":0.85}}", true)]
     [TestCase(@"{""a"":{""do"":""hop"",""impulse"":2,""turn"":true}}", true)]
     [TestCase(@"{""a"":{""do"":""fly""}}", false)]
+    [TestCase(@"{""a"":{""do"":""dive"",""clip"":""dive"",""hiddenMs"":[2000,5000,100],""radius"":3}}", true)]
+    [TestCase(@"{""a"":{""do"":""dive"",""clip"":""dive""}}", false)]
+    [TestCase(@"{""a"":{""do"":""dive"",""clip"":""dive"",""hiddenMs"":2000,""radius"":11}}", false)]
     [TestCase(@"{""a"":{""clip"":""peck""}}", false)]
     [TestCase(@"{""a"":{""do"":""stay""}}", false)]
     [TestCase(@"{""a"":{""do"":""walk"",""clip"":""walk"",""speed"":1}}", false)]

@@ -30,4 +30,7 @@ internal sealed record BirdState(
     int PeckTimer = 0,
     int FlightDistance = 0,
     int Relocations = 0,
-    Vector2? RelocateTarget = null);
+    Vector2? RelocateTarget = null,
+    bool Hidden = false,
+    int DiveTimer = 0,
+    int DiveRadius = 0);

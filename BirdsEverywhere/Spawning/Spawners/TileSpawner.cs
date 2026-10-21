@@ -56,7 +56,8 @@ public abstract class TileSpawner : Spawner
 
     public List<BirdPlacement> SpawnBirds(ILocationQuery location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor, IReadOnlyCollection<Vector2>? avoid = null)
     {
-        List<BirdPlacement> spawnList = TileSelection.Tiles(location, Restrict(rule, fishArea), rule.GroupCount, rule.GroupSize, random, avoid: avoid)
+        List<BirdPlacement> spawnList = TileSelection.Tiles(location, Restrict(rule, fishArea), rule.GroupCount, rule.GroupSize, random, avoid: avoid,
+                layout: rule.Params.Group, speciesDistance: rule.Params.SpeciesDistance ?? TileSelection.MinSpeciesDistance)
             .Select(tile => Place(data, rule, tile, null, random))
             .ToList();
         monitor.Log($"Planned {spawnList.Count} {data.Id.Value} at {location.Name}.", LogLevel.Debug);

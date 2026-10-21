@@ -11,4 +11,5 @@ public enum BehaviorStatus
     Swimming,
     Alert,
     Relocating,
+    Diving,
 }

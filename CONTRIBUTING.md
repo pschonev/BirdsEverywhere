@@ -122,6 +122,15 @@ flowchart LR
   "reactions": "tree_hopper"
   ```
 
+- Rare and forage actions: a routine's `rare` entries roll before the normal pick while their `when` matches; new action ids can extend the shared ones in `assets/actions/forage.json`. Water-land birds pick `dive` actions only while swimming:
+
+  ```json
+  "actions": { "dive": { "extends": "forage.dive", "clip": "dive" }, "worm": { "extends": "forage.wormPull" } },
+  "routine": { "chance": 0.01, "pick": { "peck": 3, "dive": 1 }, "rare": { "worm": { "chance": 0.1, "when": { "weather": ["rain"] } } } }
+  ```
+
+- Group layout (tile patterns): `"spawnParams": { "group": { "formation": "line", "radius": 5, "spacing": 1, "groupSpacing": 10 }, "speciesDistance": 4 }`. Without `group`, groups form by the old random walk.
+
 **New behavior** (a new primitive, event, trigger or bird type) needs C#; follow [REFACTOR.md Phase 10](docs/REFACTOR.md#10-fully-modular-config-driven-birds) for where it goes.
 
 ## Editor JSON schemas

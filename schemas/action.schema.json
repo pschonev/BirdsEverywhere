@@ -22,7 +22,8 @@
                         "hop",
                         "flyOff",
                         "runToBush",
-                        "swim"
+                        "swim",
+                        "dive"
                     ]
                 },
                 "clip": {
@@ -59,9 +60,34 @@
                 },
                 "pauseMs": {
                     "$ref": "common.schema.json#/$defs/intOrStepRange"
+                },
+                "hiddenMs": {
+                    "description": "dive: time under water.",
+                    "$ref": "common.schema.json#/$defs/intOrStepRange"
+                },
+                "radius": {
+                    "description": "dive: tiles within which the bird resurfaces (default 3).",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
                 }
             },
             "allOf": [
+                {
+                    "if": {
+                        "properties": {
+                            "do": {
+                                "const": "dive"
+                            }
+                        }
+                    },
+                    "then": {
+                        "required": [
+                            "clip",
+                            "hiddenMs"
+                        ]
+                    }
+                },
                 {
                     "if": {
                         "properties": {
@@ -199,6 +225,17 @@
                 },
                 "pauseMs": {
                     "$ref": "#/$defs/action/properties/pauseMs"
+                },
+                "hiddenMs": {
+                    "$ref": "#/$defs/action/properties/hiddenMs"
+                },
+                "radius": {
+                    "$ref": "#/$defs/action/properties/radius"
+                },
+                "extends": {
+                    "description": "New action ids only: '<set>.<id>' of a shared action (e.g. forage.dive) this one overrides.",
+                    "type": "string",
+                    "pattern": "^[^.]+\\.[^.]+$"
                 }
             }
         }

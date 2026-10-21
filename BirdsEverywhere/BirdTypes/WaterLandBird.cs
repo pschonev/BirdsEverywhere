@@ -1,18 +1,57 @@
 using BirdsEverywhere.BirdTypes.Behaviors;
 using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
 
 namespace BirdsEverywhere.BirdTypes;
 
 internal sealed class WaterLandBird : BirdCritter
 {
+    private const int DefaultDiveRadius = 3;
+
     private IReadOnlyList<IBirdBehavior>? _behaviors;
     private int? _walkTimer;
 
     public override string BirdTypeName { get; } = "WaterLandBird";
+    public bool Hidden { get; set; }
+    public int DiveTimer { get; set; }
+    public int DiveRadius { get; set; }
 
     public WaterLandBird() { }
+
+    internal override BirdState CaptureExtras(BirdState state) => state with { Hidden = Hidden, DiveTimer = DiveTimer, DiveRadius = DiveRadius };
+
+    internal override void RestoreExtras(BirdState state)
+    {
+        Hidden = state.Hidden;
+        DiveTimer = state.DiveTimer;
+        DiveRadius = state.DiveRadius;
+    }
+
+    protected override void ApplyReplicaExtras(BirdCritter source)
+    {
+        if (source is not WaterLandBird owner)
+        {
+            return;
+        }
+        if (Hidden && !owner.Hidden)
+        {
+            position = owner.position;
+            Splash(position);
+        }
+        Hidden = owner.Hidden;
+        DiveTimer = owner.DiveTimer;
+        DiveRadius = owner.DiveRadius;
+    }
+
+    public override void draw(SpriteBatch b)
+    {
+        if (!Hidden)
+        {
+            base.draw(b);
+        }
+    }
 
     public WaterLandBird(int tileX, int tileY, string birdName, string texture, BirdServices services, BehaviorStatus state = BehaviorStatus.Stopped)
         : base(0, tileX, tileY, birdName, texture, services)
@@ -39,8 +78,9 @@ internal sealed class WaterLandBird : BirdCritter
             State = BehaviorStatus.Swimming;
         }
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng, alerted, TickCalm(time, alerted));
-        bool idle = State == BehaviorStatus.Stopped && threat == null && !alerted;
-        BirdAction idleAction = AdvanceIdle(IdleRoutine, idle && context.AnimationIdle && !context.Airborne);
+        bool swimming = State == BehaviorStatus.Swimming;
+        bool idle = (State == BehaviorStatus.Stopped || (swimming && IdleRoutine.HasOptions(IsDive))) && threat == null && !alerted;
+        BirdAction idleAction = AdvanceIdle(IdleRoutine, idle && context.AnimationIdle && !context.Airborne, swimming ? IsDive : id => !IsDive(id));
         _behaviors ??= BirdBehaviors.WaterLand(Action("walk").EndChance);
         Apply(idle ? idleAction : BirdBehaviors.Decide(_behaviors, context), threat, environment);
 
@@ -65,8 +105,65 @@ internal sealed class WaterLandBird : BirdCritter
             case BehaviorStatus.Alert:
                 ShowAlertPose();
                 break;
+            case BehaviorStatus.Diving when Hidden:
+                DiveTimer -= time.ElapsedGameTime.Milliseconds;
+                if (DiveTimer <= 0)
+                {
+                    Resurface(environment);
+                }
+                break;
         }
         return base.update(time, environment);
+    }
+
+    /// <summary>Water-only custom actions (<c>dive</c>) are picked while swimming, all others while standing.</summary>
+    private bool IsDive(string id) => !BirdActionIds.TryParse(id, out _) && Action(id).Do == "dive";
+
+    protected override void StartCustomAction(ActionDefinition action)
+    {
+        if (action.Do != "dive")
+        {
+            base.StartCustomAction(action);
+            return;
+        }
+        State = BehaviorStatus.Diving;
+        Hidden = false;
+        DiveRadius = action.Radius ?? DefaultDiveRadius;
+        DiveTimer = IsReplica ? 0 : action.HiddenMs!.Value.Roll(Rng);
+        PlayClip(action.Clip!, VisualRng, Submerge);
+    }
+
+    private void Submerge(Farmer who)
+    {
+        Hidden = true;
+        sprite.CurrentAnimation = null;
+    }
+
+    /// <summary>Surfaces on a random water tile within the dive radius (or in place), owner RNG.</summary>
+    private void Resurface(GameLocation environment)
+    {
+        Point here = new((int)(position.X / 64), (int)(position.Y / 64));
+        List<Point> water = new();
+        for (int dy = -DiveRadius; dy <= DiveRadius; dy++)
+        {
+            for (int dx = -DiveRadius; dx <= DiveRadius; dx++)
+            {
+                Point tile = new(here.X + dx, here.Y + dy);
+                if (tile != here && environment.doesTileHaveProperty(tile.X, tile.Y, "Water", "Back") != null)
+                {
+                    water.Add(tile);
+                }
+            }
+        }
+        if (water.Count > 0)
+        {
+            Point target = water[Rng.Next(water.Count)];
+            position = new Vector2(target.X * 64f, target.Y * 64f);
+        }
+        Hidden = false;
+        DiveTimer = 0;
+        State = BehaviorStatus.Swimming;
+        Splash(position);
     }
 
     private void Apply(BirdAction action, Character? threat, GameLocation environment)

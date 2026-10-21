@@ -7,6 +7,43 @@ namespace BirdsEverywhere.Content;
 
 public static class ContentValidator
 {
+    /// <summary>Terrain bird types and the only pattern that places them; other types need a tile pattern.</summary>
+    private static readonly Dictionary<string, string> _featurePatterns = new(StringComparer.Ordinal)
+    {
+        ["TreeTrunkBird"] = "TreeTrunkSpawner",
+        ["BushBird"] = "BushSpawner",
+    };
+
+    private static GroupLayout? Group(SpawnRuleJson rule, string path, Action<IssueSeverity, string, string> report)
+    {
+        if (rule.SpawnParams?.Group is not { } group)
+        {
+            return null;
+        }
+        string groupPath = path + ".group";
+        if (_featurePatterns.ContainsValue(rule.SpawnPattern))
+        {
+            report(IssueSeverity.Error, groupPath, $"{rule.SpawnPattern} places one bird per tree or bush and takes no group layout.");
+        }
+        if (!Enum.TryParse(group.Formation, ignoreCase: true, out Formation formation) || !Enum.IsDefined(formation) || int.TryParse(group.Formation, out _))
+        {
+            report(IssueSeverity.Error, groupPath + ".formation", $"Unknown formation '{group.Formation}'. Known: cluster, scattered, line.");
+        }
+        if (group.Radius is < 1 or > 15)
+        {
+            report(IssueSeverity.Error, groupPath + ".radius", "Radius must be 1–15 tiles.");
+        }
+        if (group.Spacing is < 1 or > 5)
+        {
+            report(IssueSeverity.Error, groupPath + ".spacing", "Spacing must be 1–5 tiles.");
+        }
+        if (group.GroupSpacing is < 0 or > 40)
+        {
+            report(IssueSeverity.Error, groupPath + ".groupSpacing", "Group spacing must be 0–40 tiles.");
+        }
+        return new GroupLayout(formation, group.Radius, group.Spacing, group.GroupSpacing);
+    }
+
     /// <summary>Resolves the rule's routine (ref, inline, or bird-type default), actions (bird-type set with per-field overrides) and sounds (merged over defaults).</summary>
     private static BirdComposition? Composition(SpawnRuleJson rule, string path, string file, SharedDefinitions definitions,
         Func<string, bool> fileExists, Action<IssueSeverity, string, string> report)
@@ -85,7 +122,8 @@ public static class ContentValidator
         if (routine is not null)
         {
             List<string> pickable = profile.Actions.Concat(actions.Keys.Where(action => !profile.ActionPrimitives.ContainsKey(action))).ToList();
-            foreach (string action in routine.Pick.Select(option => option.Id).Distinct().Where(action => !pickable.Contains(action)))
+            foreach (string action in routine.Pick.Select(option => option.Id).Concat((routine.Rare ?? Array.Empty<RareAction>()).Select(rare => rare.Id))
+                .Distinct().Where(action => !pickable.Contains(action)))
             {
                 report(IssueSeverity.Error, routinePath + ".pick", $"{rule.BirdType} cannot perform action '{action}'. Known: {string.Join(", ", pickable)}.");
             }
@@ -189,12 +227,25 @@ public static class ContentValidator
                 report(IssueSeverity.Error, actionPath, "Action must be an object.");
                 continue;
             }
+            if (custom["extends"] is { } extends)
+            {
+                string reference = extends.Type == JTokenType.String ? extends.Value<string>()! : "";
+                string[] parts = reference.Split('.');
+                if (parts.Length != 2 || !definitions.ActionSets.TryGetValue(parts[0], out JObject? set) || set[parts[1]] is not JObject shared)
+                {
+                    report(IssueSeverity.Error, actionPath + ".extends", $"Unknown shared action '{reference}'. Use '<set>.<id>', e.g. forage.dive.");
+                    continue;
+                }
+                JObject own = (JObject)custom.DeepClone();
+                own.Remove("extends");
+                custom = TemplateMerger.Merge((JObject)shared.DeepClone(), own);
+            }
             try
             {
                 ActionDefinition action = ActionLoader.Parse(custom, file, actionPath);
-                if (action.Do != "stay" || action.Clip is null)
+                if (!profile.CustomPrimitives.Contains(action.Do))
                 {
-                    report(IssueSeverity.Error, actionPath, $"Custom action '{extra.Name}' must be 'stay' with a clip. Built-in: {string.Join(", ", profile.ActionPrimitives.Keys)}.");
+                    report(IssueSeverity.Error, actionPath + ".do", $"{rule.BirdType} cannot do '{action.Do}' in a custom action. Allowed: {string.Join(", ", profile.CustomPrimitives)}.");
                     continue;
                 }
                 if (action.Sound is { } role && !sounds.ContainsKey(role))
@@ -421,9 +472,22 @@ public static class ContentValidator
             IntRange? shoreDistance = rule.SpawnParams?.ShoreDistance is int[] shore
                 ? ValidateRange(shore, path + ".spawnParams.shoreDistance", 0, SpawnParams.MaxShoreDistance, Report)
                 : null;
+            if (_featurePatterns.TryGetValue(rule.BirdType, out string? featurePattern) ? rule.SpawnPattern != featurePattern
+                : _featurePatterns.ContainsValue(rule.SpawnPattern))
+            {
+                Report(IssueSeverity.Error, path + ".spawnPattern", featurePattern is null
+                    ? $"{rule.BirdType} needs a tile spawn pattern, not {rule.SpawnPattern}."
+                    : $"{rule.BirdType} needs {featurePattern}, not {rule.SpawnPattern}.");
+            }
+            GroupLayout? group = Group(rule, path + ".spawnParams", Report);
+            int? speciesDistance = rule.SpawnParams?.SpeciesDistance;
+            if (speciesDistance is < 0 or > 40)
+            {
+                Report(IssueSeverity.Error, path + ".spawnParams.speciesDistance", "Species distance must be 0–40 tiles.");
+            }
             rules.Add(new SpawnRule(entry.Key, new SpawnConditions(seasons.ToImmutable(), weather.ToImmutable(), days, times),
                 locations.Distinct(StringComparer.Ordinal).ToImmutableArray(), new SpawnPatternId(rule.SpawnPattern), new BirdTypeId(rule.BirdType),
-                count, size, textures.ToImmutableDictionary(StringComparer.Ordinal), rule.Weight, new SpawnParams(shoreDistance),
+                count, size, textures.ToImmutableDictionary(StringComparer.Ordinal), rule.Weight, new SpawnParams(shoreDistance, group, speciesDistance),
                 Composition(rule, path, file, definitions, textureExists, Report)));
         }
 

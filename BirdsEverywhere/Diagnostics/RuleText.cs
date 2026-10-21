@@ -22,6 +22,14 @@ public static class RuleText
         {
             yield return $"   shore distance: {shore.Min}-{shore.Max} tiles";
         }
+        if (rule.Params.Group is { } group)
+        {
+            yield return $"   group:  {group.Formation.ToString().ToLowerInvariant()}, radius {group.Radius}, spacing {group.Spacing}, groups {group.GroupSpacing}+ apart";
+        }
+        if (rule.Params.SpeciesDistance is int distance)
+        {
+            yield return $"   species distance: {distance} tiles";
+        }
     }
 
     public static bool IsAnchorPattern(SpawnPatternId pattern) =>

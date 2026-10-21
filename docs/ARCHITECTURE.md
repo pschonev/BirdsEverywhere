@@ -477,10 +477,13 @@ Planned design for [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds).
 | Routine (`chance`, `pick`, `next`) and sound roles | implemented (step 3a) | `assets/routines/*.json`, rule fields `routine`/`sounds`, `Content/RoutineLoader`, `ContentValidator` → `SpawnRule.Composition`, `BirdCritter.AdvanceIdle`/`PlaySound` |
 | Actions | parameters implemented (step 3b); custom `stay` ids implemented (3c) | `assets/actions/*.json` per bird type, rule field `actions` (per-field overrides, plus new `stay` ids with a clip on Land/WaterLand that the routine can pick), `Content/ActionLoader`, `BirdCritter.Action(id)`/`ResolveIdle`; the class still decides when each built-in id runs |
 | Sound playback | implemented (step 3d) | `audio:<name>` → `assets/audio/<name>.ogg\|.wav` registered via `Data/AudioChanges`; `BirdCritter.PlaySound` uses `PlayLocal` at the bird's tile, `ModConfig.SoundVolume`, rule `soundCooldownMs`; local cosmetic on every peer |
-| Routine `cooldown`, `rare` | planned (step 5) | not supported yet; rejected as unknown fields |
+| Routine `rare` | implemented (step 5) | `RareAction` with `when` (season, weather, day, time) via `BirdServices.World`; `Routine.Choose` |
+| Routine `cooldown` | planned | rejected as an unknown field |
+| Forage primitives | `dive` and the `splash` clip event implemented (step 5); worm pull and fish strike are `stay` clips in `assets/actions/forage.json` | `WaterLandBird` dive cycle, `BirdTypeProfile.CustomPrimitives`, action `extends` |
+| Group placement | implemented (step 6): `spawnParams.group` (`cluster`, `scattered`, `line`), `speciesDistance` | `TileSelection.Grouped`; `perched`, `near`/`avoid`, `space`, `packing` deferred |
 | Reactions | `threat` implemented (step 4): `fleeRadius`, `runningMultiplier`, `alert`, `relocate` (trunk `otherTree`) | `assets/reactions/*.json`, rule field `reactions`, `Content/ReactionLoader`, `BirdCritter.ScanThreats`/`StartAlert`, `AlertBehavior`/`CalmBehavior`, `TreeTrunkBird` relocation; other triggers planned |
 | Bodies, single sealed `Bird` | partly (step 3c): tile `TerrainAnchor`, `BirdState` snapshots (`BirdTypes/BirdSnapshots`); merge deferred to the first new body | today: four sealed `BirdCritter` classes |
-| Groups, stages, spacing | planned (steps 6–7) | today: `groupCount` × `groupSize` |
+| Groups, stages, spacing | spacing and formations implemented (step 6); families and stages planned (step 7) | today: `groupCount` × `groupSize`, laid out by `spawnParams.group` |
 
 Until bodies move to JSON, each bird class is a hardcoded composition: `BirdTypeProfiles.ByBirdType` maps it to a layout, its required clips, the event names it understands, the routine actions it can perform, its default routine and its default sound cues; the class decides which clip to play and when.
 

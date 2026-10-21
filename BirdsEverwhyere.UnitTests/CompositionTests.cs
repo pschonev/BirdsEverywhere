@@ -144,6 +144,76 @@ public class CompositionTests
         Assert.That(messages, Has.Some.Contains(message));
     }
 
+    /// <summary>A diving water bird on the shipped water-land sheet: <c>peck</c> stands in for the dive and worm-pull clips.</summary>
+    private const string Diver =
+        "{\"id\":\"test\",\"name\":\"Test\",\"scName\":\"Testus\",\"template\":\"base\",\"defaults\":{\"birdType\":\"WaterLandBird\",\"spawnPattern\":\"WaterSpawner\","
+        + "\"actions\":{\"dive\":{\"extends\":\"forage.dive\",\"clip\":\"peck\"},\"grub\":{\"extends\":\"forage.wormPull\",\"clip\":\"peck\",\"sound\":null}},"
+        + "\"routine\":{\"chance\":0.01,\"pick\":{\"peck\":2,\"dive\":1},\"rare\":{\"grub\":{\"chance\":0.1,\"when\":{\"weather\":[\"rain\"]}}}}}}";
+
+    [Test]
+    public void Diver_ExtendsSharedForageActions()
+    {
+        (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues) = Load(Diver);
+        Assert.That(issues.Where(issue => issue.Severity != IssueSeverity.Info), Is.Empty);
+        BirdComposition composition = bird!.Rules.Single().Composition!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(composition.Actions!["dive"], Is.EqualTo(new ActionDefinition("dive", "peck", null, 1, null, null, null, null, null, false, null, new StepRange(2000, 5000, 100), 3)));
+            Assert.That(composition.Actions["grub"].Sound, Is.Null);
+            Assert.That(composition.Routine!.Rare!.Single().Id, Is.EqualTo("grub"));
+        });
+    }
+
+    [TestCase("\"actions\":{\"dive\":{\"extends\":\"forage.dive\",\"clip\":\"peck\"}},\"sounds\"", "cannot do 'dive'")]
+    [TestCase("\"actions\":{\"dive\":{\"extends\":\"forage.swim\"}},\"sounds\"", "Unknown shared action 'forage.swim'")]
+    [TestCase("\"routine\":{\"chance\":0.1,\"pick\":{\"peck\":1},\"rare\":{\"sing\":{\"chance\":0.1}}},\"sounds\"", "cannot perform action 'sing'")]
+    public void ForageActions_Errors(string replacement, string message) =>
+        Assert.That(Load(FixtureSpecies.Replace("\"sounds\"", replacement, StringComparison.Ordinal)).Issues,
+            Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Message.Contains(message)));
+
+    [Test]
+    public void Diver_ReplicaDivesHidesAndSnapsToTheResurfacePosition()
+    {
+        BirdComposition composition = Load(Diver).Bird!.Rules.Single().Composition!;
+        WaterLandBird replica = new() { BirdID = 5, State = BehaviorStatus.Swimming, IsReplica = true, Services = TestBirds.Services, Composition = composition,
+            sprite = new AnimatedSprite(), IdleRevision = 1, IdleCue = new IdleCue(0, "dive", 3) };
+        GameTime tick = new(TimeSpan.Zero, TimeSpan.FromMilliseconds(16));
+
+        replica.update(tick, null!);
+        Assert.That(replica.State, Is.EqualTo(BehaviorStatus.Diving));
+        Assert.That(replica.Hidden, Is.False);
+
+        WaterLandBird owner = new() { State = BehaviorStatus.Diving, Hidden = true, DiveTimer = 3000, IdleRevision = 2, sprite = new AnimatedSprite() };
+        replica.ApplyReplicaState(owner);
+        Assert.That(replica.Hidden, Is.True);
+
+        owner = new() { State = BehaviorStatus.Swimming, Hidden = false, position = new Vector2(320, 128), IdleRevision = 2, sprite = new AnimatedSprite() };
+        replica.ApplyReplicaState(owner);
+        Assert.Multiple(() =>
+        {
+            Assert.That(replica.Hidden, Is.False);
+            Assert.That(replica.State, Is.EqualTo(BehaviorStatus.Swimming));
+            Assert.That(replica.position, Is.EqualTo(new Vector2(320, 128)));
+        });
+    }
+
+    [TestCase("\"birdType\":\"TreeTrunkBird\",\"spawnPattern\":\"GroundSpawner\"", "needs TreeTrunkSpawner")]
+    [TestCase("\"birdType\":\"LandBird\",\"spawnPattern\":\"BushSpawner\"", "needs a tile spawn pattern")]
+    [TestCase("\"birdType\":\"BushBird\",\"spawnPattern\":\"BushSpawner\",\"spawnParams\":{\"group\":{\"formation\":\"line\"}}", "takes no group layout")]
+    [TestCase("\"spawnParams\":{\"group\":{\"formation\":\"vee\"}}", "Unknown formation 'vee'")]
+    [TestCase("\"spawnParams\":{\"group\":{\"formation\":\"line\",\"radius\":0}}", "Radius must be")]
+    [TestCase("\"spawnParams\":{\"speciesDistance\":50}", "Species distance must be")]
+    public void Placement_Errors(string defaults, string message) =>
+        Assert.That(Load("{\"id\":\"test\",\"name\":\"Test\",\"scName\":\"Testus\",\"template\":\"base\",\"defaults\":{" + defaults + "}}").Issues,
+            Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Message.Contains(message)));
+
+    [Test]
+    public void Placement_GroupReachesTheRule() =>
+        Assert.That(Load("{\"id\":\"test\",\"name\":\"Test\",\"scName\":\"Testus\",\"template\":\"base\",\"defaults\":{\"spawnParams\":"
+            + "{\"group\":{\"formation\":\"scattered\",\"radius\":5,\"groupSpacing\":12},\"speciesDistance\":4}}}").Bird!.Rules.Single().Params,
+            Is.EqualTo(new SpawnParams(null, new GroupLayout(Formation.Scattered, 5, 1, 12), 4)));
+
     [Test]
     public void UnknownSoundRole_Warns() =>
         Assert.That(Load(FixtureSpecies.Replace(@"""alarm"":""crow""", @"""song"":""crow""", StringComparison.Ordinal)).Issues,
@@ -199,7 +269,7 @@ public class CompositionTests
         });
     }
 
-    [TestCase(@"""actions"":{""sing"":{""do"":""walk"",""clip"":""walk"",""speed"":1,""durationMs"":[100,200]}}", "must be 'stay' with a clip")]
+    [TestCase(@"""actions"":{""sing"":{""do"":""walk"",""clip"":""walk"",""speed"":1,""durationMs"":[100,200]}}", "cannot do 'walk' in a custom action")]
     [TestCase(@"""actions"":{""walk"":{""do"":""stay""}}", "runs 'walk' as 'walk', not 'stay'")]
     [TestCase(@"""actions"":{""flee"":{""speed"":null}}", "needs clip, speed and climb")]
     public void ActionOverride_Errors(string actions, string message) =>
