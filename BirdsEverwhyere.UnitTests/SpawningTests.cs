@@ -185,6 +185,72 @@ public class SpawningTests
         }
     }
 
+    private static List<List<Vector2>> Groups(GroupLayout layout, int seed, int groups = 2, int size = 4)
+    {
+        List<Vector2> tiles = TileSelection.Tiles(new FakeLocation(), Condition.IsValidGroundTile, new IntRange(groups, groups), new IntRange(size, size),
+            new Random(seed), layout: layout);
+        Assert.That(tiles, Has.Count.EqualTo(groups * size), $"seed {seed}: every member placed on the open fake map");
+        return tiles.Chunk(size).Select(chunk => chunk.ToList()).ToList();
+    }
+
+    [TestCase(Formation.Cluster)]
+    [TestCase(Formation.Scattered)]
+    [TestCase(Formation.Line)]
+    public void Formation_MembersStayInRadiusSpacedAndOnValidTiles(Formation formation)
+    {
+        GroupLayout layout = new(formation, Radius: formation == Formation.Line ? 6 : 4, Spacing: 2, GroupSpacing: 0);
+        for (int seed = 0; seed < 20; seed++)
+        {
+            foreach (List<Vector2> group in Groups(layout, seed, size: formation == Formation.Line ? 3 : 4))
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(group.All(tile => Vector2.Distance(tile, group[0]) <= layout.Radius + 0.5f), Is.True, $"seed {seed} radius");
+                    Assert.That(group.SelectMany((a, i) => group.Skip(i + 1).Select(b => Vector2.Distance(a, b))).All(d => d >= layout.Spacing), Is.True, $"seed {seed} spacing");
+                    Assert.That(group.All(tile => tile.X < 20), Is.True, $"seed {seed} ground only");
+                });
+            }
+        }
+    }
+
+    [Test]
+    public void Formation_Line_IsStraight()
+    {
+        for (int seed = 0; seed < 20; seed++)
+        {
+            foreach (List<Vector2> group in Groups(new GroupLayout(Formation.Line, 6, 1, 0), seed, size: 3))
+            {
+                Vector2 a = group[1] - group[0];
+                Vector2 b = group[2] - group[0];
+                Assert.That((a.X * b.Y) - (a.Y * b.X), Is.EqualTo(0f), $"seed {seed}: members are collinear");
+            }
+        }
+    }
+
+    [Test]
+    public void Formation_GroupSpacingSeparatesGroups()
+    {
+        for (int seed = 0; seed < 20; seed++)
+        {
+            List<List<Vector2>> groups = Groups(new GroupLayout(Formation.Cluster, 1, 1, 10), seed, groups: 2, size: 1);
+            Assert.That(Vector2.Distance(groups[0][0], groups[1][0]), Is.GreaterThanOrEqualTo(10f), $"seed {seed}");
+        }
+    }
+
+    [TestCase(null)]
+    [TestCase(Formation.Cluster)]
+    public void SpeciesDistance_IsConfigurable(Formation? formation)
+    {
+        Vector2[] other = { new(10, 15) };
+        GroupLayout? layout = formation is { } f ? new GroupLayout(f, 2, 1, 0) : null;
+        for (int seed = 0; seed < 20; seed++)
+        {
+            List<Vector2> tiles = TileSelection.Tiles(new FakeLocation(), Condition.IsValidGroundTile, new IntRange(2, 2), new IntRange(3, 3), new Random(seed),
+                avoid: other, layout: layout, speciesDistance: 12);
+            Assert.That(tiles.All(tile => Vector2.Distance(tile, other[0]) >= 12f), Is.True, $"seed {seed}");
+        }
+    }
+
     [Test]
     public void TileSelection_Features_EmptyCandidates_ReturnsNothing()
     {

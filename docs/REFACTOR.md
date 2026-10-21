@@ -445,6 +445,8 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 
 **Exit:** each primitive has a shared action definition, a fixture that uses it (placeholder layout where no art exists) and tests; validator rejects primitives the body cannot do.
 
+**Implemented (compile/test verified, not tested in game):** routine `rare` (`{"<id>": {"chance": 0.05, "when": {seasons, weather, days, times}}}`): tried in order before the weighted pick on the schedule RNG, conditional entries read the current world through `BirdServices.World` (never fire without one); routines without `rare` draw exactly as before. Shared forage actions in `assets/actions/forage.json` (`wormPull`, `fishStrike` as `stay` clips, `dive`); a rule's new action id can `"extends": "forage.dive"` and override fields. Primitive `dive` (water-land, picked only while swimming; other actions only while standing): plays its clip, hides for `hiddenMs`, resurfaces on a random water tile within `radius` with a splash; diving birds ignore threats and alerts; `Hidden`/`DiveTimer`/`DiveRadius` sync to replicas, which snap to the resurface tile. Clip event `splash` (land and water-land) adds the vanilla water splash for fish strikes. `BirdTypeProfile.CustomPrimitives` (land `stay`; water-land `stay`, `dive`) rejects primitives a bird type cannot do. Tests: rare/condition/filter choice and RNG parity, schema/loader agreement for `rare` and `dive`, fixture diver (extends, validation, replica dive cycle). No real forage clips exist yet, so worm pull and fish strike are framework only.
+
 **Prototype species once art exists** ([table](#backlog)): common blackbird (worm pull), grey heron (fish strike), black-necked grebe (dive).
 
 ### Step 6: spawning placement
@@ -454,6 +456,8 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 - Validator: body vs spawn pattern compatibility.
 
 **Exit:** pure planner tests (arm64) for each formation and spacing rule; spawn frequency in game unchanged for rules without the new fields.
+
+**Implemented (compile/test verified, not tested in game):** `spawnParams.group` (`formation` `cluster`/`scattered`/`line`, `radius`, `spacing`, `groupSpacing`) for tile patterns: a valid start tile per group (respecting `groupSpacing` to earlier groups), then rejection sampling within the radius (cluster biased to the centre, scattered uniform by area) or a straight row in one of four directions; members keep `spacing`; partial groups allowed, an empty plan still falls back. `spawnParams.speciesDistance` replaces the fixed 8-tile distance to other species (tile and terrain patterns). Rules without `group` keep the legacy random walk and RNG use. Validator: bird type vs spawn pattern (trunk ↔ `TreeTrunkSpawner`, bush ↔ `BushSpawner`, others need a tile pattern), no `group` on terrain patterns, ranges. `birds_rules` shows group and species distance. Deferred: `perched` (needs fence/perch anchors), `near`/`avoid` kinds, per-species `space`, `packing`.
 
 ### Step 7: families, stages and group runtime
 

@@ -126,6 +126,48 @@
                         "minimum": 0,
                         "maximum": 20
                     }
+                },
+                "group": {
+                    "description": "Tile patterns only. How each group's members are laid out around its first tile; missing: the legacy random walk.",
+                    "type": "object",
+                    "required": [
+                        "formation"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "formation": {
+                            "description": "cluster: dense around the first tile; scattered: spread evenly within the radius; line: a straight row.",
+                            "enum": [
+                                "cluster",
+                                "scattered",
+                                "line"
+                            ]
+                        },
+                        "radius": {
+                            "description": "Tiles from the first tile, default 3.",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 15
+                        },
+                        "spacing": {
+                            "description": "Minimum tiles between members, default 1.",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 5
+                        },
+                        "groupSpacing": {
+                            "description": "Minimum tiles between the groups of this rule, default 0.",
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 40
+                        }
+                    }
+                },
+                "speciesDistance": {
+                    "description": "Minimum tiles to birds of other species already planned here, default 8.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 40
                 }
             }
         },

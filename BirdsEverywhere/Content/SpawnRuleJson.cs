@@ -52,6 +52,27 @@ public sealed record SpawnParamsJson
 {
     [JsonProperty("shoreDistance")]
     public int[]? ShoreDistance { get; init; }
+
+    [JsonProperty("group")]
+    public GroupJson? Group { get; init; }
+
+    [JsonProperty("speciesDistance")]
+    public int? SpeciesDistance { get; init; }
+}
+
+public sealed record GroupJson
+{
+    [JsonProperty("formation", Required = Required.Always)]
+    public string Formation { get; init; } = "";
+
+    [JsonProperty("radius")]
+    public int Radius { get; init; } = 3;
+
+    [JsonProperty("spacing")]
+    public int Spacing { get; init; } = 1;
+
+    [JsonProperty("groupSpacing")]
+    public int GroupSpacing { get; init; }
 }
 
 public sealed record SpawnWhenJson

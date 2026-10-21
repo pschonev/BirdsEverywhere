@@ -15,7 +15,8 @@ public class TreeTrunkSpawner : TerrainFeatureSpawner
     public override List<BirdPlacement> SpawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor, IReadOnlyCollection<Vector2>? avoid = null)
     {
         IEnumerable<Vector2> trees = location.terrainFeatures.Pairs.Where(pair => IsEligibleTree(pair.Value)).Select(pair => pair.Key).ToList();
-        return Placements(TileSelection.Features(trees, rule.GroupCount, random, (tile, _) => tile, avoid), location, data, rule, random, monitor);
+        return Placements(TileSelection.Features(trees, rule.GroupCount, random, (tile, _) => tile, avoid, rule.Params.SpeciesDistance ?? TileSelection.MinSpeciesDistance),
+            location, data, rule, random, monitor);
     }
 }
 
@@ -27,7 +28,8 @@ public class BushSpawner : TerrainFeatureSpawner
     public override List<BirdPlacement> SpawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor, IReadOnlyCollection<Vector2>? avoid = null)
     {
         IEnumerable<Vector2> bushes = location.largeTerrainFeatures.OfType<Bush>().Select(bush => bush.Tile).ToList();
-        return Placements(TileSelection.Features(bushes, rule.GroupCount, random, (bush, r) => PlaceNearBush(location, bush, r), avoid), location, data, rule, random, monitor);
+        return Placements(TileSelection.Features(bushes, rule.GroupCount, random, (bush, r) => PlaceNearBush(location, bush, r), avoid,
+            rule.Params.SpeciesDistance ?? TileSelection.MinSpeciesDistance), location, data, rule, random, monitor);
     }
 
     private static Vector2? PlaceNearBush(GameLocation location, Vector2 bush, Random random)

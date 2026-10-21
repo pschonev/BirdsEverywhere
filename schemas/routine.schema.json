@@ -23,6 +23,42 @@
             "additionalProperties": {
                 "$ref": "common.schema.json#/$defs/weightMap"
             }
+        },
+        "rare": {
+            "description": "Actions tried in order before the weighted pick: each rolls its chance per scheduled cue while its conditions match.",
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "required": [
+                    "chance"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "chance": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 1
+                    },
+                    "when": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "seasons": {
+                                "$ref": "rule.schema.json#/properties/when/properties/seasons"
+                            },
+                            "weather": {
+                                "$ref": "rule.schema.json#/properties/when/properties/weather"
+                            },
+                            "days": {
+                                "$ref": "rule.schema.json#/properties/when/properties/days"
+                            },
+                            "times": {
+                                "$ref": "rule.schema.json#/properties/when/properties/times"
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

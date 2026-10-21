@@ -57,7 +57,8 @@ public partial class ModEntry : Mod
             LogIssue(issue);
         }
         _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation, _layouts, _definitions.Routines,
-            _definitions.ParsedActions(), ModManifest.UniqueID + "_", Math.Clamp(_config.SoundVolume, 0f, 1f));
+            _definitions.ParsedActions(), ModManifest.UniqueID + "_", Math.Clamp(_config.SoundVolume, 0f, 1f),
+            () => Context.IsWorldReady ? new IdleWorld(Enum.Parse<Domain.Season>(Game1.currentSeason, true), CurrentWeather(), Game1.dayOfMonth, Game1.timeOfDay) : null);
         RegisterAudio(helper);
         _locationSpawner = new LocationSpawner(_spawnPatterns, _birdTypes, _birdServices);
 

@@ -13,4 +13,5 @@ public sealed record BirdTypeProfile(
     IReadOnlyDictionary<string, string> Sounds,
     Domain.Reactions? Reactions,
     bool CanAlert,
-    IReadOnlyList<string> RelocateTargets);
+    IReadOnlyList<string> RelocateTargets,
+    IReadOnlyList<string> CustomPrimitives);

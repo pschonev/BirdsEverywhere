@@ -109,6 +109,55 @@ internal sealed class BirdBehaviorTests
     public void Relocation_ArcPeaksHalfway(float progress, float expected) =>
         Assert.That(Relocation.ArcOffset(progress, 48f), Is.EqualTo(expected).Within(0.001f));
 
+    private static readonly BirdsEverywhere.Domain.SpawnConditions _rainOnly = new(
+        System.Collections.Immutable.ImmutableArray<BirdsEverywhere.Domain.Season>.Empty,
+        System.Collections.Immutable.ImmutableArray.Create(BirdsEverywhere.Domain.Weather.Rain),
+        System.Collections.Immutable.ImmutableArray<BirdsEverywhere.Domain.IntRange>.Empty,
+        System.Collections.Immutable.ImmutableArray<BirdsEverywhere.Domain.IntRange>.Empty);
+
+    private static readonly BirdsEverywhere.Domain.Routine _forager = new(0.01,
+        new[] { new BirdsEverywhere.Domain.WeightedId("peck", 3), new BirdsEverywhere.Domain.WeightedId("dive", 1) },
+        new Dictionary<string, IReadOnlyList<BirdsEverywhere.Domain.WeightedId>>(),
+        new[] { new BirdsEverywhere.Domain.RareAction("wormPull", 0.1, _rainOnly) });
+
+    private static readonly BirdsEverywhere.Domain.IdleWorld _rain = new(BirdsEverywhere.Domain.Season.Spring, BirdsEverywhere.Domain.Weather.Rain, 1, 900);
+    private static readonly BirdsEverywhere.Domain.IdleWorld _sun = _rain with { Weather = BirdsEverywhere.Domain.Weather.Sun };
+
+    [TestCase(0.05, true, "wormPull")]
+    [TestCase(0.05, false, "peck")]
+    [TestCase(0.5, true, "peck")]
+    public void Routine_RareActionNeedsItsConditionAndChance(double roll, bool raining, string expected) =>
+        Assert.That(_forager.Choose(new FixedRandom(roll, 0), id => id != "dive", raining ? _rain : _sun), Is.EqualTo(expected));
+
+    [Test]
+    public void Routine_ConditionalRareNeverFiresWithoutAWorld() =>
+        Assert.That(_forager.Choose(new FixedRandom(0, 0), _ => true, null), Is.EqualTo("peck"));
+
+    [Test]
+    public void Routine_FilterRestrictsPicksAndHasOptions() =>
+        Assert.Multiple(() =>
+        {
+            Assert.That(_forager.Choose(new FixedRandom(0.9, 0), id => id == "dive", _rain), Is.EqualTo("dive"));
+            Assert.That(_forager.HasOptions(id => id == "swim"), Is.False);
+            Assert.That(_forager.Choose(new FixedRandom(0.9, 0), id => id == "swim", _rain), Is.Null);
+        });
+
+    [Test]
+    public void Routine_ChooseWithoutRareOrFilter_DrawsLikeRoll()
+    {
+        BirdsEverywhere.Domain.Routine plain = _forager with { Rare = null };
+        Random a = new(7);
+        Random b = new(7);
+        for (int i = 0; i < 50; i++)
+        {
+            Assert.That(plain.Choose(a, _ => true, null), Is.EqualTo(BirdsEverywhere.Domain.Routine.Roll(plain.Pick, b)));
+        }
+    }
+
+    [TestCase(BehaviorStatus.Diving)]
+    public void Threat_IgnoredWhileDiving(BehaviorStatus state) =>
+        Assert.That(BirdBehaviors.Decide(_waterLand, new BirdContext(state, true, true, false, new FixedRandom(0), true, false)), Is.EqualTo(BirdAction.None));
+
     /// <summary>An approach timeline: far, alert ring, still close, leaves, calm, then the flee radius.</summary>
     [Test]
     public void ApproachAndRetreat_Timeline()

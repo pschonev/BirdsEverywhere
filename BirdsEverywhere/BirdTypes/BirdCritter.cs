@@ -128,8 +128,13 @@ internal abstract class BirdCritter : Critter
 
     protected void ShowPose(string name) => sprite.currentFrame = baseFrame + ClipPlayer.FirstCell(Layout.Clips[name]);
 
-    protected virtual AnimatedSprite.endOfAnimationBehavior ClipEvent(string name) =>
-        throw new InvalidOperationException($"{BirdTypeName} has no clip event '{name}'.");
+    protected virtual AnimatedSprite.endOfAnimationBehavior ClipEvent(string name) => name == "splash"
+        ? _ => Splash(position + new Vector2(flip ? 32f : -32f, 0f))
+        : throw new InvalidOperationException($"{BirdTypeName} has no clip event '{name}'.");
+
+    /// <summary>The vanilla water splash at a world position, local only.</summary>
+    protected void Splash(Vector2 at) =>
+        CurrentLocation?.temporarySprites.Add(new TemporaryAnimatedSprite(28, 100f, 2, 1, at - new Vector2(32f, 32f), flicker: false, flipped: false));
 
     public BirdServices? Services { get; set; }
 
@@ -192,8 +197,9 @@ internal abstract class BirdCritter : Critter
         }
     }
 
-    protected BirdAction AdvanceIdle(Routine routine, bool eligible)
+    protected BirdAction AdvanceIdle(Routine routine, bool eligible, Func<string, bool>? allowed = null)
     {
+        allowed ??= _ => true;
         IdleTick++;
         if (!eligible)
         {
@@ -215,7 +221,11 @@ internal abstract class BirdCritter : Critter
                 {
                     continue;
                 }
-                IdleCue = new IdleCue(tick, Routine.Roll(routine.Pick, _scheduleRandom), _scheduleRandom.Next());
+                if (routine.Choose(_scheduleRandom, allowed, Services?.World?.Invoke()) is not { } picked)
+                {
+                    break;
+                }
+                IdleCue = new IdleCue(tick, picked, _scheduleRandom.Next());
                 IdleRevision++;
                 _nextScheduleTick = tick;
                 break;
@@ -236,7 +246,7 @@ internal abstract class BirdCritter : Critter
         return ResolveIdle(action);
     }
 
-    /// <summary>Built-in ids map to the class's actions; custom ids (data-only <c>stay</c> actions) play their clip here and leave the bird stopped.</summary>
+    /// <summary>Built-in ids map to the class's actions; custom ids (data-only actions) start here and leave the class's decision list alone.</summary>
     private BirdAction ResolveIdle(string id)
     {
         if (BirdActionIds.TryParse(id, out BirdAction action))
@@ -246,14 +256,17 @@ internal abstract class BirdCritter : Critter
 
         ActionDefinition custom = Action(id);
         PlayActionSound(custom);
-        PlayClip(custom.Clip!, VisualRng);
+        StartCustomAction(custom);
         return BirdAction.None;
     }
+
+    /// <summary>Runs a custom action by primitive; the base handles <c>stay</c> (play the clip, stay stopped).</summary>
+    protected virtual void StartCustomAction(ActionDefinition action) => PlayClip(action.Clip!, VisualRng);
 
     protected BirdAction AdvanceReplicaIdle()
     {
         IdleTick++;
-        if (State != BehaviorStatus.Stopped || IdleCue == null || IdleTick < IdleCue.Tick || _playedIdleRevision == IdleRevision)
+        if (State is not (BehaviorStatus.Stopped or BehaviorStatus.Swimming) || IdleCue == null || IdleTick < IdleCue.Tick || _playedIdleRevision == IdleRevision)
         {
             return BirdAction.None;
         }
