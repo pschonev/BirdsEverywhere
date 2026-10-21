@@ -12,25 +12,34 @@ namespace BirdsEverywhere;
 
 public partial class ModEntry
 {
-    private const string CheckUsage = "Usage: birds_check <birdId> [<ruleId>] [-l <location>]";
+    private const string CheckUsage = "Usage: birds_check <bird> [<ruleId>] [-l <location>]";
 
     private void RegisterInspectCommands(IModHelper helper)
     {
         var commands = helper.ConsoleCommands;
-        commands.Add("birds_rules", "Show a bird's rules with today's eligibility: birds_rules <birdId>", ShowRules);
+        commands.Add("birds_rules", "Show a bird's rules with today's eligibility: birds_rules <bird>", ShowRules);
         commands.Add("birds_check", "Check why a rule can or cannot spawn: " + CheckUsage, CheckRule);
         commands.Add("birds_live", "List live birds in this location.", ShowLiveBirds);
+        commands.Add("birds_anim", "Play a layout clip on live birds here: birds_anim <bird> <clip>", PlayAnimation);
         helper.Events.Display.RenderedWorld += DrawDebugOverlay;
     }
 
     private bool TryGetBird(string id, out BirdDefinition bird)
     {
-        if (_catalog.TryGetValue(id, out BirdDefinition? found))
+        IReadOnlyList<BirdDefinition> matches = BirdLookup.FindMatches(_catalog.Values, id);
+        if (matches.Count == 1)
         {
-            bird = found;
+            bird = matches[0];
             return true;
         }
-        Monitor.Log($"Unknown bird '{id}'.", LogLevel.Warn);
+        if (matches.Count == 0)
+        {
+            Monitor.Log($"Unknown bird '{id}'.", LogLevel.Warn);
+        }
+        else
+        {
+            Monitor.Log($"Ambiguous bird '{id}'. Matches: {string.Join(", ", matches.Select(match => match.Id.Value))}.", LogLevel.Warn);
+        }
         bird = null!;
         return false;
     }
@@ -46,7 +55,7 @@ public partial class ModEntry
         }
         if (args.Length != 1)
         {
-            Monitor.Log("Usage: birds_rules <birdId>", LogLevel.Warn);
+            Monitor.Log("Usage: birds_rules <bird>", LogLevel.Warn);
             return;
         }
         if (!TryGetBird(args[0], out BirdDefinition bird))
@@ -169,6 +178,43 @@ public partial class ModEntry
             return $"{bird.BirdName} [{bird.BirdTypeName}] tex {bird.Texture} at ({(int)tile.X}, {(int)tile.Y}) on {surface}, {bird.State}{anchor}, {rule}";
         });
         Monitor.Log(string.Join(Environment.NewLine, lines), LogLevel.Info);
+    }
+
+    private void PlayAnimation(string command, string[] args)
+    {
+        if (!CheckDebugCommand())
+        {
+            return;
+        }
+        if (args.Length != 2)
+        {
+            Monitor.Log("Usage: birds_anim <bird> <clip>", LogLevel.Warn);
+            return;
+        }
+
+        if (!TryGetBird(args[0], out BirdDefinition definition))
+        {
+            return;
+        }
+
+        List<BirdCritter> birds = Game1.currentLocation.critters?.OfType<BirdCritter>().Where(bird => bird.BirdName == definition.Id.Value && !bird.IsReplica).ToList()
+            ?? new List<BirdCritter>();
+        if (birds.Count == 0)
+        {
+            Monitor.Log($"No owned live '{definition.Id.Value}' birds in {Game1.currentLocation.Name}.", LogLevel.Warn);
+            return;
+        }
+        string layoutId = Content.BirdTypeProfiles.ByBirdType[birds[0].BirdTypeName].LayoutId;
+        if (!_layouts[layoutId].Clips.ContainsKey(args[1]))
+        {
+            Monitor.Log($"Layout '{layoutId}' has no clip '{args[1]}'. Clips: {string.Join(", ", _layouts[layoutId].Clips.Keys)}", LogLevel.Warn);
+            return;
+        }
+        foreach (BirdCritter bird in birds)
+        {
+            bird.PlayClip(args[1], new Random());
+        }
+        Monitor.Log($"Playing {layoutId}.{args[1]} on {birds.Count} bird(s); bird logic may override it.", LogLevel.Info);
     }
 
     private void DrawDebugOverlay(object? sender, RenderedWorldEventArgs e)

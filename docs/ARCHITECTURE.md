@@ -100,7 +100,7 @@ All domain types are records with read-only collections.
 
 | Type | Role | Replaces |
 |---|---|---|
-| `BirdDefinition` | Validated species: id, names, description, `IReadOnlyList<SpawnRule>` | `BirdData` (config half) |
+| `BirdDefinition` | Validated species: id, names (descriptions and optional local names live in `i18n/`), `IReadOnlyList<SpawnRule>` | `BirdData` (config half) |
 | `SpawnRule` | Fully merged rule: id, `SpawnConditions`, expanded location names, `SpawnPatternId`, `BirdTypeId`, group count and size (`IntRange`, inclusive), texture weights, selection weight | `SpawnData` |
 | `SpawnConditions` | Seasons, weathers, day ranges, time ranges; an empty set means "any" | `SpawnData` weather/day/time fields |
 | `DailySpawnPlan` | Per location: chosen bird, chosen rule, planned bird placements. Built once per day by the host | `DailySpawner` + `BirdData.currentSpawnData` |
@@ -134,7 +134,7 @@ Goal: a new species that behaves like an existing group of birds is a file with 
 | File | Contains | Must not contain |
 |---|---|---|
 | `assets/templates/<id>.json` | optional `template`, `defaults`, `rules` | identity fields |
-| `assets/<bird_id>/<bird_id>.json` | `id` (equals file name), `name`, `scName`, `description`, optional `template`, `defaults`, `rules` | — |
+| `assets/<bird_id>/<bird_id>.json` | `id` (equals file name), `name`, `scName`, optional `template`, `defaults`, `rules` | — |
 | `assets/regions.json` | `{ "<region>": { "ratio": 0.6, "species": ["<bird_id>", ...], "groups": { "<group>": ["<GameLocationName>", ...] } } }`; `species` is ordered most to least frequent, `ratio` (default 0.6) is the weight factor per rank | nested groups, per-bird location lists |
 | `assets/compat/<modUniqueId>.json` | same format, existing regions only; species and group members are appended when that mod is loaded | new regions, `ratio`, nested groups |
 
@@ -157,7 +157,8 @@ A rule is one situation in which the bird can appear. `defaults` has the same fi
 | `groupCount`, `groupSize` | `[min, max]` | inclusive |
 | `textures` | `{ "<variant>": weight }` | `""` is the base sprite; other keys are texture variants |
 | `weight` | number > 0 | selection weight among eligible rules; C# fallback `1` |
-| `body`, `layout`, `actions`, `routine`, `reactions`, `sounds`, `stages` | ref or inline | planned, [Bird composition](#bird-composition-config-driven-behavior); replace `birdType` and the reserved `routineWeights`/`threatResponse` |
+| `routine`, `sounds` | ref or inline / role → cue | implemented (step 3a); see [Routine](#3-routine-idle) and [Species composition](#5-species-composition) |
+| `body`, `layout`, `actions`, `reactions`, `stages` | ref or inline | planned, [Bird composition](#bird-composition-config-driven-behavior); `body` replaces `birdType` |
 | `group`, `groupSpacing`, `near`, `avoid`, `space`, `packing`, `speciesDistance` | see [Spawning v2](#spawning-v2-groups-stages-spacing) | planned; same merge rules apply |
 
 Required after merging: `locations`, `spawnPattern`, `birdType`, `groupCount`, `groupSize`, `textures`.
@@ -263,7 +264,6 @@ Pure inheritance, `blue_tit/blue_tit.json`:
   "id": "blue_tit",
   "name": "Blue Tit",
   "scName": "Cyanistes caeruleus",
-  "description": "...",
   "template": "garden_resident"
 }
 ```
@@ -290,7 +290,7 @@ Species tweak, `house_sparrow/house_sparrow.json`. `defaults.groupSize` alone on
 
 ```json
 {
-  "id": "house_sparrow", "name": "House Sparrow", "scName": "Passer domesticus", "description": "...",
+  "id": "house_sparrow", "name": "House Sparrow", "scName": "Passer domesticus",
   "template": "garden_resident",
   "defaults": { "groupSize": [3, 8] },
   "rules": {
@@ -304,7 +304,7 @@ Extra texture variant, `blackbird/blackbird.json`. Every rule gets `female`; sum
 
 ```json
 {
-  "id": "blackbird", "name": "Blackbird", "scName": "Turdus merula", "description": "...",
+  "id": "blackbird", "name": "Blackbird", "scName": "Turdus merula",
   "template": "garden_resident",
   "defaults": { "textures": { "female": 1 } }
 }
@@ -314,7 +314,7 @@ Winter visitor reusing the template, `fieldfare/fieldfare.json`. Removes two inh
 
 ```json
 {
-  "id": "fieldfare", "name": "Fieldfare", "scName": "Turdus pilaris", "description": "...",
+  "id": "fieldfare", "name": "Fieldfare", "scName": "Turdus pilaris",
   "template": "garden_resident",
   "rules": {
     "spring_fall": null,
@@ -343,12 +343,12 @@ Seasonal water birds, `templates/winter_waterbird.json`, and two species using i
 ```
 
 ```json
-{ "id": "tufted_duck", "name": "Tufted Duck", "scName": "Aythya fuligula", "description": "...", "template": "winter_waterbird" }
+{ "id": "tufted_duck", "name": "Tufted Duck", "scName": "Aythya fuligula", "template": "winter_waterbird" }
 ```
 
 ```json
 {
-  "id": "goldeneye", "name": "Common Goldeneye", "scName": "Bucephala clangula", "description": "...",
+  "id": "goldeneye", "name": "Common Goldeneye", "scName": "Bucephala clangula",
   "template": "winter_waterbird",
   "defaults": { "groupSize": [1, 4], "textures": { "female": 2 } }
 }
@@ -358,7 +358,7 @@ Weather-dependent behavior, `herring_gull/herring_gull.json`. On a stormy winter
 
 ```json
 {
-  "id": "herring_gull", "name": "Herring Gull", "scName": "Larus argentatus", "description": "...",
+  "id": "herring_gull", "name": "Herring Gull", "scName": "Larus argentatus",
   "template": "base_bird",
   "defaults": {
     "spawnPattern": "WaterOrGroundSpawner",
@@ -391,7 +391,7 @@ Night birds, `templates/nocturnal.json` (its `when.times` replaces the base list
 
 ```json
 {
-  "id": "tawny_owl", "name": "Tawny Owl", "scName": "Strix aluco", "description": "...",
+  "id": "tawny_owl", "name": "Tawny Owl", "scName": "Strix aluco",
   "template": "nocturnal",
   "defaults": { "locations": ["Forest", "Backwoods"] }
 }
@@ -469,6 +469,46 @@ Planned design for [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds).
 
 **Rule of thumb:** a new noun or verb (primitive, trigger, body, effect, target search, condition key) needs code; a new combination of existing ones is config. There is no expression language or scripting in JSON.
 
+### Status
+
+| Layer | State | Where |
+|---|---|---|
+| Layouts and clips | implemented (step 2) | `assets/layouts/*.json`, `Content/LayoutLoader`, `Content/LayoutValidator`, `BirdTypes/ClipPlayer`, `BirdCritter.PlayClip`/`ShowPose` |
+| Routine (`chance`, `pick`, `next`) and sound roles | implemented (step 3a) | `assets/routines/*.json`, rule fields `routine`/`sounds`, `Content/RoutineLoader`, `ContentValidator` → `SpawnRule.Composition`, `BirdCritter.AdvanceIdle`/`PlaySound` |
+| Actions | planned (step 3b) | today: `BirdAction` enum; durations, end chances and impulses in code |
+| Routine `cooldown`, `rare` | planned (step 5) | not supported yet; rejected as unknown fields |
+| Reactions | planned (step 4) | today: `FleeBehavior` with a fixed radius per bird class |
+| Bodies, single sealed `Bird` | planned (step 3) | today: four sealed `BirdCritter` classes |
+| Groups, stages, spacing | planned (steps 6–7) | today: `groupCount` × `groupSize` |
+
+Until bodies move to JSON, each bird class is a hardcoded composition: `BirdTypeProfiles.ByBirdType` maps it to a layout, its required clips, the event names it understands, the routine actions it can perform, its default routine and its default sound cues; the class decides which clip to play and when.
+
+### Animation pipeline (implemented)
+
+```mermaid
+flowchart LR
+    subgraph Load["Entry / SaveLoaded"]
+        J["assets/layouts/*.json"] -->|LayoutLoader.LoadAll| D["SpriteLayout<br/>(Domain records)"]
+        D --> S["BirdServices.Layouts"]
+        B["BirdDefinition + textures"] --> V{"LayoutValidator.ValidateBird<br/>clips, events, cells fit PNG"}
+        D --> V
+        V -->|error| X["log + skip bird"]
+        V -->|ok| C["catalog"]
+    end
+    subgraph Tick["Bird update (owner or replica)"]
+        A["bird class picks a clip<br/>e.g. PlayClip(&quot;peck&quot;, VisualRng, DonePecking)"] --> P["ClipPlayer.Frames<br/>frames → repeat × roll → end"]
+        P -->|"event names → ClipEvent()"| F["FarmerSprite.AnimationFrame list"]
+        F --> AS["AnimatedSprite"]
+        A2["ShowPose(&quot;stand&quot;)"] --> AS
+    end
+    S --> A
+```
+
+- Ranges roll on the RNG the caller passes (`VisualRng` for idle visuals so replicas replay them from the cue seed; `Rng` for owner-only clips such as the trunk peck). Fixed values draw nothing.
+- Frame events resolve through the bird class's `ClipEvent(name)`; an unknown name throws in code and is rejected earlier by the validator.
+- Clip end (`onEnd`) is attached to the last frame, replacing legacy end-of-animation callbacks.
+- `AnimationCharacterizationTests` pin the generated frames and RNG draws of every shipped clip.
+
 ### Layers
 
 Five layers, each referenced by name or defined inline (see [Ref or inline](#ref-or-inline)). All use the same merge rules as [TemplateMerger](#merge-algorithm): objects merge key by key, arrays replace, `null` removes.
@@ -504,7 +544,8 @@ A layout describes one sprite-sheet arrangement and the named clips played from 
 
 - `frameSize` is `[width, height]` in source pixels. Frame index = cell counted left to right, top to bottom, exactly like `AnimatedSprite` (which wraps by texture width).
 - A clip is either a frame list or an object `{ frames, repeat?, end?, loop? }`. Played sequence: `frames`, then `repeat.frames` rolled `repeat.count` times, then `end`. `loop: true` repeats the whole sequence until the action ends.
-- A frame is `[cell, ms]` or `[cell, ms, event]`. `ms` is an integer or a [range](#ranges), e.g. `[6, [500, 3999]]`.
+- A frame is `[cell, ms, ...tags]`. `ms` is an integer or a [range](#ranges), e.g. `[6, [500, 3999]]`. A tag is an event name (at most one) or `"flip"`, which makes the frame take the bird's facing (kept from legacy frames until the in-game flip check).
+- `frames` may be omitted when `repeat` is present (e.g. `trunk_16` peck is only repeat + end). A single-frame clip used as a static pose (`stand`, `sleep`, `swim`) shows its first cell; its duration is unused.
 - An event string names a sound role (played via the species' `sounds`) or a code-registered effect (`hop`, later `splash`, `feathers`, `hide`). A name may not be both; unknown names fail validation.
 - Clip end is reported to the running action (replaces legacy `DonePecking`-style callbacks).
 - **Sheet rule:** append new poses at the end of a sheet; never insert or reorder cells, so every existing clip stays valid. A different cell size is a new layout, usually one that `extends` an existing one.
@@ -541,6 +582,7 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 }
 ```
 
+- Implemented: `chance`, `pick`, `next` (step 3a). Pick ids are routine actions of the bird type (`BirdTypeProfiles`: land `sleep`, `peck`, `hop`, `turnAndHop`, `walk`; water-land `peck`, `rest`, `hop`, `walk`); `next` is limited to the follow-ups a bird type reports (land: after `peck` → `peck`, `sleep` or `stop`). A missing `next` entry stops without drawing from the RNG.
 - `chance`: per-tick chance to schedule an idle cue while eligible (legacy 0.008 land, 0.003 water-land).
 - `pick`: integer weights; one roll `Next(sum)` walked cumulatively in key order after merging. A list with a duplicate (legacy `Walk, Walk`) becomes weight 2 and consumes the RNG identically.
 - `next`: sparse follow-up weights when a specific action ends; actions without an entry fall back to idle scheduling. Not an N×N transition matrix, and no frame-level probabilities.
@@ -585,6 +627,7 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 
 - Composition fields live on rules (and therefore `defaults` and templates), so they merge and can vary by rule like every other rule field.
 - Sound roles are indirect: clips, actions and reactions name a role; the species maps roles to cues. A missing role is silent, not an error.
+- Implemented (step 3a): rule `sounds` merge over the bird type's default cues (land `alarm` `SpringBirds`, `flap` `batFlap`, `peck` `shiny4`; water-land `alarm` `seagulls`; trunk `flap` `batFlap`, `peck` `Cowboy_gunshot`). `""` silences a role (JSON `null` removes only an inherited template value, so the code default would return). A role the bird type never plays is a warning. Play chances (alarm 0.85 land, 0.25 water-land) and on-screen checks stay in code until actions are data.
 - Cues are vanilla cue names or mod cues registered via SMAPI `Data/AudioChanges` with `<ModId>_` ids, played through `Game1.playSound`. Prototype audio: jsfxr/ChipTone or synthesized tones; real recordings only with a compatible license (Freesound CC0; many Xeno-canto clips are CC BY-NC). Mono `.ogg`/`.wav`.
 - Sound features: distance-based volume, per-role cooldowns, a volume setting in `ModConfig`, and a player-enters-location hook (`playerEnters` trigger).
 
@@ -748,7 +791,7 @@ Error format and severity follow [Validation](#validation).
 
 ### Art workflow
 
-- Artists get a per-layout reference: cell size plus a cell → pose list, generated from the layout JSON, or a numbered template PNG.
+- Artists get a per-layout reference: cell size plus a cell → pose list, generated from the layout JSON. Playground command `layout <id> [cols <n>] [svg <path>]` prints the list and writes a numbered SVG template at 1 source pixel per unit; `cols` must equal the final sheet's cells per row, because cell indices wrap at texture width.
 - Preview: `birds_anim <bird> <clip>` console command in game, and later the browser preview from the [Backlog](REFACTOR.md#backlog). Optional later: Aseprite tag export to clips.
 - Developer effort: about 15 lines of JSON per new layout; one line per species that reuses one.
 
@@ -780,7 +823,7 @@ The first extraction is pure: zero behavior change, PNGs unchanged. Target layou
 - Only vanilla birds that we replace are removed: `Birdie`, `Seagull`, `Owl`, `Woodpecker`. All other critters (butterflies, fireflies, rabbits, squirrels, frogs, crabs, clouds, etc.) stay untouched.
 - `Crow` stays vanilla because it is part of the crop-eating mechanic. Seeing one registers an observation of Carrion Crow (*Corvus corone*).
 - Ginger Island `PerchingBird` / `OverheadParrot` stay vanilla and are registered on observation as a real Central American species chosen to match the sprite (candidates: *Ara macao*, *Amazona autumnalis*, *Brotogeris jugularis*). Walnut and Leo's parrots are not critters and are ignored.
-- Observe-only birds are normal catalog entries (name, scientific name, description, bird-list image) with no spawn rules; validation allows this explicitly. Detection maps a vanilla critter type to a bird id and runs at the existing 200 ms / time-change cadence, never per tick.
+- Observe-only birds are normal catalog entries (name, scientific name, `i18n` description, bird-list image) with no spawn rules; validation allows this explicitly. Detection maps a vanilla critter type to a bird id and runs at the existing 200 ms / time-change cadence, never per tick.
 - Our placements keep a minimum distance from existing critters and never share their tile.
 
 ## Daily spawn flow

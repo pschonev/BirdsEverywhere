@@ -129,24 +129,29 @@
                 }
             }
         },
-        "routineWeights": {
+        "routine": {
+            "description": "Shared routine id (assets/routines/<id>.json) or an inline routine. Missing: the bird type's default routine.",
+            "oneOf": [
+                {
+                    "type": "string",
+                    "minLength": 1
+                },
+                {
+                    "$ref": "routine.schema.json"
+                }
+            ]
+        },
+        "sounds": {
+            "description": "Sound role to vanilla or mod cue; merged over the bird type's defaults. \"\" silences a role.",
             "type": "object",
             "additionalProperties": {
-                "type": "integer"
+                "type": "string"
             }
-        },
-        "threatResponse": {
-            "type": "string"
         }
     },
     "$defs": {
         "range": {
-            "type": "array",
-            "minItems": 2,
-            "maxItems": 2,
-            "items": {
-                "type": "integer"
-            }
+            "$ref": "common.schema.json#/$defs/range"
         }
     }
 }

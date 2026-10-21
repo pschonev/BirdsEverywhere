@@ -1,0 +1,56 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://birdseverywhere.invalid/schemas/common.schema.json",
+    "title": "Shared definitions",
+    "$defs": {
+        "weightMap": {
+            "description": "Ids to positive integer weights.",
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+                "type": "integer",
+                "minimum": 1
+            }
+        },
+        "range": {
+            "description": "Inclusive [min, max].",
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+                "type": "integer"
+            }
+        },
+        "stepRange": {
+            "description": "Inclusive [min, max] or [min, max, step], rolled as Next(min / step, max / step + 1) * step.",
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 3,
+            "prefixItems": [
+                {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            ]
+        },
+        "intOrStepRange": {
+            "oneOf": [
+                {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                {
+                    "$ref": "#/$defs/stepRange"
+                }
+            ]
+        }
+    }
+}

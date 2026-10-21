@@ -146,7 +146,7 @@ Replace constructor-time merging and reflection-based default filling with a loa
 
 **Exit:** adding a bird type or spawn pattern touches one implementation file and one registration line.
 
-**Implemented (code and tests):** `Registries/SpawnPatternRegistry` and `Registries/BirdTypeRegistry` wrap id-keyed factory dictionaries, are created once in `ModEntry`, and expose `Ids` (content validation) and `TryCreate`. `DailySpawner` takes them as method parameters because it is serialized for multiplayer. Unknown patterns or types at runtime warn and skip the bird. A terrain bird type paired with a tile placement also fails `TryCreate`. `BirdFactory` and `SpawnerFactory` are deleted. Still open until Phase 7: the `className` switch in `CustomBirdTypeConverterReader` and the string fields on `SingleBirdSpawnParameters`. `spawnParams` validation waits for parameterised patterns.
+**Implemented (code and tests):** `Registries/SpawnPatternRegistry` and `Registries/BirdTypeRegistry` wrap id-keyed factory dictionaries, are created once in `ModEntry`, and expose `Ids` (content validation) and `TryCreate`. `DailySpawner` takes them as method parameters because it is serialized for multiplayer. Unknown patterns or types at runtime warn and skip the bird. A terrain bird type paired with a tile placement also fails `TryCreate`. `BirdFactory` and `SpawnerFactory` are deleted. Still open until Phase 10 step 3: the `className` switch in `CustomBirdTypeConverterReader` and the string fields on `SingleBirdSpawnParameters`. `spawnParams` validation waits for parameterised patterns.
 
 **Verification:** compile-only Debug and full x64 tests pass (69 tests). Spawning still needs in-game verification via SMAPI.
 
@@ -229,8 +229,8 @@ Observed: birds without `defaultSpawnData` get global defaults (Forest, 1–2 gr
 | ~~`getRandomElementFromList` uses `Next(0, Count - 1)`: never picks the last element~~ | [Utils.cs](../BirdsEverywhere/Utils.cs#L43) | 6 (early fix OK) |
 | ~~`shuffleByWeights` draws a new random value inside the `Sort` comparator: biased order, and `List.Sort` may throw on the inconsistent comparer~~ (keys drawn once per item) | [Utils.cs](../BirdsEverywhere/Utils.cs#L12) | 6 (early fix OK) |
 | ~~Group count/size use exclusive `Next(min, max)`: never reach configured max~~ (now inclusive) | [TileSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TileSpawner.cs#L85), [TerrainFeatureSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TerrainFeatureSpawner.cs#L37) | 6 (gameplay decision) |
-| Tree birds stored by `terrainFeatures.Pairs.ElementAt(index)` (unstable dictionary order), unchecked `as Tree` | [TreeTrunkBird.cs](../BirdsEverywhere/BirdTypes/TreeTrunkBird.cs#L36) | 5/7 |
-| Bush birds stored by `largeTerrainFeatures[index]`, unchecked `as Bush` | [BushBird.cs](../BirdsEverywhere/BirdTypes/BushBird.cs#L34) | 5/7 |
+| Tree birds stored by `terrainFeatures.Pairs.ElementAt(index)` (unstable dictionary order), unchecked `as Tree` | [TreeTrunkBird.cs](../BirdsEverywhere/BirdTypes/TreeTrunkBird.cs#L36) | 10 step 3 |
+| Bush birds stored by `largeTerrainFeatures[index]`, unchecked `as Bush` | [BushBird.cs](../BirdsEverywhere/BirdTypes/BushBird.cs#L34) | 10 step 3 |
 | ~~Any peer broadcasts the whole `SaveData`; every receiver (incl. host) replaces its copy → last writer wins, lost discoveries~~ (host-authoritative `ObservationLog`) | [CustomBirdType.cs](../BirdsEverywhere/BirdTypes/CustomBirdType.cs#L97), [ModEntry.cs](../BirdsEverywhere/ModEntry.cs#L171) | 8 |
 | ~~`chooseOneSpawnData` result written into shared `BirdData.currentSpawnData` (runtime state on config)~~ (`SpawnPlanner` returns assignments) | [SpawnPlanner.cs](../BirdsEverywhere/Spawning/SpawnPlanner.cs) | 3/6 |
 | Template merge in `[JsonConstructor]` loads files via `ModEntry.modInstance`; `MergeDictionaries` shares list references with the template | [BirdData.cs](../BirdsEverywhere/Data/BirdData.cs#L46), [Utils.cs](../BirdsEverywhere/Utils.cs#L102) | 3 |
@@ -299,7 +299,7 @@ In the playground, type `help` for command syntax and examples. `dotnet run` bui
 
 **Shared game-free pieces** (mod project, unit-tested, used by console commands and the playground)
 
-- `BirdSelector`: parses `<birdId> [<ruleId>] [-l <location>] [-f]` with a small hand-written flag parser.
+- `BirdSelector`: parses `<bird> [<ruleId>] [-l <location>] [-f]` with a small hand-written flag parser; bird aliases resolve to canonical IDs.
 - `SpawnTarget.Resolve(bird, ruleId?, location?, force, currentLocation, conditions, habitatExists, random)`: picks rule and location, returns a target or an error.
 - Day-condition and seed builders (season, weather, `StableHash` seed) extracted from `OnDayStarted`.
 - `HabitatExists` extracted from `DailySpawnPlan.Build` and passed in.
@@ -318,12 +318,12 @@ In the playground, type `help` for command syntax and examples. `dotnet run` bui
 | Command | Behavior |
 |---|---|
 | `birds_plan` | Print today's plan. |
-| `birds_spawn <birdId> [<ruleId>] [-l <location>] [-f]` | Rule: given, or weighted among today's eligible rules. Location: `-l`, else the current location if the rule lists it, else a random existing habitat. Placements get no time window and merge into the plan; populate now if the player is there, otherwise log a `debug warp` line. |
+| `birds_spawn <bird> [<ruleId>] [-l <location>] [-f]` | Rule: given, or weighted among today's eligible rules. Location: `-l`, else the current location if the rule lists it, else a random existing habitat. Placements get no time window and merge into the plan; populate now if the player is there, otherwise log a `debug warp` line. |
 | `birds_replan [seed]` | Rebuild today's plan, optionally with a fixed seed. |
 | `birds_clear` | Remove the mod's birds from the current location and reset the spawner's visit state. |
 | `birds_reload` | Reload content JSON and invalidate textures without restarting. |
-| `birds_rules <birdId>` | Print each rule (conditions, habitats, pattern → bird type and initial state, count bounds, textures, params) with ✅/❌ for today's eligibility. Same output as the playground `rules`. |
-| `birds_check <birdId> [<ruleId>] [-l <location>]` | Host only. Per rule and habitat: eligibility, whether the habitat exists, candidate tiles/trees/bushes, and a dry-run placement count. Does not change the plan. |
+| `birds_rules <bird>` | Print each rule (conditions, habitats, pattern → bird type and initial state, count bounds, textures, params) with ✅/❌ for today's eligibility. Same output as the playground `rules`. |
+| `birds_check <bird> [<ruleId>] [-l <location>]` | Host only. Per rule and habitat: eligibility, whether the habitat exists, candidate tiles/trees/bushes, and a dry-run placement count. Does not change the plan. |
 | `birds_live` | List live birds here: name, type, texture, tile, water/ground, state, anchor, and the plan rule they came from. |
 
 `-f` skips today's rule conditions (season, weather, day) and the habitat-list check, but the location must still exist. If the pattern finds no tile, the bird is placed on a free tile next to the player. Without `-f`, a pattern that finds no tile is reported as an error.
@@ -367,7 +367,8 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 
 - A new noun or verb needs code; a new combination is config. No expression language or scripting in JSON.
 - Every composable field is a ref or an inline object with `extends`; promote inline definitions to shared files only on their second user.
-- Build each layer only when content needs it. Prove every step with 2–3 dissimilar species: great tit (ground), herring gull (water-land), black woodpecker (trunk).
+- Framework before art: a step ships the code, schemas, validation and shared definitions (layouts, actions, routines, reactions) even when no shipped species can use them yet. Without matching art, a feature is proven by **test fixtures**: JSON under the test project that reuses a shipped sheet or a placeholder layout with numbered cells. Shipped birds stay unchanged; real species adopt a feature once their art exists (tracked in the [Backlog](#backlog)).
+- Prove every step against the three dissimilar shipped species where their art allows: great tit (ground), herring gull (water-land), black woodpecker (trunk).
 - Risks to avoid: a general system before there is content, too many layers up front, and indirection that hurts debugging (`birds_dump` shows the resolved composition with sources).
 
 **Every step includes**
@@ -386,6 +387,8 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 
 **Exit:** all existing assets map to a schema; adding a file kind without a schema fails a test.
 
+**Implemented (compile/test verified):** `common.schema.json` (`range`, `stepRange`, `intOrStepRange`; the other `$defs` arrive with the steps that use them), `layout.schema.json`, `rule.schema.json` refers to `common`. `SchemaTests`: folder → schema mapping over every `assets/**/*.json`, guard test `EveryAssetJson_HasASchema`, per-registry enum table, and a schema/`LayoutLoader` agreement table. `.vscode/settings.json` maps the schemas.
+
 ### Step 2: layouts and clips (pure extraction, zero behavior change)
 
 - Add the layout model: `frameSize`, clips (`frames`, `repeat`, `end`, `loop`), frame events, ranges. A clip player builds `AnimatedSprite` frame lists and reports clip end.
@@ -393,8 +396,14 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 - Extract `land_32`, `waterland_32`, `trunk_16`, `bush_32` 1:1 into `assets/layouts/` ([table](ARCHITECTURE.md#preserving-shipped-birds)); PNGs unchanged. Bird classes play clips by name instead of building frame lists.
 - Frame callbacks become events mapped to the same vanilla cues/effects (`peck`, `flap`, `hop`); `DonePecking` becomes clip end. Same RNG streams and call order.
 - Validator: clip names, frame indices within the texture's cell count, known events. `birds_anim <bird> <clip>` for preview.
+- Done early: `layouts/*.json` for the four layouts, `LayoutLoader` (parse only; not yet used by the bird classes), and the Playground `layout` command (cell → pose list, SVG template).
+- Characterization baseline: `AnimationCharacterizationTests` (x64) pins every legacy frame list (cell, ms, flip, callback position, loop), the RNG draws behind repeat counts and durations, `DonePecking` rolls, and the idle schedules. Animation starters are `internal` seams for it.
 
 **Exit:** characterization test identical before and after; `BirdBehaviorTests` green; every shipped bird looks and sounds unchanged in game.
+
+**Implemented (compile/test verified, not tested in game):** layouts load at `Entry` (`LayoutLoader.LoadAll`) and reach birds through `BirdServices.Layouts`. `BirdCritter.PlayClip` builds frames via `ClipPlayer` (frames, rolled repeat, end; fixed ranges draw no RNG) and `ShowPose` sets a static cell (`stand`, `sleep`, `swim`). Every frame list in the four bird classes now comes from `land_32`, `waterland_32`, `trunk_16`, `bush_32`; events map to the legacy callbacks per class (`ClipEvent`); `DonePecking` is the clip-end callback. The bird-type → layout mapping (`BirdTypeProfiles.ByBirdType`, originally `LayoutValidator.ByBirdType`) is the hardcoded composition until step 3. `LayoutValidator.ValidateBird` runs per bird at load: layout present, required clips, known events, and cells fit each texture (PNG header); a failing bird is skipped. `birds_anim <bird> <clip>` plays a clip on owned live birds. `AnimationCharacterizationTests` pass unchanged. Legacy per-frame flip is kept as a `"flip"` frame tag, because `AnimatedSprite` may still read `AnimationFrame.flip`; drop the tags if the in-game check shows no visible effect.
+
+**In-game check before step 3:** each shipped bird animates as before (peck, walk, hop, rest, sleep, swim, fly, bush run); peck/flap/hop sounds and the water-land hop impulse still fire; `birds_anim` works; a broken layout file logs an error and skips the affected birds instead of crashing.
 
 ### Step 3: actions, routines and sound roles
 
@@ -402,10 +411,21 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 - `Routine` (`chance`, `pick`, `next`, `cooldown`, `rare`) replaces `IdleRoutineBehavior` options; `BirdAction` and `IdleCue.Action` become string action ids (save/message migration for stored cues).
 - Shipped compositions expressed in JSON with legacy weights ([table](ARCHITECTURE.md#preserving-shipped-birds)): duplicates become weights, `DonePecking` 50% becomes `next`, rolled on the same RNGs.
 - Sound roles: species `sounds` map roles to vanilla cues first; then custom audio via `Data/AudioChanges` (`<ModId>_` ids). Distance volume, cooldowns, `ModConfig` volume. Decide the open multiplayer sound question (owner-committed vs local cosmetic).
+- Bodies own anchoring: `trunk` and `bush` resolve a tile-based `TerrainAnchor` instead of a collection index (closes the two Phase 7 anchor defects).
+- `BirdState` records replace the reflection converter and its `className` switch (closes the Phase 4 leftover); legacy `birdTypeName` maps to a body.
 - Migration within the step: the four classes become bodies (`ground`, `water`, `trunk`, `bush`) inside one sealed `Bird`, first with hardcoded compositions, then loaded from JSON. `birdType` maps to `body` for existing content and saves.
 - `birds_dump <bird> [<rule>]`.
 
-**Exit:** a new species with different idle weights and its own sounds is JSON-only; shipped birds unchanged (characterization and in-game).
+**Exit:** a fixture species with different idle weights and its own sound roles is JSON-only (shipped sheet, no new code); shipped birds unchanged (characterization and in-game); saves with legacy anchors and `birdTypeName` load.
+
+**Sub-steps**
+
+- **3a. Routines and sound roles as data (implemented, compile/test verified, not tested in game).** Rule fields `routine` (shared id in `assets/routines/<id>.json` or inline object) and `sounds` (role → cue, merged over the bird type's defaults; `""` silences). `ContentValidator` resolves them into `SpawnRule.Composition` (`BirdComposition`): missing `routine` falls back to the bird type's default (`land_idle`, `waterland_idle`), pick actions and `next` follow-ups are checked against `BirdTypeProfiles`, unknown sound roles warn. Placements carry the composition, `LocationSpawner` sets it on the bird, and it is serialized with plans and bird snapshots. `BirdCritter.AdvanceIdle` rolls `Routine.Roll` (one `Next(total)`, same RNG use as the legacy list); `LandBird` `DonePecking` uses `next.peck`; all `Game1.playSound` calls go through `PlaySound(role)`. `routineWeights`/`threatResponse` removed from schema and records. Tests: `CompositionTests` (JSON-only fixture species, defaults for shipped species, validation, follow-up, plan/snapshot round trip), routine schema/loader agreement, and the idle-schedule goldens now run through the shipped routine files unchanged. Meets the step 3 exit criterion's first part (fixture species with own weights and sounds).
+- **3b. Actions as data (next):** action definitions (`do`, `clip`, `sound`, `soundChance`, end condition, parameters) for `stay`, `walk`, `hop`, `flyOff`, `runToBush`, `swim`; legacy `Wake` 0.003, `StopWalking` 0.005, walk duration, hop impulse, flee speeds and alarm chances move into shared action/reaction-free definitions; `BirdAction` and `IdleCue.Action` become string ids with message/snapshot migration.
+- **3c. Bodies and state:** one sealed `Bird` with `ground`, `water`, `trunk`, `bush` bodies; tile-based `TerrainAnchor`; `BirdState` records replace the reflection converter; legacy `birdTypeName`/`birdType` map to bodies; `BirdTypeProfiles` move to JSON body definitions; `birds_dump <bird> [<rule>]` prints the resolved composition.
+- **3d. Custom audio:** `Data/AudioChanges` cues, distance volume, per-role cooldowns, `ModConfig` volume; decide owner-committed vs local cosmetic sounds for replicas.
+
+**Prototype species once art exists** ([table](#backlog)): black woodpecker `drum` clip.
 
 ### Step 4: reactions (alert, then relocate)
 
@@ -413,13 +433,17 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 - Reactions with triggers `threat`, `playerEnters`, then `treeShaken`, `toolUsed`, `timeOfDay` as content needs them.
 - Relocate: `flyTo` with target searches through `TileSelection`, `TerrainAnchor` update on arrival, committed movement for replicas, `maxRelocations` and `then`.
 
-**Exit:** a skittish and a relocating species defined only in JSON; behavior-stepping tests for approach/retreat timelines; verified in game, including two-player.
+**Exit:** a skittish and a relocating composition defined only in JSON (shared reactions + fixtures; a shipped species may adopt them where its art fits); behavior-stepping tests for approach/retreat timelines; verified in game, including two-player, on a fixture or shipped bird.
+
+**Prototype species once art exists** ([table](#backlog)): Eurasian bullfinch (canopy body, `treeShaken`), European robin (tame, `toolUsed`), tawny owl (`timeOfDay`, night).
 
 ### Step 5: forage primitives
 
 - `dive` (hide, resurface on a nearby water tile), fish strike with the vanilla splash effect, worm pull. Routine `rare` with `when` conditions.
 
-**Exit:** each primitive used by at least one species; validator rejects primitives the body cannot do.
+**Exit:** each primitive has a shared action definition, a fixture that uses it (placeholder layout where no art exists) and tests; validator rejects primitives the body cannot do.
+
+**Prototype species once art exists** ([table](#backlog)): common blackbird (worm pull), grey heron (fish strike), black-necked grebe (dive).
 
 ### Step 6: spawning placement
 
@@ -434,7 +458,24 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 - `group.members` with roles and `stage`; `stages` overriding composition fields; context conditions (`groupHasRole`, `nearWater`, `season`, `timeOfDay`, `weather`, `stage`), first match wins.
 - `groupId`/`role` on birds and in `BirdState`; group-level reactions; the leader's owner owns the group; `follow` as committed movement.
 
-**Exit:** a duck family (parents + ducklings that follow and swim away together) is JSON-only and syncs in two-player SMAPI.
+**Exit:** a duck-family fixture (parents + young that follow and swim away together, placeholder layouts) is JSON-only, passes pure tests, and syncs in two-player SMAPI.
+
+**Prototype species once art exists** ([table](#backlog)): mallard (male, female, ducklings; eclipse plumage in late summer).
+
+---
+
+## Open items and definition of done
+
+The refactor is done when every box is checked. Phase sections hold the details; this list is the single place to track them.
+
+- [ ] Phase 0: Release build passes with warnings as errors (legacy analyzer warnings cleared per file).
+- [ ] Phase 4: `className` switch in `CustomBirdTypeConverterReader` removed (→ Phase 10 step 3, `BirdState`).
+- [ ] Phase 7: tree and bush birds anchored by tile, not collection index (→ Phase 10 step 3, bodies).
+- [ ] Phase 7: remaining [known defects](#known-defects) rows fixed or struck through with a regression test.
+- [ ] Phase 9: in-game verification recorded in [MANUAL_TESTS.md](MANUAL_TESTS.md) for Phases 3–8 (content and spawning, registries, behaviors per bird type, observations, two-player sync, ownership handoff, late join, disconnect, day change) and the debug commands.
+- [ ] Phase 10 step 2: in-game check (see step 2), including whether the `"flip"` frame tags are visible.
+- [ ] Phase 10 steps 3–7: exit criteria met.
+- [ ] Phase 9 smoke test and full pass recorded before release.
 
 ---
 
@@ -473,6 +514,25 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 - Alert behavior: freeze in an outer radius, flee in an inner one ([design](ARCHITECTURE.md#4-reactions)). → Phase 10 step 4.
 - Data-driven idle routines: per-type defaults, per-species weights in JSON. → Phase 10 step 3.
 - Rare forage behaviors: worm pull, fish strike, diving. → Phase 10 step 5.
+
+**Prototype species** (art needed; one species per feature so each can be tested in game; until the art exists, features are covered by test fixtures and placeholder layouts)
+
+| Feature | Species | Phase | New body / clips |
+|---|---|---|---|
+| Worm pull | Common blackbird (*Turdus merula*) | 10 step 5 | ground; append `wormPull` (lean, tug, gulp) after `land_32` cells; also reference `alert`/`sing` poses |
+| Fish strike | Grey heron (*Ardea cinerea*) | 10 step 5 | wading in shallow water; tall `stand`, slow `walk`, `strike`, `fly`; vanilla splash |
+| Diving | Black-necked grebe (*Podiceps nigricollis*) | 10 step 5 | water; `swim`, `dive`, `surface`, `fly` |
+| Family, stages, `follow`, `swimAway` | Mallard (*Anas platyrhynchos*): male, female, ducklings | 10 step 7 | water + ground; ducklings as their own small layout without `fly`. Eclipse plumage: a late-summer rule maps the male role to a female-like texture (or spawns only females) |
+| Canopy body, `treeShaken` | Eurasian bullfinch (*Pyrrhula pyrrhula*) | 10 step 4 (body) | canopy; `perch`, `hop`, `fly` |
+| Tame bird, `toolUsed` | European robin (*Erithacus rubecula*), suggested | 10 step 4 | ground; reactions without `flee` in a small radius; comes to freshly hoed or dug tiles |
+| Night bird, `timeOfDay` | Tawny owl (*Strix aluco*), suggested | 10 step 4 | trunk or canopy; `nocturnal` template; call at dusk; replaces the vanilla owl |
+| Shore body | Common ringed plover (*Charadrius hiaticula*), suggested | backlog, after 10 | shore at `shoreDistance [0, 1]`; run–stop–peck routine along the waterline (short fast runs, freeze, peck), low flights |
+| Air body, fence perch | Barn swallow (*Hirundo rustica*), suggested | backlog, after 10 | air (hawking over fields/water) + `perched` on fences |
+| Flyovers, `line` formation | Common crane (*Grus grus*), suggested | backlog | air only; V/line skein crossing the map during migration days |
+| Raptor feeding and hunt | Eurasian sparrowhawk (*Accipiter nisus*) | backlog (raptor stages) | ground `feed` (mantling); hunt dive on a small bird; needs a location-level `predator` trigger so other birds startle |
+| Fishing raptor | Osprey (*Pandion haliaetus*) | backlog | air; plunge dive from flight into water, splash, carry-off optional (not planned) |
+| Cattle egret on animals | Western cattle egret (*Bubulcus ibis*) | after 10 step 7 | `follow` with a farm animal as moving anchor; can reuse heron clip structure |
+| Drumming | Black woodpecker (shipped) | 10 step 3 | append `drum` cells to its sheet (already the inline layout example) |
 
 **Vanilla critters** ([policy](ARCHITECTURE.md#vanilla-critters))
 

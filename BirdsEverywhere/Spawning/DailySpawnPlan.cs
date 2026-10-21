@@ -18,7 +18,8 @@ public sealed record BirdPlacement(
     string Texture,
     int Seed,
     bool Forced = false,
-    bool Unseen = false)
+    bool Unseen = false,
+    BirdComposition? Composition = null)
 {
     public bool IsActiveAt(int time) => Times.Count == 0 || Times.Any(range => range.Contains(time));
 }
@@ -48,7 +49,7 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
                 return false;
             }
 
-            placements = placements.Select(placement => placement with { Unseen = assignment.Unseen }).ToList();
+            placements = placements.Select(placement => placement with { Unseen = assignment.Unseen, Composition = assignment.Rule.Composition }).ToList();
             if (existing is null)
             {
                 locations.Add(assignment.Location, placements);

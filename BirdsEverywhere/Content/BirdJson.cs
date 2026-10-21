@@ -13,8 +13,8 @@ public sealed record BirdJson
     [JsonProperty("scName", Required = Required.Always)]
     public string ScientificName { get; init; } = "";
 
-    [JsonProperty("description", Required = Required.Always)]
-    public string Description { get; init; } = "";
+    [JsonProperty("shorthand")]
+    public string? Shorthand { get; init; }
 
     [JsonProperty("template")]
     public string? Template { get; init; }

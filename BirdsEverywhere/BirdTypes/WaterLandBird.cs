@@ -7,7 +7,6 @@ namespace BirdsEverywhere.BirdTypes;
 internal sealed class WaterLandBird : BirdCritter
 {
     private const int ThreatRadiusTiles = 4;
-    private static readonly BirdAction[] _idleOptions = { BirdAction.Peck, BirdAction.Rest, BirdAction.Hop, BirdAction.Walk };
 
     public override string BirdTypeName { get; } = "WaterLandBird";
 
@@ -36,7 +35,7 @@ internal sealed class WaterLandBird : BirdCritter
             State = BehaviorStatus.Swimming;
         }
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
-        BirdAction idleAction = AdvanceIdle(_idleOptions, 0.003, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
+        BirdAction idleAction = AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
         Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(BirdBehaviors.WaterLand, context), threat, environment);
 
         switch (State)
@@ -54,7 +53,7 @@ internal sealed class WaterLandBird : BirdCritter
             case BehaviorStatus.Stopped:
                 if (sprite.CurrentAnimation == null)
                 {
-                    sprite.currentFrame = baseFrame;
+                    ShowPose("stand");
                 }
                 break;
         }
@@ -72,17 +71,13 @@ internal sealed class WaterLandBird : BirdCritter
                 State = BehaviorStatus.Stopped;
                 sprite.loop = false;
                 sprite.CurrentAnimation = null;
-                sprite.currentFrame = baseFrame;
+                ShowPose("stand");
                 break;
             case BirdAction.Peck:
                 StartPeck();
                 break;
             case BirdAction.Rest:
-                sprite.loop = false;
-                sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
-                {
-                    new FarmerSprite.AnimationFrame(baseFrame + 6, (short)VisualRng.Next(500, 4000))
-                });
+                StartRest();
                 break;
             case BirdAction.Hop:
                 StartHop();
@@ -101,11 +96,7 @@ internal sealed class WaterLandBird : BirdCritter
                 StartPeck();
                 break;
             case BirdAction.Rest:
-                sprite.loop = false;
-                sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
-                {
-                    new(baseFrame + 6, (short)VisualRng.Next(500, 4000))
-                });
+                StartRest();
                 break;
             case BirdAction.Hop:
                 StartHop();
@@ -120,67 +111,26 @@ internal sealed class WaterLandBird : BirdCritter
     {
         if (Rng.NextDouble() < 0.25)
         {
-            Game1.playSound("seagulls");
+            PlaySound("alarm");
         }
         State = BehaviorStatus.FlyingAway;
         AddBirdObservation(BirdName, environment.Name);
         flip = threat.Position.X <= position.X;
-        sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
-        {
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 10), 80),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 11), 80),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 12), 80),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 13), 100)
-        });
-        sprite.loop = true;
+        StartFlyAnimation();
     }
 
-    private void StartPeck()
-    {
-        List<FarmerSprite.AnimationFrame> frames = new()
-        {
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 2), 100),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 100),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 200),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 5), 200)
-        };
-        int extra = VisualRng.Next(5);
-        for (int i = 0; i < extra; i++)
-        {
-            frames.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 200));
-            frames.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 5), 200));
-        }
-        sprite.loop = false;
-        sprite.setCurrentAnimation(frames);
-    }
+    internal void StartFlyAnimation() => PlayClip("fly", VisualRng);
 
-    private void StartHop()
-    {
-        List<FarmerSprite.AnimationFrame> frames = new()
-        {
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 6), 500),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 7), 100, secondaryArm: false, flip: false, Hop),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 8), 100)
-        };
-        int extra = VisualRng.Next(3);
-        for (int i = 0; i < extra; i++)
-        {
-            frames.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 7), 100));
-            frames.Add(new FarmerSprite.AnimationFrame((short)(baseFrame + 8), 100));
-        }
-        sprite.loop = false;
-        sprite.setCurrentAnimation(frames);
-    }
+    internal void StartRest() => PlayClip("rest", VisualRng);
 
-    private void StartWalk()
+    internal void StartPeck() => PlayClip("peck", VisualRng);
+
+    internal void StartHop() => PlayClip("hop", VisualRng);
+
+    internal void StartWalk()
     {
         State = BehaviorStatus.Walking;
-        sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
-        {
-            new FarmerSprite.AnimationFrame((short)baseFrame, 200),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 1), 200)
-        });
-        sprite.loop = true;
+        PlayClip("walk", VisualRng);
         flip = VisualRng.NextDouble() < 0.5;
         if (VisualRng.NextDouble() < 0.33)
         {
@@ -202,7 +152,7 @@ internal sealed class WaterLandBird : BirdCritter
 
     private void Swim(GameTime time, GameLocation environment)
     {
-        sprite.currentFrame = baseFrame + 9;
+        ShowPose("swim");
         float previousYOffset = yOffset;
         yOffset = (time.TotalGameTime.TotalMilliseconds + ((int)position.X * 4)) % 2000.0 < 1000.0 ? 2f : 0f;
         if (yOffset > previousYOffset)
@@ -221,4 +171,7 @@ internal sealed class WaterLandBird : BirdCritter
     {
         gravityAffectedDY = -4f;
     }
+
+    protected override AnimatedSprite.endOfAnimationBehavior ClipEvent(string name) =>
+        name == "hop" ? Hop : base.ClipEvent(name);
 }

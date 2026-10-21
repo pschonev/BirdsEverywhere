@@ -20,10 +20,11 @@ internal static class Program
         SpawnPatternId[] patterns = patternNames.Select(id => new SpawnPatternId(id)).ToArray();
         string[] typeNames = { "LandBird", "WaterLandBird", "TreeTrunkBird", "BushBird" };
         BirdTypeId[] types = typeNames.Select(id => new BirdTypeId(id)).ToArray();
+        IReadOnlyDictionary<string, Routine> routines = RoutineLoader.LoadAll(assets).Routines;
         Dictionary<string, BirdDefinition> catalog = new(StringComparer.Ordinal);
         foreach (string id in ContentPaths.BirdIds(assets))
         {
-            (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, _, _) = ContentLoader.LoadBird(assets, id, groups, patterns, types, Read, File.Exists);
+            (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, _, _) = ContentLoader.LoadBird(assets, id, groups, patterns, types, routines, Read, File.Exists);
             foreach (ValidationIssue issue in issues.Where(issue => issue.Severity == IssueSeverity.Error))
             {
                 Console.Error.WriteLine(issue);
@@ -107,6 +108,9 @@ internal static class Program
                         }
                     }
                     break;
+                case "layout":
+                    ShowLayout(assets, args.Skip(1).ToArray());
+                    break;
                 case "odds":
                     ShowOdds(regions, catalog, state, args.Skip(1).ToArray());
                     break;
@@ -142,9 +146,77 @@ internal static class Program
                                    Examples: odds
                                              odds great_tit -n 500
                                              odds great_tit spring -l Forest -n 500
+      layout [id] [cols <n>] [svg <path>]
+                                   List layouts, or print a layout's cell -> pose reference and
+                                   optionally write a numbered SVG template. cols = cells per row
+                                   of the final sheet (default: all in one row).
+                                   Examples: layout
+                                             layout land_32
+                                             layout land_32 cols 9 svg land_32.svg
       quit                         Leave (also: exit). Example: quit
 
     Odds assume every tile is feasible; they are upper bounds, not in-game spawn rates.");
+    }
+
+    private static void ShowLayout(string assets, string[] args)
+    {
+        const string usage = "Usage: layout [id] [cols <n>] [svg <path>]";
+        string dir = ContentPaths.LayoutsDirectory(assets);
+        if (args.Length == 0)
+        {
+            Console.WriteLine(Directory.Exists(dir) ? string.Join(", ", Directory.GetFiles(dir, "*.json").Select(Path.GetFileNameWithoutExtension).Order()) : "No layouts.");
+            return;
+        }
+
+        string id = args[0];
+        int? cols = null;
+        string? svgPath = null;
+        for (int i = 1; i < args.Length; i += 2)
+        {
+            if (i + 1 >= args.Length)
+            {
+                Console.WriteLine(usage);
+                return;
+            }
+            switch (args[i])
+            {
+                case "cols" when int.TryParse(args[i + 1], out int parsed) && parsed >= 1:
+                    cols = parsed;
+                    break;
+                case "svg":
+                    svgPath = args[i + 1];
+                    break;
+                default:
+                    Console.WriteLine(usage);
+                    return;
+            }
+        }
+
+        string file = ContentPaths.Layout(assets, id);
+        if (!File.Exists(file))
+        {
+            Console.WriteLine($"Unknown layout '{id}'.");
+            return;
+        }
+
+        try
+        {
+            SpriteLayout layout = LayoutLoader.Parse(id, File.ReadAllText(file), file);
+            int columns = cols ?? Math.Max(1, LayoutSheet.CellCount(layout));
+            foreach (string line in LayoutSheet.Text(layout, columns))
+            {
+                Console.WriteLine(line);
+            }
+            if (svgPath is not null)
+            {
+                File.WriteAllText(svgPath, LayoutSheet.Svg(layout, columns));
+                Console.WriteLine($"Wrote {svgPath}");
+            }
+        }
+        catch (FormatException error)
+        {
+            Console.WriteLine(error.Message);
+        }
     }
 
     private static bool TrySet(PlaygroundState state, string key, string value, out PlaygroundState updated)

@@ -88,34 +88,17 @@ internal sealed class TreeTrunkBird : BirdCritter
         return base.update(time, environment);
     }
 
-    private void StartPeck()
-    {
-        int nibbles = Rng.Next(2, 8);
-        List<FarmerSprite.AnimationFrame> anim = new();
-        for (int i = 0; i < nibbles; i++)
-        {
-            anim.Add(new FarmerSprite.AnimationFrame(baseFrame, 100));
-            anim.Add(new FarmerSprite.AnimationFrame(baseFrame + 1, 100, secondaryArm: false, flip: false, PlayPeck));
-        }
-        anim.Add(new FarmerSprite.AnimationFrame(baseFrame, 200, secondaryArm: false, flip: false, DonePecking));
-        sprite.setCurrentAnimation(anim);
-        sprite.loop = false;
-    }
+    internal void StartPeck() => PlayClip("peck", Rng, DonePecking);
 
     private void StartFlee(Character? threat, GameLocation environment)
     {
         State = BehaviorStatus.FlyingAway;
         AddBirdObservation(BirdName, environment.Name);
         flip = threat == null || threat.Position.X <= position.X;
-        sprite.setCurrentAnimation(new List<FarmerSprite.AnimationFrame>
-        {
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 2), 70),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 60, secondaryArm: false, flip, PlayFlap),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 4), 70),
-            new FarmerSprite.AnimationFrame((short)(baseFrame + 3), 60)
-        });
-        sprite.loop = true;
+        StartFlyAnimation();
     }
+
+    internal void StartFlyAnimation() => PlayClip("fly", VisualRng);
 
     private void HopDrift(GameLocation environment)
     {
@@ -141,7 +124,7 @@ internal sealed class TreeTrunkBird : BirdCritter
     {
         if (Utility.isOnScreen(position, 64))
         {
-            Game1.playSound("batFlap");
+            PlaySound("flap");
         }
     }
 
@@ -149,7 +132,14 @@ internal sealed class TreeTrunkBird : BirdCritter
     {
         if (Utility.isOnScreen(position, 64))
         {
-            Game1.playSound("Cowboy_gunshot");
+            PlaySound("peck");
         }
     }
+
+    protected override AnimatedSprite.endOfAnimationBehavior ClipEvent(string name) => name switch
+    {
+        "peck" => PlayPeck,
+        "flap" => PlayFlap,
+        _ => base.ClipEvent(name),
+    };
 }

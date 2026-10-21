@@ -19,12 +19,12 @@ public class GameTypeRegressionTests
     public void IdleSchedule_RetainsActionRateAndVariety(double chance, int minimumActions, int maximumActions)
     {
         IdleProbe bird = new() { BirdID = 42 };
-        BirdAction[] options = { BirdAction.Sleep, BirdAction.Peck, BirdAction.Hop, BirdAction.Walk };
+        Routine routine = Uniform(chance, "sleep", "peck", "hop", "walk");
         Dictionary<BirdAction, int> counts = new();
 
         for (int tick = 0; tick < 10_000; tick++)
         {
-            BirdAction action = bird.Next(options, chance);
+            BirdAction action = bird.Next(routine);
             if (action != BirdAction.None)
             {
                 counts[action] = counts.GetValueOrDefault(action) + 1;
@@ -34,7 +34,7 @@ public class GameTypeRegressionTests
         Assert.Multiple(() =>
         {
             Assert.That(counts.Values.Sum(), Is.InRange(minimumActions, maximumActions));
-            Assert.That(counts.Keys, Is.EquivalentTo(options));
+            Assert.That(counts.Keys, Is.EquivalentTo(new[] { BirdAction.Sleep, BirdAction.Peck, BirdAction.Hop, BirdAction.Walk }));
         });
     }
 
@@ -43,14 +43,17 @@ public class GameTypeRegressionTests
     {
         IdleProbe bird = new() { BirdID = 42 };
 
-        Assert.That(bird.Next(new[] { BirdAction.Hop }, 1), Is.EqualTo(BirdAction.Hop));
+        Assert.That(bird.Next(Uniform(1, "hop")), Is.EqualTo(BirdAction.Hop));
     }
+
+    private static Routine Uniform(double chance, params string[] actions) =>
+        new(chance, actions.Select(action => new WeightedId(action, 1)).ToList(), new Dictionary<string, IReadOnlyList<WeightedId>>());
 
     private sealed class IdleProbe : BirdCritter
     {
         public override string BirdTypeName => "IdleProbe";
 
-        public BirdAction Next(IReadOnlyList<BirdAction> options, double chance) => AdvanceIdle(options, chance, eligible: true);
+        public BirdAction Next(Routine routine) => AdvanceIdle(routine, eligible: true);
     }
 
     [Test]
@@ -135,7 +138,7 @@ public class GameTypeRegressionTests
     [Test]
     public void ReplicaIdle_PlaysCueOnceAndRejectsOlderRevision()
     {
-        LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite() };
+        LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite(), Services = TestBirds.Services };
         LandBird owner = new() { State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 1,
             IdleCue = new IdleCue(12, BirdAction.Sleep, 4), sprite = new AnimatedSprite() };
         GameTime tick = new(TimeSpan.Zero, TimeSpan.FromMilliseconds(16));

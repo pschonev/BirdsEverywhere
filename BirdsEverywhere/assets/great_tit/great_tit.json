@@ -2,5 +2,6 @@
   "id": "great_tit",
   "name": "Great Tit",
   "scName": "Parus major",
+  "shorthand": "gretit1",
   "template": "all_year_garden"
 }

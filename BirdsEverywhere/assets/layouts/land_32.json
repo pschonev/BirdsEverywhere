@@ -1,0 +1,14 @@
+{
+    "frameSize": [32, 32],
+    "clips": {
+        "stand": [[0, 1000]],
+        "walk": { "frames": [[0, 100], [1, 100]], "loop": true },
+        "peck": {
+            "frames": [[2, 480], [3, 170, "flip"], [4, 170, "flip"]],
+            "repeat": { "frames": [[3, 70], [4, 100, "flip", "peck"]], "count": [1, 4] },
+            "end": [[3, 100], [2, 70, "flip"], [1, 70, "flip"], [0, 500, "flip"]]
+        },
+        "sleep": [[5, 0]],
+        "fly": { "frames": [[6, 70], [7, 60, "flip", "flap"], [8, 70], [7, 60]], "loop": true }
+    }
+}

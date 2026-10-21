@@ -22,6 +22,10 @@
             "type": "string",
             "minLength": 1
         },
+        "shorthand": {
+            "type": "string",
+            "minLength": 1
+        },
         "template": {
             "type": "string",
             "minLength": 1

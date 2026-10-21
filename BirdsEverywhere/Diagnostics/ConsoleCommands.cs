@@ -15,7 +15,7 @@ public partial class ModEntry
         var commands = helper.ConsoleCommands;
         commands.Add("birds_debug", "Toggle bird debug HUD: birds_debug on|off", DebugMode);
         commands.Add("birds_plan", "Print today's bird plan.", ShowPlan);
-        commands.Add("birds_spawn", "birds_spawn <birdId> [<ruleId>] [-l <location>] [-f]", SpawnBird);
+        commands.Add("birds_spawn", "birds_spawn <bird> [<ruleId>] [-l <location>] [-f]", SpawnBird);
         commands.Add("birds_replan", "Rebuild today's plan: birds_replan [seed]", Replan);
         commands.Add("birds_clear", "Remove birds in this location.", ClearBirds);
         commands.Add("birds_xp", "Show the farm's birding level and XP.", (_, _) => Monitor.Log($"Birding {BirdingProgress.Describe(_saveData.BirdingXp)} ({_saveData.BirdingXp} XP).", LogLevel.Info));
@@ -107,9 +107,8 @@ public partial class ModEntry
             return;
         }
 
-        if (!_catalog.TryGetValue(selector!.BirdId, out BirdDefinition? bird))
+        if (!TryGetBird(selector!.BirdId, out BirdDefinition bird))
         {
-            Monitor.Log($"Unknown bird '{selector.BirdId}'.", LogLevel.Warn);
             return;
         }
 
@@ -150,7 +149,7 @@ public partial class ModEntry
             return;
         }
 
-        List<BirdPlacement> immediate = placements.Select(placement => placement with { Times = Array.Empty<IntRange>() }).ToList();
+        List<BirdPlacement> immediate = placements.Select(placement => placement with { Times = Array.Empty<IntRange>(), Composition = target.Rule.Composition }).ToList();
         Dictionary<string, IReadOnlyList<BirdPlacement>> locations = new(_plan.Locations, StringComparer.Ordinal);
         locations[target.Location] = locations.TryGetValue(target.Location, out IReadOnlyList<BirdPlacement>? existing)
             ? existing.Concat(immediate).ToList() : immediate;

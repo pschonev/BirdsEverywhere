@@ -12,10 +12,12 @@ internal class CollectionsPageWithBirds : CollectionsPage
     private readonly IReflectedField<Item?> _hoverItem;
     private readonly IReadOnlyDictionary<string, BirdDefinition> _catalog;
     private readonly SaveData _saveData;
+    private readonly ITranslationHelper _translation;
 
-    public CollectionsPageWithBirds(CollectionsPage cp, IReflectionHelper reflection, IReadOnlyDictionary<string, BirdDefinition> catalog, SaveData saveData)
+    public CollectionsPageWithBirds(CollectionsPage cp, IReflectionHelper reflection, ITranslationHelper translation, IReadOnlyDictionary<string, BirdDefinition> catalog, SaveData saveData)
         : base(cp.xPositionOnScreen, cp.yPositionOnScreen, cp.width, cp.height)
     {
+        _translation = translation;
         _catalog = catalog;
         _saveData = saveData;
         _hoverText = reflection.GetField<string>(this, "hoverText");
@@ -106,6 +108,7 @@ internal class CollectionsPageWithBirds : CollectionsPage
     {
         BirdDefinition data = _catalog[id];
         ObservationData obsData = _saveData.BirdObservations[id];
-        return $"{data.Name}\n{data.ScientificName}\n\n{data.Description}\n\nFirst seen by {obsData.PlayerName}\n{obsData.ObservationLocation} on {obsData.ObservationDate}";
+        string firstSeen = _translation.Get("ui.first-seen", new { player = obsData.PlayerName, location = obsData.ObservationLocation, date = obsData.ObservationDate });
+        return $"{BirdText.Name(_translation, data)}\n{data.ScientificName}\n\n{BirdText.Description(_translation, data)}\n\n{firstSeen}";
     }
 }

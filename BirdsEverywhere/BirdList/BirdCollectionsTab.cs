@@ -12,7 +12,7 @@ public static class BirdCollectionsTab
     private const int TabId = 8;
     private const int CollectionWidth = 10;
 
-    public static void Install(GameMenu menu, IModContentHelper content, IReflectionHelper reflection, IReadOnlyDictionary<string, BirdDefinition> catalog, SaveData saveData)
+    public static void Install(GameMenu menu, IModContentHelper content, IReflectionHelper reflection, ITranslationHelper translation, IReadOnlyDictionary<string, BirdDefinition> catalog, SaveData saveData)
     {
         int pageIndex = menu.pages.FindIndex(x => x is CollectionsPage);
         if (pageIndex < 0 || menu.pages[pageIndex] is not CollectionsPage original)
@@ -20,7 +20,7 @@ public static class BirdCollectionsTab
             return;
         }
 
-        CollectionsPageWithBirds cp = new(original, reflection, catalog, saveData);
+        CollectionsPageWithBirds cp = new(original, reflection, translation, catalog, saveData);
 
         Texture2D tabIcon = content.Load<Texture2D>("assets/collections_tab_icon.png");
         cp.sideTabs.Add(TabId, new ClickableTextureComponent(TabId.ToString(CultureInfo.InvariantCulture),

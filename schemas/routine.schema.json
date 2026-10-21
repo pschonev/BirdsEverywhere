@@ -1,0 +1,28 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://birdseverywhere.invalid/schemas/routine.schema.json",
+    "title": "Idle routine",
+    "description": "Per-tick chance to schedule an idle action, integer pick weights (one roll walked in key order), and follow-ups when an action ends. Action ids depend on the bird type.",
+    "type": "object",
+    "required": [
+        "chance",
+        "pick"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "chance": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
+        },
+        "pick": {
+            "$ref": "common.schema.json#/$defs/weightMap"
+        },
+        "next": {
+            "type": "object",
+            "additionalProperties": {
+                "$ref": "common.schema.json#/$defs/weightMap"
+            }
+        }
+    }
+}

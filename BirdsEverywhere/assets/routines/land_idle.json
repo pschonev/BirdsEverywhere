@@ -1,0 +1,16 @@
+{
+    "chance": 0.008,
+    "pick": {
+        "sleep": 1,
+        "peck": 1,
+        "hop": 1,
+        "turnAndHop": 1,
+        "walk": 2
+    },
+    "next": {
+        "peck": {
+            "peck": 1,
+            "stop": 1
+        }
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "chance": 0.003,
+    "pick": {
+        "peck": 1,
+        "rest": 1,
+        "hop": 1,
+        "walk": 1
+    }
+}
