@@ -2,7 +2,6 @@
   "id": "herring_gull",
   "name": "Herring Gull",
   "scName": "Larus argentatus",
-  "description": "Common gull.",
   "template": "all_year_garden",
   "defaults": {
     "locations": [

@@ -60,12 +60,12 @@ public class SchemaTests
         Assert.That(results.IsValid, Is.True, errors);
     }
 
-    private const string Identity = @"""id"":""x"",""name"":""X"",""scName"":""X x"",""description"":""d""";
+    private const string Identity = @"""id"":""x"",""name"":""X"",""scName"":""X x""";
 
     [TestCase("bird", "{" + Identity + "}", true)]
     [TestCase("bird", "{" + Identity + @",""rules"":{""a"":{""when"":{""seasons"":[""Spring""],""days"":[[1,28]],""times"":[[600,2600]]},""weight"":0.5}}}", true)]
     [TestCase("bird", "{" + Identity + @",""extra"":1}", false)]
-    [TestCase("bird", @"{""id"":""x"",""name"":""X"",""scName"":""X x""}", false)]
+    [TestCase("bird", @"{""id"":""x"",""name"":""X""}", false)]
     [TestCase("bird", "{" + Identity + @",""defaults"":{""when"":{""seasons"":[""monsoon""]}}}", false)]
     [TestCase("bird", "{" + Identity + @",""defaults"":{""when"":{""days"":[[1,2,3]]}}}", false)]
     [TestCase("bird", "{" + Identity + @",""defaults"":{""when"":{""days"":[[0,5]]}}}", false)]

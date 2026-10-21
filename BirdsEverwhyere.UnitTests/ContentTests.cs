@@ -46,6 +46,18 @@ public class ContentTests
     }
 
     [Test]
+    public void DefaultTranslations_CoverEveryBirdAndNothingElse()
+    {
+        string path = Path.Combine(System.AppContext.BaseDirectory, "i18n", "default.json");
+        string[] birdKeys = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(path)).Properties()
+            .Select(property => property.Name).Where(key => key.StartsWith("bird.", StringComparison.Ordinal)).ToArray();
+
+        Assert.That(birdKeys.Where(key => key.EndsWith(".description", StringComparison.Ordinal)),
+            Is.EquivalentTo(BirdIds().Select(id => $"bird.{id}.description")));
+        Assert.That(birdKeys.Select(key => key.Split('.')[1]).Distinct(), Is.SubsetOf(BirdIds()));
+    }
+
+    [Test]
     public void Regions_HaveSpeciesAndGroups()
     {
         var (regions, issues) = ContentLoader.LoadRegions(_assetsDir, CompatModIds(), File.ReadAllText, BirdIds().ToList());
