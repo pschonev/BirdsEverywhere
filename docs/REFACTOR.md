@@ -365,7 +365,7 @@ After phases 0–9.
 
 - **Performance:** profile bird-heavy scenes first. If proximity checks dominate, centralize farmer-position lookup; a spatial grid only if the profile demands it.
 - **Public API:** small, versioned `IBirdsEverywhereApi` via `Helper.ModRegistry` for registering bird types, spawn patterns, behaviors, and validated definitions. Decide separately on Content Patcher support for data-only birds.
-- **Content tooling:** console command or CI job that validates all content and reports ids, templates, spawn patterns, locations, unresolved references, and inheritance chains; optional JSON schema for editor feedback.
+- **Content tooling:** console command or CI job that validates all content and reports ids, templates, spawn patterns, locations, unresolved references, and inheritance chains. Editor JSON schemas exist in `schemas/` (test-checked against shipped assets); runtime validation stays in `ContentValidator`.
 - **Lifecycle audit:** event subscriptions, cached references, and long-lived collections cleaned up on save change and location unload. `IDisposable` only where the code owns subscriptions or unmanaged resources.
 - **Docs:** keep [ARCHITECTURE.md](ARCHITECTURE.md) current for merge rules, save format, and multiplayer ownership.
 
