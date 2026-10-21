@@ -2,7 +2,6 @@
   "id": "grey_partridge",
   "name": "Grey Partridge",
   "scName": "Perdix perdix",
-  "description": "Kinda like a chicken.",
   "template": "all_year_garden",
   "defaults": {
     "spawnPattern": "BushSpawner",

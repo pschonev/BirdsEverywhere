@@ -53,6 +53,10 @@ Use `birds_rules blue_tit` to choose a valid rule and location before testing na
 
 `schemas/` holds JSON Schemas for bird, template, regions and compat files. They are editor-only, not shipped, and checked against all shipped assets by `SchemaTests`; runtime validation stays in `ContentValidator`. Content files must not contain `$schema`; associate schemas in your editor instead (e.g. VS Code `json.schemas`). Update the schemas when changing content fields or enums.
 
+## Translations
+
+Bird `name` (international English) and `scName` live in the bird JSON. `description` and an optional local `name` are translated in `i18n/<locale>.json` under `bird.<id>.description` and `bird.<id>.name`. `i18n/default.json` is the English fallback and must contain a description for every bird. A missing `bird.<id>.name` falls back to the JSON `name`.
+
 ## Two-client multiplayer
 
 For network synchronization, use **two separate game + SMAPI processes**, ideally on two machines or separate isolated game instances/profiles with independent consoles and the same mod version. Split-screen can exercise gameplay but is not a substitute for testing two networked mod clients. Do not let two simultaneously running instances share a writable save; let the host own the farm save. If one-machine setup is unreliable, use two machines.

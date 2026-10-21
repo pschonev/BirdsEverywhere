@@ -1,0 +1,9 @@
+{
+    "bird.black_woodpecker.description": "The biggest Eurasian woodpecker.",
+    "bird.blue_tit.description": "Small common tit.",
+    "bird.coal_tit.description": "This tit lives in conifer forests.",
+    "bird.great_tit.description": "The biggest tit.",
+    "bird.grey_partridge.description": "Kinda like a chicken.",
+    "bird.herring_gull.description": "Common gull.",
+    "ui.first-seen": "First seen by {{player}}\n{{location}} on {{date}}"
+}
