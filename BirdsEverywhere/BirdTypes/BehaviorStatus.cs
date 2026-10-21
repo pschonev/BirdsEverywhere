@@ -9,4 +9,6 @@ public enum BehaviorStatus
     Walking,
     Running,
     Swimming,
+    Alert,
+    Relocating,
 }

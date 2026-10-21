@@ -5,6 +5,7 @@ using BirdsEverywhere.Domain;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.Audio;
 using StardewValley.BellsAndWhistles;
 
 namespace BirdsEverywhere.BirdTypes;
@@ -51,6 +52,9 @@ internal abstract class BirdCritter : Critter
     /// <summary>Restores the type-specific fields from a snapshot.</summary>
     internal virtual void RestoreExtras(BirdState state) { }
 
+    /// <summary>Copies type-specific fields a replica needs from the owner's latest snapshot.</summary>
+    protected virtual void ApplyReplicaExtras(BirdCritter source) { }
+
     internal Random VisualRandom => VisualRng;
 
     internal void SeedVisualRandom(int seed) => VisualRng = new Random(seed);
@@ -68,20 +72,41 @@ internal abstract class BirdCritter : Critter
     protected void PlaySound(string role)
     {
         IReadOnlyDictionary<string, string> sounds = Composition?.Sounds ?? Profile.Sounds;
-        if (sounds.TryGetValue(role, out string? cue) && cue.Length > 0)
+        if (!sounds.TryGetValue(role, out string? cue) || cue.Length == 0 || Services is not { SoundVolume: > 0 } services || CurrentLocation is not { } location)
         {
-            Game1.playSound(cue);
+            return;
+        }
+        double now = Game1.currentGameTime?.TotalGameTime.TotalMilliseconds ?? 0;
+        if (Composition?.SoundCooldownMs is { } cooldowns && cooldowns.TryGetValue(role, out int cooldown))
+        {
+            if (_lastSoundMs.TryGetValue(role, out double last) && now - last < cooldown)
+            {
+                return;
+            }
+            _lastSoundMs[role] = now;
+        }
+
+        string id = cue.StartsWith(AudioCues.Prefix, StringComparison.Ordinal) ? services.ModCuePrefix + cue[AudioCues.Prefix.Length..] : cue;
+        Game1.sounds.PlayLocal(id, location, position / 64f, null, SoundContext.Default, out ICue played);
+        if (services.SoundVolume < 1f)
+        {
+            played.Volume *= services.SoundVolume;
         }
     }
+
+    private readonly Dictionary<string, double> _lastSoundMs = new(StringComparer.Ordinal);
+
+    /// <summary>The location of the last update; sounds play there, so birds outside it stay silent.</summary>
+    protected GameLocation? CurrentLocation { get; set; }
 
     /// <summary>The rule's action, or the bird type's default for birds from older snapshots.</summary>
     internal ActionDefinition Action(string id) =>
         Composition?.Actions is { } actions ? actions[id] : RequireServices().Actions[Profile.DefaultActions][id];
 
-    /// <summary>Rolls the sound chance on the owner RNG when the action has a sound role, matching the legacy alarm rolls.</summary>
+    /// <summary>Rolls the sound chance when the action has a sound role: owners on the owner RNG (legacy alarm rolls), replicas on their visual RNG.</summary>
     protected void PlayActionSound(ActionDefinition action)
     {
-        if (action.Sound is { } role && Rng.NextDouble() < action.SoundChance)
+        if (action.Sound is { } role && (IsReplica ? VisualRng : Rng).NextDouble() < action.SoundChance)
         {
             PlaySound(role);
         }
@@ -94,9 +119,12 @@ internal abstract class BirdCritter : Critter
     internal void PlayClip(string name, Random random, AnimatedSprite.endOfAnimationBehavior? onEnd = null)
     {
         SpriteClip clip = Layout.Clips[name];
-        sprite.setCurrentAnimation(ClipPlayer.Frames(clip, baseFrame, flip, random, ClipEvent, onEnd));
+        sprite.setCurrentAnimation(ClipPlayer.Frames(clip, baseFrame, flip, random, ClipEvent, IsReplica ? null : onEnd));
         sprite.loop = clip.Loop;
+        _ownClipEvents = IsReplica;
     }
+
+    private bool _ownClipEvents;
 
     protected void ShowPose(string name) => sprite.currentFrame = baseFrame + ClipPlayer.FirstCell(Layout.Clips[name]);
 
@@ -109,7 +137,7 @@ internal abstract class BirdCritter : Critter
 
     public void ApplyReplicaState(BirdCritter source)
     {
-        bool continuingMotion = IsReplica && State == source.State && State is BehaviorStatus.FlyingAway or BehaviorStatus.Running;
+        bool continuingMotion = IsReplica && State == source.State && State is BehaviorStatus.FlyingAway or BehaviorStatus.Running or BehaviorStatus.Relocating;
         if (!IsReplica)
         {
             position = source.position;
@@ -117,10 +145,20 @@ internal abstract class BirdCritter : Critter
         _replicaTarget = source.position;
         startingPosition = source.startingPosition;
         bool pendingVisual = IsReplica && _playedIdleRevision == IdleRevision && source.IdleRevision == IdleRevision;
+        bool startsFleeing = IsReplica && State != source.State && source.State is BehaviorStatus.FlyingAway or BehaviorStatus.Running or BehaviorStatus.Relocating;
+        bool startsAlert = State != source.State;
         if (!pendingVisual)
         {
             State = source.State;
             flip = source.flip;
+        }
+        if (startsFleeing && Services != null)
+        {
+            PlayActionSound(Action("flee"));
+        }
+        if (IsReplica && source.State == BehaviorStatus.Alert && startsAlert && Threat.Alert?.Sound is { } alertSound)
+        {
+            PlaySound(alertSound);
         }
         if (continuingMotion)
         {
@@ -136,9 +174,11 @@ internal abstract class BirdCritter : Critter
         if (!pendingVisual && (!continuingMotion || sprite?.CurrentAnimation == null || source.sprite.CurrentAnimation == null))
         {
             sprite = source.sprite;
+            _ownClipEvents = false;
         }
         if (IsReplica)
         {
+            ApplyReplicaExtras(source);
             IdleTick = Math.Max(IdleTick, source.IdleTick);
             if (source.IdleRevision > IdleRevision)
             {
@@ -205,10 +245,7 @@ internal abstract class BirdCritter : Critter
         }
 
         ActionDefinition custom = Action(id);
-        if (!IsReplica)
-        {
-            PlayActionSound(custom);
-        }
+        PlayActionSound(custom);
         PlayClip(custom.Clip!, VisualRng);
         return BirdAction.None;
     }
@@ -227,7 +264,7 @@ internal abstract class BirdCritter : Critter
 
     protected bool UpdateReplica(GameTime time, Vector2 velocity = default, float verticalVelocity = 0f)
     {
-        if (State is BehaviorStatus.FlyingAway or BehaviorStatus.Running)
+        if (State is BehaviorStatus.FlyingAway or BehaviorStatus.Running or BehaviorStatus.Relocating)
         {
             position += velocity;
             yOffset += verticalVelocity;
@@ -254,6 +291,10 @@ internal abstract class BirdCritter : Critter
                 sprite.currentAnimationIndex = next;
                 sprite.currentFrame = frames[next].frame;
                 sprite.timer += frames[next].milliseconds;
+                if (_ownClipEvents)
+                {
+                    frames[next].frameStartBehavior?.Invoke(null!);
+                }
             }
         }
         return false;
@@ -306,6 +347,71 @@ internal abstract class BirdCritter : Critter
     /// <summary>Returns a farmer or character within <paramref name="radiusTiles"/>, checked at most every 200 ms.</summary>
     protected Character? PollThreat(GameTime time, GameLocation location, int radiusTiles) =>
         CheckIntervalElapsed(time) ? FindThreat(location, radiusTiles) : null;
+
+    /// <summary>The rule's reactions, or the bird type's default for birds from older snapshots.</summary>
+    internal ThreatReaction Threat => (Composition?.Reactions ?? Profile.Reactions
+        ?? throw new InvalidOperationException($"{BirdTypeName} has no reactions.")).Threat;
+
+    private int _alertCalmMs;
+
+    /// <summary>At most every 200 ms: the threat to flee from, or whether one is inside the alert ring.</summary>
+    protected (Character? Flee, bool Alerted) PollThreats(GameTime time, GameLocation location) =>
+        CheckIntervalElapsed(time) ? ScanThreats(location, Threat) : (null, false);
+
+    /// <summary>Farmers within the flee radius (running ones count closer) or any other character in it; matches <see cref="FindThreat"/> for default reactions.</summary>
+    protected (Character? Flee, bool Alerted) ScanThreats(GameLocation location, ThreatReaction threat)
+    {
+        int alertRadius = threat.Alert?.Radius ?? 0;
+        bool alerted = false;
+        foreach (Farmer farmer in location.farmers)
+        {
+            float tiles = Vector2.Distance(farmer.Position, position) / 64f;
+            if (threat.RunningMultiplier > 1 && farmer.running && farmer.isMoving())
+            {
+                tiles /= (float)threat.RunningMultiplier;
+            }
+            if (tiles <= threat.FleeRadius)
+            {
+                return (farmer, false);
+            }
+            alerted |= tiles <= alertRadius;
+        }
+
+        if (Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, threat.FleeRadius, location) is { } other)
+        {
+            return (other, false);
+        }
+        return (null, alerted || (alertRadius > 0 && Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, alertRadius, location) != null));
+    }
+
+    /// <summary>True once no threat has been in the alert ring for the alert's calm time.</summary>
+    protected bool TickCalm(GameTime time, bool alerted)
+    {
+        _alertCalmMs = alerted ? Threat.Alert?.CalmMs ?? 0 : _alertCalmMs - time.ElapsedGameTime.Milliseconds;
+        return _alertCalmMs <= 0;
+    }
+
+    protected void StartAlert(GameLocation environment)
+    {
+        AlertReaction alert = Threat.Alert!;
+        State = BehaviorStatus.Alert;
+        sprite.loop = false;
+        sprite.CurrentAnimation = null;
+        PlayClip(alert.Clip, VisualRng);
+        if (alert.Sound is { } role)
+        {
+            PlaySound(role);
+        }
+        AddBirdObservation(BirdName, environment.Name);
+    }
+
+    protected void ShowAlertPose()
+    {
+        if (sprite.CurrentAnimation == null)
+        {
+            ShowPose(Threat.Alert?.Clip ?? "stand");
+        }
+    }
 
     protected Character? FindThreat(GameLocation location, int radiusTiles)
     {

@@ -11,4 +11,5 @@ internal enum BirdAction
     Hop,
     TurnAndHop,
     Walk,
+    Alert,
 }

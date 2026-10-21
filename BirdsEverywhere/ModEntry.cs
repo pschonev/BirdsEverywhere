@@ -13,6 +13,7 @@ using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewModdingAPI.Utilities;
 using StardewValley;
+using StardewValley.GameData;
 using StardewValley.Menus;
 
 namespace BirdsEverywhere;
@@ -31,7 +32,7 @@ public partial class ModEntry : Mod
     private MultiplayerSync _sync = null!;
     private BirdServices _birdServices = null!;
     private IReadOnlyDictionary<string, SpriteLayout> _layouts = new Dictionary<string, SpriteLayout>();
-    private SharedDefinitions _definitions = new(new Dictionary<string, Routine>(), new Dictionary<string, Newtonsoft.Json.Linq.JObject>());
+    private SharedDefinitions _definitions = new(new Dictionary<string, Routine>(), new Dictionary<string, JObject>(), new Dictionary<string, JObject>());
     private bool _populatesCurrentVisit = true;
     private long _birdOwnerId;
     private string _birdVisitId = "";
@@ -56,7 +57,8 @@ public partial class ModEntry : Mod
             LogIssue(issue);
         }
         _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation, _layouts, _definitions.Routines,
-            _definitions.ParsedActions());
+            _definitions.ParsedActions(), ModManifest.UniqueID + "_", Math.Clamp(_config.SoundVolume, 0f, 1f));
+        RegisterAudio(helper);
         _locationSpawner = new LocationSpawner(_spawnPatterns, _birdTypes, _birdServices);
 
         helper.Events.GameLoop.DayStarted += OnDayStarted;
@@ -72,7 +74,7 @@ public partial class ModEntry : Mod
 
         helper.ConsoleCommands.Add("show_all_birds", "Shows all seen and unseen birds.",
             (_, _) => Logging.LogBirdSeenStatus(Monitor, _saveData, _catalog));
-        helper.ConsoleCommands.Add("birds_dump", "Print effective rules and sources for a bird. Usage: birds_dump <bird>", DumpBird);
+        helper.ConsoleCommands.Add("birds_dump", "Print effective rules, sources and resolved composition for a bird. Usage: birds_dump <bird> [<rule>]", DumpBird);
         helper.ConsoleCommands.Add("birds_fishareas", "List fish areas in Data/Locations. Usage: birds_fishareas [here]", DumpFishAreas);
         RegisterDebugCommands(helper);
         RegisterInspectCommands(helper);
@@ -175,11 +177,37 @@ public partial class ModEntry : Mod
         _ => LogLevel.Info,
     });
 
+    /// <summary>Adds a sound cue <c>&lt;ModId&gt;_&lt;name&gt;</c> per file in <c>assets/audio</c>.</summary>
+    private void RegisterAudio(IModHelper helper)
+    {
+        IReadOnlyDictionary<string, string> files = AudioCues.Files(Path.Combine(helper.DirectoryPath, "assets"));
+        if (files.Count == 0)
+        {
+            return;
+        }
+        helper.Events.Content.AssetRequested += (_, e) =>
+        {
+            if (!e.NameWithoutLocale.IsEquivalentTo("Data/AudioChanges"))
+            {
+                return;
+            }
+            e.Edit(asset =>
+            {
+                IDictionary<string, AudioCueData> data = asset.AsDictionary<string, AudioCueData>().Data;
+                foreach ((string name, string path) in files)
+                {
+                    string id = ModManifest.UniqueID + "_" + name;
+                    data[id] = new AudioCueData { Id = id, Category = "Sound", FilePaths = new List<string> { path } };
+                }
+            });
+        };
+    }
+
     private void DumpBird(string command, string[] args)
     {
-        if (args.Length != 1)
+        if (args.Length is < 1 or > 2)
         {
-            Monitor.Log("Usage: birds_dump <bird>", LogLevel.Info);
+            Monitor.Log("Usage: birds_dump <bird> [<rule>]", LogLevel.Info);
             return;
         }
 
@@ -194,7 +222,15 @@ public partial class ModEntry : Mod
             return;
         }
 
-        foreach (JProperty rule in ((JObject?)entry.Effective["rules"] ?? new JObject()).Properties())
+        List<JProperty> rules = ((JObject?)entry.Effective["rules"] ?? new JObject()).Properties()
+            .Where(rule => args.Length == 1 || rule.Name == args[1]).ToList();
+        if (rules.Count == 0)
+        {
+            Monitor.Log($"Bird '{bird.Id.Value}' has no rule '{args[1]}'.", LogLevel.Warn);
+            return;
+        }
+
+        foreach (JProperty rule in rules)
         {
             Monitor.Log($"{bird.Id.Value} / {rule.Name}: {rule.Value.ToString(Newtonsoft.Json.Formatting.None)}", LogLevel.Info);
             foreach (KeyValuePair<string, string> source in entry.Sources.Where(source => source.Key.StartsWith($"$.rules.{rule.Name}.", StringComparison.Ordinal)))

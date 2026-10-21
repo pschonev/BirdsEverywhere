@@ -55,6 +55,83 @@ internal sealed class BirdBehaviorTests
     public void OtherStates_NoDecision(BehaviorStatus state) =>
         Assert.That(Decide(state), Is.EqualTo(BirdAction.None));
 
+    private static BirdAction DecideAlert(BehaviorStatus state, bool threat = false, bool inAlertRange = true, bool calm = false, bool airborne = false) =>
+        BirdBehaviors.Decide(_land, new BirdContext(state, threat, true, airborne, new FixedRandom(0.5), inAlertRange, calm));
+
+    [TestCase(BehaviorStatus.Stopped, BirdAction.Alert)]
+    [TestCase(BehaviorStatus.Pecking, BirdAction.Alert)]
+    [TestCase(BehaviorStatus.Walking, BirdAction.Alert)]
+    [TestCase(BehaviorStatus.Sleeping, BirdAction.Alert)]
+    [TestCase(BehaviorStatus.Alert, BirdAction.None)]
+    [TestCase(BehaviorStatus.FlyingAway, BirdAction.None)]
+    [TestCase(BehaviorStatus.Swimming, BirdAction.None)]
+    public void AlertRing_FreezesGroundedBirds(BehaviorStatus state, BirdAction expected) =>
+        Assert.That(DecideAlert(state), Is.EqualTo(expected));
+
+    [Test]
+    public void AlertRing_FleeWinsAndAirborneIgnores() =>
+        Assert.Multiple(() =>
+        {
+            Assert.That(DecideAlert(BehaviorStatus.Alert, threat: true), Is.EqualTo(BirdAction.Flee));
+            Assert.That(DecideAlert(BehaviorStatus.Stopped, airborne: true), Is.EqualTo(BirdAction.None));
+        });
+
+    [TestCase(true, BirdAction.Stop)]
+    [TestCase(false, BirdAction.None)]
+    public void Alert_ResumesOnlyWhenCalm(bool calm, BirdAction expected) =>
+        Assert.That(DecideAlert(BehaviorStatus.Alert, inAlertRange: false, calm: calm), Is.EqualTo(expected));
+
+    [Test]
+    public void Threat_IgnoredWhileRelocating() =>
+        Assert.That(BirdBehaviors.Decide(BirdBehaviors.FleeOnly, new BirdContext(BehaviorStatus.Relocating, true, true, false, new FixedRandom(0))),
+            Is.EqualTo(BirdAction.None));
+
+    private static readonly Microsoft.Xna.Framework.Vector2[] _trees =
+    {
+        new(10, 10), new(12, 10), new(14, 10), new(20, 10), new(30, 10), new(10, 14),
+    };
+
+    [TestCase(0, 14f, 10f)]
+    [TestCase(1, 20f, 10f)]
+    public void Relocation_PicksAFreeTreeInReachAwayFromTheThreat(int pick, float x, float y) =>
+        Assert.That(Relocation.Pick(_trees, new(10, 10), threat: new(9, 13), fleeRadius: 1, maxDistance: 12,
+                occupied: new[] { new Microsoft.Xna.Framework.Vector2(12, 10) }, new FixedRandom(0, pick)),
+            Is.EqualTo(new Microsoft.Xna.Framework.Vector2(x, y)));
+
+    [Test]
+    public void Relocation_NoCandidate_ReturnsNull() =>
+        Assert.That(Relocation.Pick(_trees, new(10, 10), threat: new(20, 10), fleeRadius: 30, maxDistance: 12,
+            Array.Empty<Microsoft.Xna.Framework.Vector2>(), new FixedRandom(0)), Is.Null);
+
+    [TestCase(0f, 0f)]
+    [TestCase(0.5f, -48f)]
+    [TestCase(1f, 0f)]
+    public void Relocation_ArcPeaksHalfway(float progress, float expected) =>
+        Assert.That(Relocation.ArcOffset(progress, 48f), Is.EqualTo(expected).Within(0.001f));
+
+    /// <summary>An approach timeline: far, alert ring, still close, leaves, calm, then the flee radius.</summary>
+    [Test]
+    public void ApproachAndRetreat_Timeline()
+    {
+        (bool Threat, bool InRing, bool Calm)[] ticks = { (false, false, true), (false, true, false), (false, false, false), (false, false, true), (false, true, false), (true, false, false) };
+        BehaviorStatus state = BehaviorStatus.Stopped;
+        List<BirdAction> actions = new();
+        foreach ((bool threat, bool inRing, bool calm) in ticks)
+        {
+            BirdAction action = BirdBehaviors.Decide(_land, new BirdContext(state, threat, true, false, new FixedRandom(0.5), inRing, calm));
+            actions.Add(action);
+            state = action switch
+            {
+                BirdAction.Alert => BehaviorStatus.Alert,
+                BirdAction.Stop => BehaviorStatus.Stopped,
+                BirdAction.Flee => BehaviorStatus.FlyingAway,
+                _ => state,
+            };
+        }
+
+        Assert.That(actions, Is.EqualTo(new[] { BirdAction.None, BirdAction.Alert, BirdAction.None, BirdAction.Stop, BirdAction.Alert, BirdAction.Flee }));
+    }
+
     private static BirdAction DecideWaterLand(BehaviorStatus state, bool threat = false, bool idle = true, double roll = 0.0, int pick = 0) =>
         BirdBehaviors.Decide(_waterLand, new BirdContext(state, threat, idle, false, new FixedRandom(roll, pick)));
 

@@ -28,4 +28,6 @@ internal sealed record BirdState(
     Vector2? AnchorTile = null,
     string? LocationName = null,
     int PeckTimer = 0,
-    int FlightDistance = 0);
+    int FlightDistance = 0,
+    int Relocations = 0,
+    Vector2? RelocateTarget = null);

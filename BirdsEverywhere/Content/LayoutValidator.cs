@@ -50,6 +50,7 @@ public static class LayoutValidator
     {
         IEnumerable<string> clips = requirement.Poses
             .Concat(composition?.Actions?.Values.Select(action => action.Clip).OfType<string>() ?? Enumerable.Empty<string>())
+            .Concat(composition?.Reactions?.Threat.Alert is { } alert ? new[] { alert.Clip } : Enumerable.Empty<string>())
             .Distinct();
         foreach (string clip in clips.Where(clip => !layout.Clips.ContainsKey(clip)))
         {

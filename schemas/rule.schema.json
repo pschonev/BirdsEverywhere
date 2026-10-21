@@ -142,11 +142,31 @@
             ]
         },
         "sounds": {
-            "description": "Sound role to vanilla or mod cue; merged over the bird type's defaults. \"\" silences a role.",
+            "description": "Sound role to a vanilla cue or 'audio:<name>' for assets/audio/<name>.ogg|.wav; merged over the bird type's defaults. \"\" silences a role.",
             "type": "object",
             "additionalProperties": {
                 "type": "string"
             }
+        },
+        "soundCooldownMs": {
+            "description": "Minimum ms between two plays of a sound role on the same bird.",
+            "type": "object",
+            "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+            }
+        },
+        "reactions": {
+            "description": "Shared reactions id (assets/reactions) or inline reactions object.",
+            "oneOf": [
+                {
+                    "type": "string",
+                    "minLength": 1
+                },
+                {
+                    "$ref": "reaction.schema.json"
+                }
+            ]
         },
         "actions": {
             "description": "Per-field overrides of the bird type's action set (assets/actions), keyed by action id. New ids on routine-driven bird types (Land, WaterLand) define custom 'stay' actions with a clip that the routine can pick.",

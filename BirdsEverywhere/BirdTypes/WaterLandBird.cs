@@ -7,8 +7,6 @@ namespace BirdsEverywhere.BirdTypes;
 
 internal sealed class WaterLandBird : BirdCritter
 {
-    private const int ThreatRadiusTiles = 4;
-
     private IReadOnlyList<IBirdBehavior>? _behaviors;
     private int? _walkTimer;
 
@@ -26,6 +24,7 @@ internal sealed class WaterLandBird : BirdCritter
 
     public override bool update(GameTime time, GameLocation environment)
     {
+        CurrentLocation = environment;
         ActionDefinition flee = Action("flee");
         if (IsReplica)
         {
@@ -34,15 +33,16 @@ internal sealed class WaterLandBird : BirdCritter
                 State == BehaviorStatus.FlyingAway ? -flee.Climb!.Value : 0f);
         }
 
-        Character? threat = PollThreat(time, environment, ThreatRadiusTiles);
+        (Character? threat, bool alerted) = PollThreats(time, environment);
         if (State == BehaviorStatus.Stopped && threat == null && IsOnWater(environment))
         {
             State = BehaviorStatus.Swimming;
         }
-        BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
-        BirdAction idleAction = AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle && !context.Airborne);
+        BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng, alerted, TickCalm(time, alerted));
+        bool idle = State == BehaviorStatus.Stopped && threat == null && !alerted;
+        BirdAction idleAction = AdvanceIdle(IdleRoutine, idle && context.AnimationIdle && !context.Airborne);
         _behaviors ??= BirdBehaviors.WaterLand(Action("walk").EndChance);
-        Apply(State == BehaviorStatus.Stopped && threat == null ? idleAction : BirdBehaviors.Decide(_behaviors, context), threat, environment);
+        Apply(idle ? idleAction : BirdBehaviors.Decide(_behaviors, context), threat, environment);
 
         switch (State)
         {
@@ -62,6 +62,9 @@ internal sealed class WaterLandBird : BirdCritter
                     ShowPose("stand");
                 }
                 break;
+            case BehaviorStatus.Alert:
+                ShowAlertPose();
+                break;
         }
         return base.update(time, environment);
     }
@@ -72,6 +75,9 @@ internal sealed class WaterLandBird : BirdCritter
         {
             case BirdAction.Flee:
                 StartFlee(threat!, environment);
+                break;
+            case BirdAction.Alert:
+                StartAlert(environment);
                 break;
             case BirdAction.Stop:
                 State = BehaviorStatus.Stopped;

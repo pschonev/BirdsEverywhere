@@ -112,13 +112,21 @@ flowchart LR
   "sounds": { "song": "<cue>" }
   ```
 
-  `birds_dump <bird>` prints each rule's resolved routine, sounds and actions.
+  `birds_dump <bird> [<rule>]` prints each rule's resolved routine, sounds, actions and reactions.
+
+- Mod audio: put a mono `.ogg` or `.wav` in `assets/audio/` and use it as `"song": "audio:<file name>"`. `soundCooldownMs` (role → ms) stops a role repeating too often on one bird. Players can scale all bird sounds with `SoundVolume` (0–1) in `config.json`.
+- `reactions` is a shared id from `assets/reactions/` (schema `schemas/reaction.schema.json`) or an inline object; missing fields keep the bird type's flee radius. Land and water-land birds can alert (freeze, then calm down); tree-trunk birds can hop to another tree first:
+
+  ```json
+  "reactions": { "threat": { "fleeRadius": 3, "runningMultiplier": 2, "alert": { "radius": 7, "clip": "stand", "calmMs": 2000 } } }
+  "reactions": "tree_hopper"
+  ```
 
 **New behavior** (a new primitive, event, trigger or bird type) needs C#; follow [REFACTOR.md Phase 10](docs/REFACTOR.md#10-fully-modular-config-driven-birds) for where it goes.
 
 ## Editor JSON schemas
 
-`schemas/` holds JSON Schemas for bird, template, regions, compat, layout, routine and action files, with shared definitions in `common.schema.json`. They are editor-only, not shipped, and checked against all shipped assets by `SchemaTests`; a test fails if any `assets/**/*.json` has no schema, and a table checks that schema and loader agree. Runtime validation stays in `ContentValidator`/`LayoutValidator`. Content files must not contain `$schema`; `.vscode/settings.json` maps the schemas for VS Code. Update the schemas when changing content fields or enums.
+`schemas/` holds JSON Schemas for bird, template, regions, compat, layout, routine, action and reaction files, with shared definitions in `common.schema.json`. They are editor-only, not shipped, and checked against all shipped assets by `SchemaTests`; a test fails if any `assets/**/*.json` has no schema, and a table checks that schema and loader agree. Runtime validation stays in `ContentValidator`/`LayoutValidator`. Content files must not contain `$schema`; `.vscode/settings.json` maps the schemas for VS Code. Update the schemas when changing content fields or enums.
 
 ## Translations
 

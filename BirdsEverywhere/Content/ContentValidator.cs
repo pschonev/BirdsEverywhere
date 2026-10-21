@@ -9,7 +9,7 @@ public static class ContentValidator
 {
     /// <summary>Resolves the rule's routine (ref, inline, or bird-type default), actions (bird-type set with per-field overrides) and sounds (merged over defaults).</summary>
     private static BirdComposition? Composition(SpawnRuleJson rule, string path, string file, SharedDefinitions definitions,
-        Action<IssueSeverity, string, string> report)
+        Func<string, bool> fileExists, Action<IssueSeverity, string, string> report)
     {
         if (!BirdTypeProfiles.ByBirdType.TryGetValue(rule.BirdType, out BirdTypeProfile? profile))
         {
@@ -56,10 +56,29 @@ public static class ContentValidator
         foreach ((string role, string cue) in rule.Sounds ?? new Dictionary<string, string>())
         {
             sounds[role] = cue;
+            if (cue.StartsWith(AudioCues.Prefix, StringComparison.Ordinal)
+                && !AudioCues.Candidates(Path.GetDirectoryName(Path.GetDirectoryName(file)!)!, cue[AudioCues.Prefix.Length..]).Any(fileExists))
+            {
+                report(IssueSeverity.Error, $"{path}.sounds.{role}", $"Audio file for '{cue}' not found in assets/audio (.ogg or .wav).");
+            }
+        }
+
+        foreach ((string role, int cooldown) in rule.SoundCooldownMs ?? new Dictionary<string, int>())
+        {
+            if (cooldown < 0)
+            {
+                report(IssueSeverity.Error, $"{path}.soundCooldownMs.{role}", "Cooldown must be 0 or more.");
+            }
+            if (!sounds.ContainsKey(role))
+            {
+                report(IssueSeverity.Warn, $"{path}.soundCooldownMs.{role}", $"Sound role '{role}' has no cue.");
+            }
         }
 
         Dictionary<string, ActionDefinition> actions = Actions(rule, path, file, profile, definitions, sounds, report);
-        foreach (string role in (rule.Sounds?.Keys ?? Enumerable.Empty<string>()).Where(role => !profile.Sounds.ContainsKey(role) && actions.Values.All(action => action.Sound != role)))
+        Reactions? reactions = ResolveReactions(rule, path, file, profile, definitions, sounds, report);
+        foreach (string role in (rule.Sounds?.Keys ?? Enumerable.Empty<string>()).Where(role => !profile.Sounds.ContainsKey(role)
+            && actions.Values.All(action => action.Sound != role) && reactions?.Threat.Alert?.Sound != role))
         {
             report(IssueSeverity.Warn, $"{path}.sounds.{role}", $"{rule.BirdType} never plays sound role '{role}'. Known: {string.Join(", ", profile.Sounds.Keys)}.");
         }
@@ -84,7 +103,66 @@ public static class ContentValidator
             }
         }
 
-        return new BirdComposition(routine, sounds, actions);
+        return new BirdComposition(routine, sounds, actions, rule.SoundCooldownMs, reactions);
+    }
+
+    /// <summary>Shared reaction id or inline object, resolved over the bird type's default threat radius.</summary>
+    private static Reactions? ResolveReactions(SpawnRuleJson rule, string path, string file, BirdTypeProfile profile,
+        SharedDefinitions definitions, Dictionary<string, string> sounds, Action<IssueSeverity, string, string> report)
+    {
+        string reactionPath = path + ".reactions";
+        if (profile.Reactions is not { } defaults)
+        {
+            if (rule.Reactions is not null)
+            {
+                report(IssueSeverity.Error, reactionPath, $"{rule.BirdType} reacts by its own rules and takes no reactions.");
+            }
+            return null;
+        }
+
+        JToken? token = rule.Reactions;
+        if (token is { Type: JTokenType.String })
+        {
+            string id = token.Value<string>()!;
+            if (!definitions.ReactionSets.TryGetValue(id, out JObject? shared))
+            {
+                report(IssueSeverity.Error, reactionPath, $"Unknown reactions '{id}'. Known: {string.Join(", ", definitions.ReactionSets.Keys)}.");
+                return defaults;
+            }
+            token = shared;
+        }
+        if (token is null)
+        {
+            return defaults;
+        }
+
+        try
+        {
+            Reactions reactions = ReactionLoader.Parse(token, defaults, file, reactionPath);
+            if (reactions.Threat.Relocate is { } relocate && !profile.RelocateTargets.Contains(relocate.Target))
+            {
+                report(IssueSeverity.Error, reactionPath + ".threat.relocate.target", profile.RelocateTargets.Count == 0
+                    ? $"{rule.BirdType} cannot relocate."
+                    : $"{rule.BirdType} cannot relocate to '{relocate.Target}'. Known: {string.Join(", ", profile.RelocateTargets)}.");
+            }
+            if (reactions.Threat.Alert is { } alert)
+            {
+                if (!profile.CanAlert)
+                {
+                    report(IssueSeverity.Error, reactionPath + ".threat.alert", $"{rule.BirdType} cannot alert.");
+                }
+                if (alert.Sound is { } role && !sounds.ContainsKey(role))
+                {
+                    report(IssueSeverity.Warn, reactionPath + ".threat.alert.sound", $"Sound role '{role}' has no cue; the alert is silent.");
+                }
+            }
+            return reactions;
+        }
+        catch (FormatException exception)
+        {
+            report(IssueSeverity.Error, reactionPath, exception.Message);
+            return defaults;
+        }
     }
 
     private static Dictionary<string, ActionDefinition> Actions(SpawnRuleJson rule, string path, string file, BirdTypeProfile profile,
@@ -346,7 +424,7 @@ public static class ContentValidator
             rules.Add(new SpawnRule(entry.Key, new SpawnConditions(seasons.ToImmutable(), weather.ToImmutable(), days, times),
                 locations.Distinct(StringComparer.Ordinal).ToImmutableArray(), new SpawnPatternId(rule.SpawnPattern), new BirdTypeId(rule.BirdType),
                 count, size, textures.ToImmutableDictionary(StringComparer.Ordinal), rule.Weight, new SpawnParams(shoreDistance),
-                Composition(rule, path, file, definitions, Report)));
+                Composition(rule, path, file, definitions, textureExists, Report)));
         }
 
         foreach (Season season in Enum.GetValues<Season>())

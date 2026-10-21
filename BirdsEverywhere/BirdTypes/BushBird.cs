@@ -49,6 +49,7 @@ internal sealed class BushBird : BirdCritter
 
     public override bool update(GameTime time, GameLocation environment)
     {
+        CurrentLocation = environment;
         float runSpeed = Action("flee").Speed!.Value;
         if (IsReplica)
         {
