@@ -109,11 +109,8 @@ internal sealed class BirdBehaviorTests
     public void Relocation_ArcPeaksHalfway(float progress, float expected) =>
         Assert.That(Relocation.ArcOffset(progress, 48f), Is.EqualTo(expected).Within(0.001f));
 
-    private static readonly BirdsEverywhere.Domain.SpawnConditions _rainOnly = new(
-        System.Collections.Immutable.ImmutableArray<BirdsEverywhere.Domain.Season>.Empty,
-        System.Collections.Immutable.ImmutableArray.Create(BirdsEverywhere.Domain.Weather.Rain),
-        System.Collections.Immutable.ImmutableArray<BirdsEverywhere.Domain.IntRange>.Empty,
-        System.Collections.Immutable.ImmutableArray<BirdsEverywhere.Domain.IntRange>.Empty);
+    private static readonly BirdsEverywhere.Domain.SpawnConditions _rainOnly = new(System.Collections.Immutable.ImmutableArray.Create(
+        BirdsEverywhere.Domain.ConditionClause.Unconditional with { Weathers = System.Collections.Immutable.ImmutableArray.Create(BirdsEverywhere.Domain.Weather.Rain) }));
 
     private static readonly BirdsEverywhere.Domain.Routine _forager = new(0.01,
         new[] { new BirdsEverywhere.Domain.WeightedId("peck", 3), new BirdsEverywhere.Domain.WeightedId("dive", 1) },

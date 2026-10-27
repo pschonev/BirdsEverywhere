@@ -2,5 +2,6 @@
   "id": "blue_tit",
   "name": "Blue Tit",
   "scName": "Cyanistes caeruleus",
+  "shorthand": "blutit",
   "template": "all_year_garden"
 }

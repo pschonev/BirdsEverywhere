@@ -52,9 +52,9 @@ public class ObservationData
 
     public ObservationData(string observationLocation, SDate observationDate, int observationTime, string playerName)
     {
-        this.ObservationLocation = observationLocation;
-        this.ObservationDate = observationDate;
-        this.ObservationTime = observationTime;
-        this.PlayerName = playerName;
+        ObservationLocation = observationLocation;
+        ObservationDate = observationDate;
+        ObservationTime = observationTime;
+        PlayerName = playerName;
     }
 }

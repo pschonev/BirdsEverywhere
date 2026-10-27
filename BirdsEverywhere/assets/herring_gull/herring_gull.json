@@ -2,6 +2,7 @@
   "id": "herring_gull",
   "name": "Herring Gull",
   "scName": "Larus argentatus",
+  "shorthand": "euhgul1",
   "template": "all_year_garden",
   "defaults": {
     "locations": [

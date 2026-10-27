@@ -93,8 +93,8 @@ public class CompositionTests
     {
         Routine parent = TestBirds.Definitions.Routines["waterland_idle"] with
         {
-            Rare = new[] { new RareAction("walk", 0.25, new SpawnConditions(ImmutableArray<BirdsEverywhere.Domain.Season>.Empty,
-                ImmutableArray.Create(Weather.Rain), ImmutableArray<IntRange>.Empty, ImmutableArray<IntRange>.Empty)) },
+            Rare = new[] { new RareAction("walk", 0.25, new SpawnConditions(ImmutableArray.Create(
+                ConditionClause.Unconditional with { Weathers = ImmutableArray.Create(Weather.Rain) }))) },
         };
         SharedDefinitions definitions = TestBirds.Definitions with
         {
@@ -115,7 +115,7 @@ public class CompositionTests
             Assert.That(routine.Pick, Is.EqualTo(parent.Pick.Append(new WeightedId("followParent", 1))));
             Assert.That(rare.Id, Is.EqualTo("walk"));
             Assert.That(rare.Chance, Is.EqualTo(0.25));
-            Assert.That(rare.When.Weathers, Is.EqualTo(new[] { Weather.Rain }));
+            Assert.That(rare.When.Any.Single().Weathers, Is.EqualTo(new[] { Weather.Rain }));
         });
     }
 
@@ -145,6 +145,115 @@ public class CompositionTests
 
         Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error
             && issue.Path.EndsWith(".threat.if.groupHasRole", StringComparison.Ordinal)));
+    }
+
+    [TestCase(@"""target"":""groupRole:parent""", ".target", false)]
+    [TestCase(@"""target"":""parent""", ".target", true)]
+    [TestCase(@"""target"":""food:worm""", ".target", true)]
+    [TestCase(@"""target"":""groupRole:stranger""", ".target", true)]
+    [TestCase(@"""target"":""groupRole:""", ".target", true)]
+    public void FamilyFixture_ChecksActionTargets(string target, string path, bool error)
+    {
+        string fixture = FamilySpecies.Replace(@"""target"":""groupRole:parent""", target, StringComparison.Ordinal);
+
+        IReadOnlyList<ValidationIssue> issues = Load(fixture).Issues;
+
+        Assert.That(issues.Any(issue => issue.Severity == IssueSeverity.Error && issue.Path.EndsWith(path, StringComparison.Ordinal)), Is.EqualTo(error));
+    }
+
+    [Test]
+    public void FamilyFixture_FollowNeedsATarget()
+    {
+        string fixture = FamilySpecies.Replace(@",""target"":""groupRole:parent""", "", StringComparison.Ordinal);
+
+        Assert.That(Load(fixture).Issues, Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error
+            && issue.Message.Contains("needs target", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void FamilyFixture_MemberRequiredAndTexturesResolve()
+    {
+        string fixture = FamilySpecies.Replace(@"""parent"":{""count"":[1,2],""stage"":""adult""}",
+            @"""parent"":{""count"":[1,2],""stage"":""adult"",""required"":true,""textures"":{""male"":1,""female"":2}}", StringComparison.Ordinal);
+
+        (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues) = Load(fixture);
+
+        Assert.That(issues.Where(issue => issue.Severity == IssueSeverity.Error).Select(issue => issue.Message), Is.Empty.Or.All.Contain("Texture not found"));
+        if (bird is not null)
+        {
+            GroupMember parent = bird.Rules.Single().Params.Group!.Members!["parent"];
+            Assert.That(parent.Required, Is.True);
+            Assert.That(parent.Textures, Is.EquivalentTo(new Dictionary<string, int> { ["male"] = 1, ["female"] = 2 }));
+        }
+    }
+
+    [TestCase(@"""required"":true,""count"":[0,2]", "A required role")]
+    [TestCase(@"""textures"":{}", "At least one texture")]
+    [TestCase(@"""textures"":{""male"":0}", "weight must be positive")]
+    public void FamilyFixture_RejectsInvalidMemberFields(string replacement, string message)
+    {
+        string fixture = FamilySpecies.Replace(@"""parent"":{""count"":[1,2],""stage"":""adult""}",
+            @"""parent"":{""stage"":""adult""," + replacement + (replacement.Contains("count", StringComparison.Ordinal) ? "" : @",""count"":[1,2]") + "}", StringComparison.Ordinal);
+
+        Assert.That(Load(fixture).Issues, Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Message.Contains(message)));
+    }
+
+    [TestCase(@"""shorthand"":""gretit1""", false)]
+    [TestCase(@"""shorthand"":""Great_Tit""", true)]
+    [TestCase(@"""shorthand"":""abcd""", true)]
+    [TestCase(@"""shorthand"":""abcdefg""", true)]
+    [TestCase(@"""shorthand"":""abcde12""", true)]
+    [TestCase(@"""shorthand"":""""", true)]
+    public void Shorthand_MustMatchEBirdFormat(string field, bool error)
+    {
+        string fixture = FixtureSpecies.Replace(@"""scName"":""Testus""", @"""scName"":""Testus""," + field, StringComparison.Ordinal);
+
+        Assert.That(Load(fixture).Issues.Any(issue => issue.Severity == IssueSeverity.Error && issue.Path == "$.shorthand"), Is.EqualTo(error));
+    }
+
+    [Test]
+    public void Shorthand_DuplicatesAreReportedOnTheLaterBird()
+    {
+        BirdDefinition first = new(new BirdId("a_bird"), "A", "A a", ImmutableArray<SpawnRule>.Empty) { Shorthand = "same1" };
+        BirdDefinition second = first with { Id = new BirdId("b_bird") };
+        BirdDefinition other = first with { Id = new BirdId("c_bird"), Shorthand = "other1" };
+
+        IReadOnlyList<ValidationIssue> issues = ContentValidator.DuplicateShorthands(new[] { second, other, first });
+
+        Assert.That(issues.Select(issue => (issue.Id, issue.Severity)), Is.EqualTo(new[] { ("b_bird", IssueSeverity.Error) }));
+        Assert.That(issues[0].Message, Does.Contain("a_bird"));
+    }
+
+    [Test]
+    public void ShippedBirds_HaveUniqueShorthands()
+    {
+        string assets = Path.Combine(AppContext.BaseDirectory, "assets");
+        List<BirdDefinition> birds = ContentPaths.BirdIds(assets).Select(ContentTests.LoadBird).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(birds.Select(bird => bird.Shorthand), Has.All.Not.Null);
+            Assert.That(ContentValidator.DuplicateShorthands(birds), Is.Empty);
+        });
+    }
+
+    [TestCase(@"""when"":{""seasons"":[""spring""],""times"":[[""sunrise"",""sunrise+120""]]}", false)]
+    [TestCase(@"""when"":{""any"":[{""seasons"":[""spring""]},{""times"":[[""dark"",2600]]}]}", false)]
+    [TestCase(@"""when"":{""any"":[{""seasons"":[""spring""]}],""weather"":[""rain""]}", true)]
+    [TestCase(@"""when"":{""times"":[[""noon"",1200]]}", true)]
+    public void Rule_WhenSupportsAnchorsAndAnyAndRejectsMixing(string when, bool error)
+    {
+        string template = _template.Replace(@"""when"":{""seasons"":[""spring""]}", when, StringComparison.Ordinal);
+        Dictionary<string, string> files = new()
+        {
+            [ContentPaths.Bird(Root, "test")] = FixtureSpecies,
+            [ContentPaths.Template(Root, "base")] = template,
+        };
+
+        (_, IReadOnlyList<ValidationIssue> issues, _, _) = ContentLoader.LoadBird(Root, "test", new Dictionary<string, IReadOnlyList<string>>(),
+            ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Definitions, path => files.GetValueOrDefault(path), _ => true);
+
+        Assert.That(issues.Any(issue => issue.Severity == IssueSeverity.Error && issue.Path.Contains(".when", StringComparison.Ordinal)), Is.EqualTo(error));
     }
 
     [TestCase("great_tit", "land_idle", "SpringBirds")]
@@ -283,8 +392,17 @@ public class CompositionTests
     public void Diver_ReplicaDivesHidesAndSnapsToTheResurfacePosition()
     {
         BirdComposition composition = Load(Diver).Bird!.Rules.Single().Composition!;
-        WaterLandBird replica = new() { BirdID = 5, State = BehaviorStatus.Swimming, IsReplica = true, Services = TestBirds.Services, Composition = composition,
-            sprite = new AnimatedSprite(), IdleRevision = 1, IdleCue = new IdleCue(0, "dive", 3) };
+        WaterLandBird replica = new()
+        {
+            BirdID = 5,
+            State = BehaviorStatus.Swimming,
+            IsReplica = true,
+            Services = TestBirds.Services,
+            Composition = composition,
+            sprite = new AnimatedSprite(),
+            IdleRevision = 1,
+            IdleCue = new IdleCue(0, "dive", 3)
+        };
         GameTime tick = new(TimeSpan.Zero, TimeSpan.FromMilliseconds(16));
 
         replica.update(tick, null!);
@@ -396,8 +514,17 @@ public class CompositionTests
             @"""pick"":{""walk"":3,""peck"":1}", @"""pick"":{""sing"":1}", StringComparison.Ordinal).Replace(@"""sounds"":{",
             @"""actions"":{""sing"":{""do"":""stay"",""clip"":""peck"",""sound"":""song""}},""sounds"":{""song"":""crow"",", StringComparison.Ordinal));
         Assert.That(issues.Where(issue => issue.Severity != IssueSeverity.Info), Is.Empty);
-        LandBird bird = new() { BirdID = 42, State = BehaviorStatus.Stopped, IsReplica = true, Services = TestBirds.Services,
-            Composition = definition!.Rules.Single().Composition!, sprite = new AnimatedSprite(), IdleRevision = 1, IdleCue = new IdleCue(0, "sing", 3) };
+        LandBird bird = new()
+        {
+            BirdID = 42,
+            State = BehaviorStatus.Stopped,
+            IsReplica = true,
+            Services = TestBirds.Services,
+            Composition = definition!.Rules.Single().Composition!,
+            sprite = new AnimatedSprite(),
+            IdleRevision = 1,
+            IdleCue = new IdleCue(0, "sing", 3)
+        };
 
         bird.update(new GameTime(TimeSpan.Zero, TimeSpan.FromMilliseconds(16)), null!);
 

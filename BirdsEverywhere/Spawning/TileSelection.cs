@@ -93,17 +93,20 @@ public static class TileSelection
         for (int group = 0; group < groups; group++)
         {
             List<(string Role, string Stage)>? roles = null;
+            int required = 0;
             if (family is not null)
             {
-                roles = new();
+                List<(string Role, string Stage, bool Required)> drawn = new();
                 foreach ((string role, GroupMember member) in layout.Members!)
                 {
                     int count = Utils.NextInclusive(random, member.Count.Min, member.Count.Max);
                     for (int index = 0; index < count; index++)
                     {
-                        roles.Add((role, member.Stage));
+                        drawn.Add((role, member.Stage, member.Required));
                     }
                 }
+                required = drawn.Count(entry => entry.Required);
+                roles = drawn.OrderByDescending(entry => entry.Required).Select(entry => (entry.Role, entry.Stage)).ToList();
             }
             int size = roles?.Count ?? Utils.NextInclusive(random, groupSize.Min, groupSize.Max);
             List<Vector2> members = new();
@@ -121,7 +124,6 @@ public static class TileSelection
             }
 
             Vector2 origin = members[0];
-            starts.Add(origin);
             if (layout.Formation == Formation.Line)
             {
                 Vector2 direction = _lineDirections[random.Next(_lineDirections.Length)];
@@ -151,6 +153,11 @@ public static class TileSelection
                     }
                 }
             }
+            if (members.Count < required)
+            {
+                continue;
+            }
+            starts.Add(origin);
             tiles.AddRange(members);
             if (roles is not null)
             {

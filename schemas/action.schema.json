@@ -23,7 +23,9 @@
                         "flyOff",
                         "runToBush",
                         "swim",
-                        "dive"
+                        "dive",
+                        "swimAway",
+                        "follow"
                     ]
                 },
                 "clip": {
@@ -70,6 +72,16 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 10
+                },
+                "target": {
+                    "description": "follow: <kind>:<arg>, e.g. groupRole:parent.",
+                    "type": "string",
+                    "pattern": "^[a-zA-Z]+:.+$"
+                },
+                "speedFactor": {
+                    "description": "follow: multiple of the target's speed.",
+                    "type": "number",
+                    "minimum": 0
                 }
             },
             "allOf": [
@@ -166,7 +178,10 @@
                     "if": {
                         "properties": {
                             "do": {
-                                "const": "runToBush"
+                                "enum": [
+                                    "runToBush",
+                                    "swimAway"
+                                ]
                             }
                         }
                     },
@@ -174,6 +189,21 @@
                         "required": [
                             "clip",
                             "speed"
+                        ]
+                    }
+                },
+                {
+                    "if": {
+                        "properties": {
+                            "do": {
+                                "const": "follow"
+                            }
+                        }
+                    },
+                    "then": {
+                        "required": [
+                            "target",
+                            "speedFactor"
                         ]
                     }
                 }
@@ -231,6 +261,12 @@
                 },
                 "radius": {
                     "$ref": "#/$defs/action/properties/radius"
+                },
+                "target": {
+                    "$ref": "#/$defs/action/properties/target"
+                },
+                "speedFactor": {
+                    "$ref": "#/$defs/action/properties/speedFactor"
                 },
                 "extends": {
                     "description": "New action ids only: '<set>.<id>' of a shared action (e.g. forage.dive) this one overrides.",

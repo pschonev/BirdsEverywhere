@@ -62,7 +62,7 @@ public abstract class TileSpawner : Spawner
             foreach (var member in TileSelection.Family(location, Restrict(rule, fishArea), rule.GroupCount, random, family,
                 avoid: avoid, speciesDistance: rule.Params.SpeciesDistance ?? TileSelection.MinSpeciesDistance))
             {
-                BirdPlacement bird = Place(data, rule, member.Tile, null, random);
+                BirdPlacement bird = Place(data, rule, member.Tile, null, random, family.Members![member.Role].Textures);
                 placed.Add(bird with { GroupId = member.Group, Role = member.Role, Stage = member.Stage, Composition = rule.Stages?[member.Stage] });
             }
             monitor.Log($"Planned {placed.Count} {data.Id.Value} at {location.Name}.", LogLevel.Debug);
@@ -99,7 +99,10 @@ public abstract class Spawner
 
     public abstract bool IsStillValid(GameLocation location, BirdPlacement placement);
 
-    protected static BirdPlacement Place(BirdDefinition data, SpawnRule rule, Vector2 tile, Vector2? featureTile, Random random) =>
-        new(data.Id.Value, rule.Id, rule.BirdType.Value, rule.SpawnPattern.Value, tile, featureTile, rule.When.Times, rule.PickTexture(data.Id, random), random.Next());
+    /// <summary>Times start empty (all day); the daily plan fills in the day's windows.</summary>
+    protected static BirdPlacement Place(BirdDefinition data, SpawnRule rule, Vector2 tile, Vector2? featureTile, Random random,
+        IReadOnlyDictionary<string, int>? textures = null) =>
+        new(data.Id.Value, rule.Id, rule.BirdType.Value, rule.SpawnPattern.Value, tile, featureTile, Array.Empty<IntRange>(),
+            rule.PickTexture(data.Id, random, textures), random.Next());
 }
 

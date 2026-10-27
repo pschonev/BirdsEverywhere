@@ -472,13 +472,13 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 
 **Prototype species once art exists** ([table](#backlog)): mallard (male, female, ducklings; eclipse plumage in late summer).
 
-### Step 8: condition clauses, time anchors and family polish (planned)
+### Step 8: condition clauses, time anchors and family polish (implemented; compile/test verified, not tested in game)
 
-Design: [ARCHITECTURE.md → Condition clauses and time anchors](ARCHITECTURE.md#condition-clauses-and-time-anchors-planned-step-8). Needed for seasonal behaviors such as singing (spring all day, summer only after sunrise and around dusk) and for mallard families that must always include a parent.
+Design: [ARCHITECTURE.md → Condition clauses and time anchors](ARCHITECTURE.md#condition-clauses-and-time-anchors-step-8). Needed for seasonal behaviors such as singing (spring all day, summer only after sunrise and around dusk) and for mallard families that must always include a parent.
 
 **A. Condition clauses (`when.any`)**
 
-- `ConditionClause(Seasons, Weathers, Days, Times)`; `SpawnConditions(AnyOf)`; `MatchesDay`, `TimesOn(season, weather, day)`, `RareAction.Matches(IdleWorld)` over clauses. A plain `when` is one clause.
+- `ConditionClause(Seasons, Weathers, Days, Times)`; `SpawnConditions(Any)`; `MatchesDay`, `TimesOn(season, weather, day, anchors)`, `RareAction.Matches(IdleWorld)` over clauses; `ConditionParser` is the single parser. A plain `when` is one clause.
 - `DailySpawnPlan.Place` sets placement `Times` from `TimesOn`; `TileSpawner` stops reading `When.Times`; `RuleText` prints `OR`.
 - `ContentValidator`/`RoutineLoader`: one clause parser for rules and `rare.when`; `any` plus top-level fields is an error (including inherited ones); stage `extends` round-trips rare clauses.
 - Schemas: shared `dayClause`, `dependentSchemas` for the mixing rule.
@@ -486,8 +486,8 @@ Design: [ARCHITECTURE.md → Condition clauses and time anchors](ARCHITECTURE.md
 **B. Time anchors**
 
 - `times` bounds accept `HHMM` or `"sunrise|dusk|dark[+|-minutes]"`. `dusk` and `dark` resolve per location from `Game1.getStartingToGetDarkTime`/`getTrulyDarkTime`; `sunrise` is fixed at 0600.
-- Confirm both method signatures against 1.6.15 before coding. Resolve at evaluation time (spawn check, `rare` roll), not at load.
-- Move `nocturnal` to `[["dark", 2600]]`; add a day-1 coverage `Info` for windows that resolve empty.
+- Both method signatures confirmed against 1.6.15 (`GameLocation` in, `int` out). Resolved at evaluation time (spawn check, `rare` roll), not at load, via `GameTimeAnchors.For(location)`.
+- Night birds use `[["dark", 2600]]` (no shipped `nocturnal` template exists); day-1 coverage reports an `Info` for windows that resolve empty.
 
 **C. Family polish**
 
@@ -497,7 +497,7 @@ Design: [ARCHITECTURE.md → Condition clauses and time anchors](ARCHITECTURE.md
 
 **D. Housekeeping**
 
-- Every species sets a verified eBird `shorthand`; validator checks format and uniqueness; `ContentTests` asserts it (codes confirmed with the maintainer).
+- Every species sets a verified eBird `shorthand` (`blawoo1`, `blutit`, `coatit2`, `grypar`, `euhgul1`, plus `gretit1`); validator checks format and uniqueness; `ContentTests` asserts it.
 - `action.schema.json` gains `follow`, `swimAway`, `target`, `speedFactor`, covered by the schema/loader agreement table.
 
 **Tests:** OR matching and overlap counting; combined `TimesOn` (open-all-day clause wins); mixing error including an inherited `times`; seasonal `sing` rare entry with two clauses; anchor parsing, per-location resolution with a fake location and offset arithmetic (`sunrise+120` = 0800); required-role drop; role-texture fallback and unchanged RNG; unknown target kind; shorthand uniqueness; schema agreement cases for each new field.
@@ -517,7 +517,7 @@ The refactor is done when every box is checked. Phase sections hold the details;
 - [ ] Phase 9: in-game verification recorded in [MANUAL_TESTS.md](MANUAL_TESTS.md) for Phases 3–8 (content and spawning, registries, behaviors per bird type, observations, two-player sync, ownership handoff, late join, disconnect, day change) and the debug commands.
 - [ ] Phase 10 step 2: in-game check (see step 2), including whether the `"flip"` frame tags are visible.
 - [ ] Phase 10 steps 3–7: exit criteria met.
-- [ ] Phase 10 step 8: implemented and exit criteria met.
+- [ ] Phase 10 step 8: implemented (compile and unit tests pass); in-game and two-player checks still to be recorded.
 - [ ] Phase 9 smoke test and full pass recorded before release.
 
 ---

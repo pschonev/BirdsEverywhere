@@ -16,10 +16,12 @@ public sealed record SpawnRule(
     BirdComposition? Composition = null,
     IReadOnlyDictionary<string, BirdComposition>? Stages = null)
 {
-    public string PickTexture(BirdId bird, Random random)
+    /// <summary>Weighted pick over <paramref name="textures"/> (default: the rule's); one <c>Next</c> call either way.</summary>
+    public string PickTexture(BirdId bird, Random random, IReadOnlyDictionary<string, int>? textures = null)
     {
-        int choice = random.Next(Textures.Values.Sum());
-        foreach (KeyValuePair<string, int> texture in Textures)
+        textures ??= Textures;
+        int choice = random.Next(textures.Values.Sum());
+        foreach (KeyValuePair<string, int> texture in textures)
         {
             choice -= texture.Value;
             if (choice < 0)

@@ -3,23 +3,23 @@ namespace BirdsEverywhere.Domain;
 /// <summary>Resolved reactions of a rule. Only the <c>threat</c> trigger exists so far.</summary>
 public sealed record Reactions(ThreatReaction Threat, IReadOnlyList<ThreatAlternative>? Alternatives = null)
 {
-	public ThreatAlternative Select(ReactionContext context) =>
-		Alternatives?.FirstOrDefault(alternative => alternative.Condition.Matches(context))
-		?? new ThreatAlternative(new ReactionCondition(), Threat, null);
+    public ThreatAlternative Select(ReactionContext context) =>
+        Alternatives?.FirstOrDefault(alternative => alternative.Condition.Matches(context))
+        ?? new ThreatAlternative(new ReactionCondition(), Threat, null);
 }
 
 public sealed record ReactionContext(IReadOnlyCollection<string> GroupRoles, bool NearWater, Season Season, Weather Weather, int Time, string? Stage);
 
 public sealed record ReactionCondition(string? GroupHasRole = null, bool? NearWater = null, Season? Season = null,
-	IntRange? TimeOfDay = null, Weather? Weather = null, string? Stage = null)
+    IntRange? TimeOfDay = null, Weather? Weather = null, string? Stage = null)
 {
-	public bool Matches(ReactionContext context) =>
-		(GroupHasRole is null || context.GroupRoles.Contains(GroupHasRole))
-		&& (NearWater is null || context.NearWater == NearWater)
-		&& (Season is null || context.Season == Season)
-		&& (TimeOfDay is null || TimeOfDay.Value.Contains(context.Time))
-		&& (Weather is null || context.Weather == Weather)
-		&& (Stage is null || context.Stage == Stage);
+    public bool Matches(ReactionContext context) =>
+        (GroupHasRole is null || context.GroupRoles.Contains(GroupHasRole))
+        && (NearWater is null || context.NearWater == NearWater)
+        && (Season is null || context.Season == Season)
+        && (TimeOfDay is null || TimeOfDay.Value.Contains(context.Time))
+        && (Weather is null || context.Weather == Weather)
+        && (Stage is null || context.Stage == Stage);
 }
 
 public sealed record ThreatAlternative(ReactionCondition Condition, ThreatReaction Threat, ActionDefinition? Flee);

@@ -102,7 +102,7 @@ All domain types are records with read-only collections.
 |---|---|---|
 | `BirdDefinition` | Validated species: id, names (descriptions and optional local names live in `i18n/`), `IReadOnlyList<SpawnRule>` | `BirdData` (config half) |
 | `SpawnRule` | Fully merged rule: id, `SpawnConditions`, expanded location names, `SpawnPatternId`, `BirdTypeId`, group count and size (`IntRange`, inclusive), texture weights, selection weight | `SpawnData` |
-| `SpawnConditions` | Seasons, weathers, day ranges, time ranges; an empty set means "any". Planned (step 8): a list of `ConditionClause` alternatives, see [Condition clauses](#condition-clauses-and-time-anchors-planned-step-8) | `SpawnData` weather/day/time fields |
+| `SpawnConditions` | Seasons, weathers, day ranges, time ranges; an empty set means "any". A list of `ConditionClause` alternatives (step 8), see [Condition clauses](#condition-clauses-and-time-anchors-step-8) | `SpawnData` weather/day/time fields |
 | `DailySpawnPlan` | Per location: chosen bird, chosen rule, planned bird placements. Built once per day by the host | `DailySpawner` + `BirdData.currentSpawnData` |
 | `BirdPlacement` | Bird id, rule, `Tile` or `TerrainAnchor`, texture, seed | `SingleBirdSpawnParameters*` |
 | `TerrainAnchor` | Location name, tile, feature kind (`Tree`/`Bush`) | stored collection index |
@@ -149,8 +149,8 @@ A rule is one situation in which the bird can appear. `defaults` has the same fi
 | `when.seasons` | `["spring" \| "summer" \| "fall" \| "winter"]` | missing = any |
 | `when.weather` | `["sun" \| "rain" \| "storm" \| "snow" \| "wind" \| "greenRain"]` | today's weather at day start; festival and wedding days count as `sun`; missing = any |
 | `when.days` | `[[min, max], ...]` | day of month, 1–28, inclusive; missing = any |
-| `when.times` | `[[min, max], ...]` | game time `HHMM`, 600–2600, inclusive; gates spawning only; missing = any. Planned: bounds may be [anchors](#condition-clauses-and-time-anchors-planned-step-8) such as `"dusk-60"` |
-| `when.any` | `[ { seasons?, weather?, days?, times? }, ... ]` | planned (step 8): alternatives, OR'ed; each clause ANDs its own fields; replaces the top-level fields, which may not be combined with `any` |
+| `when.times` | `[[min, max], ...]` | game time `HHMM`, 600–2600, inclusive; gates spawning only; missing = any. Bounds may be [anchors](#condition-clauses-and-time-anchors-step-8) such as `"dusk-60"` |
+| `when.any` | `[ { seasons?, weather?, days?, times? }, ... ]` | alternatives, OR'ed (step 8); each clause ANDs its own fields; replaces the top-level fields, which may not be combined with `any` |
 | `locations` | `["Forest", "Farm_Riverland", "Forest:River", "@coast", ...]` | location names or `@group` references, expanded at load; `Farm_<type>` = Farm on that farm type; `:Name` = fish area of the location |
 | `spawnPattern` | registry id | where birds are placed, e.g. `SpawnableGroundSpawner` |
 | `birdType` | registry id | critter class, e.g. `LandBird` |
@@ -193,7 +193,9 @@ Consequences:
 - **Spawning:** when a peer enters a location in the rule's `locations`, or a `times` window opens while a player is in it, birds spawn if the current time is inside `times`.
 - **After spawning** a bird stays until it flees, the location unloads, or the day ends. A closing `times` window never removes birds, so players can still observe them or call others over in co-op.
 
-### Condition clauses and time anchors (planned, step 8)
+### Condition clauses and time anchors (step 8)
+
+Implemented; compile and unit-test verified, not yet tested in game.
 
 One condition type serves spawn rules and routine `rare.when`.
 
@@ -209,9 +211,9 @@ One condition type serves spawn rules and routine `rare.when`.
 }
 ```
 
-- `SpawnConditions(ImmutableArray<ConditionClause> AnyOf)`; `ConditionClause(Seasons, Weathers, Days, Times)`. A plain `when` is a single clause, so existing files are unchanged. An empty list or an empty clause means "any".
+- `SpawnConditions(ImmutableArray<ConditionClause> Any)`; `ConditionClause(Seasons, Weathers, Days, Times)`; parsed by `ConditionParser`. A plain `when` is a single clause, so existing files are unchanged. An empty clause means "any"; `any: []` is a schema error.
 - `MatchesDay` is true if any clause matches season, weather and day. Overlapping clauses count once; the rule's selection weight is not multiplied.
-- `TimesOn(season, weather, day)` is the union of the matching clauses' windows; if a matching clause has no `times`, the rule is open all day. The planner puts that result on each placement, so `TileSpawner` no longer reads `When.Times`.
+- `TimesOn(season, weather, day, anchors)` is the union of the matching clauses' windows; if a matching clause has no `times`, the rule is open all day. The planner puts that result on each placement, so `TileSpawner` no longer reads `When.Times`.
 - With `any`, top-level `seasons`, `weather`, `days` and `times` are an error, including values inherited from a template or `defaults`. The message says to set the inherited field to `null` and move it into the clauses.
 - Diagnostics (`RuleText`) print clauses joined by ` OR `.
 
@@ -226,8 +228,9 @@ One condition type serves spawn rules and routine `rare.when`.
 - Anchors resolve against the bird's location when a window is evaluated (spawn check, `rare` roll), so modded or per-location dark times are respected. Offsets are minutes of clock time, added on a minutes-since-midnight basis (`sunrise+120` = 0800, not 0720) and snapped to the game's 10-minute step.
 - A modded dawn cannot be detected; windows anchored to `sunrise` assume 0600.
 - A window whose end is before its start after resolving is empty and reported at `Info` in the day-1 coverage report.
-- Signatures of the `Game1` methods must be confirmed against 1.6.15 when implementing (location parameter, return type); `Game1.isDarkOut` is not used.
-- Hardcoded `[[2000, 2600]]` in `nocturnal` becomes `[["dark", 2600]]` once anchors exist.
+- Both `Game1` methods take a `GameLocation` and return `int` (verified against 1.6.15); `Game1.isDarkOut` is not used. `GameTimeAnchors.For(location)` builds the `TimeAnchors`; `TimeAnchors.Default` (0600, 1800, 2000) applies where no location is known.
+- Night birds use `[["dark", 2600]]` instead of a hardcoded `[[2000, 2600]]`.
+- Also implemented in step 8: group member `required` (placed first; the group is dropped if a required role cannot be placed) and member `textures` (weight map, falling back to the rule's); `follow` and `swimAway` actions with a typed `target` (`groupRole:<role>`) and `speedFactor`; the bird `shorthand` field (`^[a-z]{5,6}[0-9]?$`, unique across birds).
 
 ### Validation
 
@@ -235,7 +238,7 @@ Structure is enforced by Newtonsoft during deserialization of the merged object:
 
 | Severity | Checks | Runtime | Tests |
 |---|---|---|---|
-| Error | unknown key, missing required field, wrong type; identity field in a template; missing template or cycle (full chain); `id` ≠ file name; unknown season or weather; `min > max`; days outside 1–28; times outside 600–2600 (anchor offsets are not range-checked); planned (step 8): `when.any` combined with top-level condition fields (clause errors use paths like `.when.any[1].times`), unknown time anchor or malformed anchor string, group member `required` with count min < 1, unknown action target kind, a shorthand that is missing, malformed or not unique; `weight` or texture weight ≤ 0; unknown `spawnPattern`, `birdType`, or `@group`; missing texture file; a bird `rules.<id>` without `when` that matches no inherited rule (likely typo) | `Error` log, bird skipped, other birds load | fail |
+| Error | unknown key, missing required field, wrong type; identity field in a template; missing template or cycle (full chain); `id` ≠ file name; unknown season or weather; `min > max`; days outside 1–28; times outside 600–2600 (anchor offsets are not range-checked); `when.any` combined with top-level condition fields (clause errors use paths like `.when.any[1].times`), unknown time anchor or malformed anchor string, group member `required` with count min < 1, unknown action target kind, a shorthand that is missing, malformed or not unique; `weight` or texture weight ≤ 0; unknown `spawnPattern`, `birdType`, or `@group`; missing texture file; a bird `rules.<id>` without `when` that matches no inherited rule (likely typo) | `Error` log, bird skipped, other birds load | fail |
 | Warn | bird `defaults` value shadowed by an inherited rule; bird with no rules | `Warn` log | fail unless allow-listed |
 | Info | bird `rules.<id>` with `when` that matches no inherited rule (new rule); season/weather combinations with no eligible rule | `Info` log | ignored |
 | Runtime only | location name unknown to the game | `Warn`, location dropped from the rule | — |
@@ -410,13 +413,13 @@ Weather-dependent behavior, `herring_gull/herring_gull.json`. On a stormy winter
 }
 ```
 
-Night birds, `templates/nocturnal.json` (its `when.times` replaces the base list) and `tawny_owl/tawny_owl.json`:
+Night birds, an example `templates/nocturnal.json` (its `when.times` replaces the base list) and `tawny_owl/tawny_owl.json`:
 
 ```json
 {
   "template": "base_bird",
   "defaults": {
-    "when": { "times": [[2000, 2600]] },
+    "when": { "times": [["dark", 2600]] },
     "spawnPattern": "TreeTrunkSpawner",
     "birdType": "TreeTrunkBird",
     "groupCount": [1, 1],
@@ -515,7 +518,7 @@ Planned design for [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds).
 | Actions | parameters implemented (step 3b); custom `stay` ids implemented (3c) | `assets/actions/*.json` per bird type, rule field `actions` (per-field overrides, plus new `stay` ids with a clip on Land/WaterLand that the routine can pick), `Content/ActionLoader`, `BirdCritter.Action(id)`/`ResolveIdle`; the class still decides when each built-in id runs |
 | Sound playback | implemented (step 3d) | `audio:<name>` → `assets/audio/<name>.ogg\|.wav` registered via `Data/AudioChanges`; `BirdCritter.PlaySound` uses `PlayLocal` at the bird's tile, `ModConfig.SoundVolume`, rule `soundCooldownMs`; local cosmetic on every peer |
 | Routine `rare` | implemented (step 5) | `RareAction` with `when` (season, weather, day, time) via `BirdServices.World`; `Routine.Choose` |
-| Condition clauses (`when.any`), time anchors | planned (step 8) | [Condition clauses](#condition-clauses-and-time-anchors-planned-step-8); `SpawnConditions`, `RareAction.Matches`, `DailySpawnPlan.Place`, `ContentValidator`, schemas |
+| Condition clauses (`when.any`), time anchors | implemented (step 8; not tested in game) | [Condition clauses](#condition-clauses-and-time-anchors-step-8); `SpawnConditions`, `ConditionParser`, `TimeBound`, `GameTimeAnchors`, `RareAction.Matches`, `DailySpawnPlan`, `ContentValidator`, schemas |
 | Routine `cooldown` | planned | rejected as an unknown field |
 | Forage primitives | `dive` and the `splash` clip event implemented (step 5); worm pull and fish strike are `stay` clips in `assets/actions/forage.json` | `WaterLandBird` dive cycle, `BirdTypeProfile.CustomPrimitives`, action `extends` |
 | Group placement | implemented (step 6): `spawnParams.group` (`cluster`, `scattered`, `line`), `speciesDistance` | `TileSelection.Grouped`; `perched`, `near`/`avoid`, `space`, `packing` deferred |

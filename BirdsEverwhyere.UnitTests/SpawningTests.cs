@@ -37,10 +37,13 @@ public class SpawningTests
     public void SpawnTarget_ForceBypassesConditionsButNotMissingLocations()
     {
         (BirdDefinition bird, SpawnRule rule) = MakeBird();
-        BirdDefinition winterBird = bird with { Rules = ImmutableArray.Create(rule with
+        BirdDefinition winterBird = bird with
         {
-            When = rule.When with { Seasons = ImmutableArray.Create(Season.Winter) }
-        }) };
+            Rules = ImmutableArray.Create(rule with
+            {
+                When = new SpawnConditions(ImmutableArray.Create(ConditionClause.Unconditional with { Seasons = ImmutableArray.Create(Season.Winter) }))
+            })
+        };
         BirdSelector selector = new("blue_tit", "spring", "Farm", true);
         Assert.That(SpawnTarget.TryResolve(winterBird, selector, "Forest", Season.Spring, Weather.Sun, 1,
             habitat => habitat.Location is "Forest" or "Farm", new Random(1), out SpawnAssignment? target, out _,
@@ -75,8 +78,7 @@ public class SpawningTests
 
     private static (BirdDefinition Bird, SpawnRule Rule) MakeBird(string pattern = "GroundSpawner", SpawnParams? spawnParams = null)
     {
-        SpawnRule rule = new("spring", new SpawnConditions(ImmutableArray<Season>.Empty, ImmutableArray<Weather>.Empty,
-            ImmutableArray<IntRange>.Empty, ImmutableArray<IntRange>.Empty), ImmutableArray.Create("Forest"),
+        SpawnRule rule = new("spring", SpawnConditions.Always, ImmutableArray.Create("Forest"),
             new SpawnPatternId(pattern), new BirdTypeId("LandBird"), new IntRange(2, 2), new IntRange(3, 3),
             new Dictionary<string, int> { [""] = 1 }, 1, spawnParams ?? SpawnParams.None);
         return (new BirdDefinition(new BirdId("blue_tit"), "Blue Tit", "Cyanistes caeruleus", ImmutableArray.Create(rule)), rule);
@@ -266,6 +268,43 @@ public class SpawningTests
     }
 
     [Test]
+    public void Family_RequiredRolePlacedFirstAndGroupDroppedWithoutIt()
+    {
+        GroupLayout Layout(bool childRequired, int spacing) => new(Formation.Cluster, 6, spacing, 0, new Dictionary<string, GroupMember>
+        {
+            ["duckling"] = new(new IntRange(2, 2), "young", childRequired),
+            ["parent"] = new(new IntRange(1, 1), "adult", true),
+        });
+
+        for (int seed = 0; seed < 20; seed++)
+        {
+            var normal = TileSelection.Family(new FakeLocation(), Condition.IsValidGroundTile, new IntRange(1, 1), new Random(seed), Layout(false, 1));
+            Assert.That(normal.Count, Is.GreaterThan(0), $"seed {seed}");
+            Assert.That(normal[0].Role, Is.EqualTo("parent"), $"seed {seed}: required role takes the start tile");
+
+            var crowded = TileSelection.Family(new FakeLocation(), Condition.IsValidGroundTile, new IntRange(1, 1), new Random(seed), Layout(true, 100));
+            Assert.That(crowded, Is.Empty, $"seed {seed}: required members cannot all be placed, so the group is dropped");
+
+            var parentOnly = TileSelection.Family(new FakeLocation(), Condition.IsValidGroundTile, new IntRange(1, 1), new Random(seed), Layout(false, 100));
+            Assert.That(parentOnly.Select(member => member.Role), Is.EqualTo(new[] { "parent" }), $"seed {seed}: optional members may be left out");
+        }
+    }
+
+    [Test]
+    public void PickTexture_UsesMemberWeightsOrFallsBackToRule()
+    {
+        (_, SpawnRule rule) = MakeBird();
+        Dictionary<string, int> male = new() { ["male"] = 1 };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rule.PickTexture(new BirdId("blue_tit"), new Random(1), male), Is.EqualTo("blue_tit_male"));
+            Assert.That(rule.PickTexture(new BirdId("blue_tit"), new Random(1), null), Is.EqualTo("blue_tit"));
+            Assert.That(rule.PickTexture(new BirdId("blue_tit"), new Random(1)), Is.EqualTo("blue_tit"));
+        });
+    }
+
+    [Test]
     public void Family_GroupsFromSeparateAssignmentsStayDistinct()
     {
         BirdPlacement Member(int? group) => new("duck", "spring", "WaterLandBird", "WaterSpawner", Vector2.Zero,
@@ -347,8 +386,7 @@ public class SpawningTests
 
     private static BirdDefinition PlannerBird(string id, Season season, params string[] locations)
     {
-        SpawnRule rule = new("r", new SpawnConditions(ImmutableArray.Create(season), ImmutableArray<Weather>.Empty,
-            ImmutableArray<IntRange>.Empty, ImmutableArray<IntRange>.Empty), locations.ToImmutableArray(),
+        SpawnRule rule = new("r", new SpawnConditions(ImmutableArray.Create(ConditionClause.Unconditional with { Seasons = ImmutableArray.Create(season) })), locations.ToImmutableArray(),
             new SpawnPatternId("GroundSpawner"), new BirdTypeId("LandBird"), new IntRange(1, 1), new IntRange(1, 1),
             new Dictionary<string, int> { [""] = 1 }, 1, SpawnParams.None);
         return new BirdDefinition(new BirdId(id), id, "", ImmutableArray.Create(rule));

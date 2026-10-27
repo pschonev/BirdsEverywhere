@@ -23,16 +23,16 @@ internal class CollectionsPageWithBirds : CollectionsPage
         _hoverText = reflection.GetField<string>(this, "hoverText");
         _value = reflection.GetField<int>(this, "value");
         _hoverItem = reflection.GetField<Item?>(this, "hoverItem");
-        this.backButton = cp.backButton;
-        this.forwardButton = cp.forwardButton;
-        this.sideTabs = cp.sideTabs;
-        this.currentTab = cp.currentTab;
-        this.currentPage = cp.currentPage;
-        this.secretNoteImage = cp.secretNoteImage;
-        this.collections = cp.collections;
-        this.secretNotesData = cp.secretNotesData;
-        this.secretNoteImageTexture = cp.secretNoteImageTexture;
-        this.letterviewerSubMenu = cp.letterviewerSubMenu;
+        backButton = cp.backButton;
+        forwardButton = cp.forwardButton;
+        sideTabs = cp.sideTabs;
+        currentTab = cp.currentTab;
+        currentPage = cp.currentPage;
+        secretNoteImage = cp.secretNoteImage;
+        collections = cp.collections;
+        secretNotesData = cp.secretNotesData;
+        secretNoteImageTexture = cp.secretNoteImageTexture;
+        letterviewerSubMenu = cp.letterviewerSubMenu;
     }
 
     public override void performHoverAction(int x, int y)

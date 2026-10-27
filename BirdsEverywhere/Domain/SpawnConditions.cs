@@ -2,16 +2,34 @@ using System.Collections.Immutable;
 
 namespace BirdsEverywhere.Domain;
 
-public sealed record SpawnConditions(
-    ImmutableArray<Season> Seasons,
-    ImmutableArray<Weather> Weathers,
-    ImmutableArray<IntRange> Days,
-    ImmutableArray<IntRange> Times)
+/// <summary>Clauses of which any one may hold. No clauses, or an unconditional clause, means unconditional; overlapping clauses count once.</summary>
+public sealed record SpawnConditions(ImmutableArray<ConditionClause> Any)
 {
-    public bool MatchesDay(Season season, Weather weather, int day) =>
-        (Seasons.IsEmpty || Seasons.Contains(season))
-        && (Weathers.IsEmpty || Weathers.Contains(weather))
-        && (Days.IsEmpty || Days.Any(range => range.Contains(day)));
+    public static readonly SpawnConditions Always = new(ImmutableArray<ConditionClause>.Empty);
 
-    public bool MatchesTime(int time) => Times.IsEmpty || Times.Any(range => range.Contains(time));
+    public bool IsUnconditional => Any.IsEmpty || Any.Any(clause => clause.IsUnconditional);
+
+    public bool MatchesDay(Season season, Weather weather, int day) =>
+        Any.IsEmpty || Any.Any(clause => clause.MatchesDay(season, weather, day));
+
+    public bool Matches(Season season, Weather weather, int day, int time, TimeAnchors anchors) =>
+        Any.IsEmpty || Any.Any(clause => clause.MatchesDay(season, weather, day) && clause.MatchesTime(time, anchors));
+
+    /// <summary>
+    /// Windows in which the rule is active on this day: empty means all day (a matching clause has no times), otherwise the matching clauses'
+    /// windows resolved at the anchors. A window the anchors leave empty is kept (<c>Min &gt; Max</c>) and never contains a time.
+    /// </summary>
+    public IReadOnlyList<IntRange> TimesOn(Season season, Weather weather, int day, TimeAnchors anchors)
+    {
+        List<IntRange> windows = new();
+        foreach (ConditionClause clause in Any.Where(clause => clause.MatchesDay(season, weather, day)))
+        {
+            if (clause.Times.IsEmpty)
+            {
+                return Array.Empty<IntRange>();
+            }
+            windows.AddRange(clause.Times.Select(range => range.Resolve(anchors)));
+        }
+        return windows;
+    }
 }

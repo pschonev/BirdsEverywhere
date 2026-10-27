@@ -2,6 +2,7 @@
   "id": "black_woodpecker",
   "name": "Black Woodpecker",
   "scName": "Dryocopus martius",
+  "shorthand": "blawoo1",
   "template": "all_year_garden",
   "defaults": {
     "spawnPattern": "TreeTrunkSpawner",

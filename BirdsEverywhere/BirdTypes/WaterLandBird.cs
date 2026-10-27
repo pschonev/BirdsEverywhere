@@ -30,8 +30,13 @@ internal sealed class WaterLandBird : BirdCritter
 
     internal override BirdState CaptureExtras(BirdState state) => state with
     {
-        Hidden = Hidden, DiveTimer = DiveTimer, DiveRadius = DiveRadius, FollowRole = _followRole, FollowSpeedFactor = _followSpeedFactor,
-        SwimDirection = _swimDirection, ActiveFlee = _activeFlee,
+        Hidden = Hidden,
+        DiveTimer = DiveTimer,
+        DiveRadius = DiveRadius,
+        FollowRole = _followRole,
+        FollowSpeedFactor = _followSpeedFactor,
+        SwimDirection = _swimDirection,
+        ActiveFlee = _activeFlee,
     };
 
     internal override void RestoreExtras(BirdState state)

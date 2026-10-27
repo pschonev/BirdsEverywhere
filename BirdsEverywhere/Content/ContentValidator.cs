@@ -14,7 +14,21 @@ public static class ContentValidator
         ["BushBird"] = "BushSpawner",
     };
 
-    private static GroupLayout? Group(SpawnRuleJson rule, string path, Action<IssueSeverity, string, string> report)
+    private static readonly System.Text.RegularExpressions.Regex _shorthandFormat = new("^[a-z]{5,6}[0-9]?$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    /// <summary>Kinds an action <c>target</c> (<c>kind:arg</c>) may name; <c>food</c> is reserved for feeding and not yet usable.</summary>
+    private static readonly string[] _targetKinds = { "groupRole" };
+
+    /// <summary>One error per bird whose shorthand another bird already uses (birds in id order).</summary>
+    public static IReadOnlyList<ValidationIssue> DuplicateShorthands(IEnumerable<BirdDefinition> birds) =>
+        birds.Where(bird => bird.Shorthand is not null).OrderBy(bird => bird.Id.Value, StringComparer.Ordinal)
+            .GroupBy(bird => bird.Shorthand!, StringComparer.Ordinal).Where(group => group.Count() > 1)
+            .SelectMany(group => group.Skip(1).Select(bird => new ValidationIssue(IssueSeverity.Error, $"{bird.Id.Value}/{bird.Id.Value}.json", bird.Id.Value, "$.shorthand", "",
+                $"Shorthand '{group.Key}' is already used by {group.First().Id.Value}.")))
+            .ToList();
+
+    private static GroupLayout? Group(SpawnRuleJson rule, string path, Func<string, string> texturePath, Func<string, bool> textureExists,
+        Action<IssueSeverity, string, string> report)
     {
         if (rule.SpawnParams?.Group is not { } group)
         {
@@ -57,7 +71,32 @@ public static class ContentValidator
                     report(IssueSeverity.Error, memberPath, "Role and stage must not be empty.");
                     continue;
                 }
-                members[role] = new GroupMember(ValidateRange(member.Count, memberPath + ".count", 1, 20, report), member.Stage);
+                IntRange count = ValidateRange(member.Count, memberPath + ".count", 1, 20, report);
+                if (member.Required && member.Count is { Length: 2 } && member.Count[0] < 1)
+                {
+                    report(IssueSeverity.Error, memberPath + ".count", "A required role needs a count minimum of at least 1.");
+                }
+                Dictionary<string, int>? memberTextures = null;
+                if (member.Textures is { } configuredTextures)
+                {
+                    if (configuredTextures.Count == 0)
+                    {
+                        report(IssueSeverity.Error, memberPath + ".textures", "At least one texture is required when textures is given.");
+                    }
+                    foreach ((string key, int weight) in configuredTextures)
+                    {
+                        if (weight <= 0)
+                        {
+                            report(IssueSeverity.Error, memberPath + ".textures." + key, "Texture weight must be positive.");
+                        }
+                        if (!textureExists(texturePath(key)))
+                        {
+                            report(IssueSeverity.Error, memberPath + ".textures." + key, $"Texture not found: {texturePath(key)}.");
+                        }
+                    }
+                    memberTextures = new Dictionary<string, int>(configuredTextures, StringComparer.Ordinal);
+                }
+                members[role] = new GroupMember(count, member.Stage, member.Required, memberTextures);
                 if (rule.Stages?.ContainsKey(member.Stage) != true)
                 {
                     report(IssueSeverity.Error, memberPath + ".stage", $"Unknown stage '{member.Stage}'.");
@@ -299,8 +338,22 @@ public static class ContentValidator
                     report(IssueSeverity.Error, actionPath + ".do", $"{rule.BirdType} cannot do '{action.Do}' in a custom action. Allowed: {string.Join(", ", profile.CustomPrimitives)}.");
                     continue;
                 }
-                if (action.Do == "follow" && (action.Target is not { } target || !target.StartsWith("groupRole:", StringComparison.Ordinal)
-                    || rule.SpawnParams?.Group?.Members?.ContainsKey(target["groupRole:".Length..]) != true))
+                if (action.Target is { } actionTarget)
+                {
+                    string kind = actionTarget.Split(':', 2)[0];
+                    string argument = actionTarget.Contains(':') ? actionTarget[(kind.Length + 1)..] : "";
+                    if (!_targetKinds.Contains(kind) || argument.Length == 0)
+                    {
+                        report(IssueSeverity.Error, actionPath + ".target", $"Target must be kind:arg with kind one of {string.Join(", ", _targetKinds)}.");
+                        continue;
+                    }
+                    if (kind == "groupRole" && rule.SpawnParams?.Group?.Members?.ContainsKey(argument) != true)
+                    {
+                        report(IssueSeverity.Error, actionPath + ".target", $"Role '{argument}' is not one of this family's members.");
+                        continue;
+                    }
+                }
+                if (action.Do == "follow" && action.Target is null)
                 {
                     report(IssueSeverity.Error, actionPath + ".target", "Follow needs a groupRole:<role> target in this family's members.");
                     continue;
@@ -403,6 +456,10 @@ public static class ContentValidator
         {
             Report(IssueSeverity.Error, "$.shorthand", "Must not be empty when specified.");
         }
+        else if (json.Shorthand is not null && !_shorthandFormat.IsMatch(json.Shorthand))
+        {
+            Report(IssueSeverity.Error, "$.shorthand", "Must be 5-6 lowercase letters plus an optional digit, like the eBird shorthand (gretit1).");
+        }
 
         if (json.Rules.Count == 0)
         {
@@ -497,35 +554,14 @@ public static class ContentValidator
                 }
             }
 
-            SpawnWhenJson when = rule.When ?? new SpawnWhenJson();
-            ImmutableArray<Season>.Builder seasons = ImmutableArray.CreateBuilder<Season>();
-            foreach (string season in when.Seasons ?? new List<string>())
+            SpawnConditions when = ConditionParser.Parse(rule.When, path + ".when", (errorPath, message) => Report(IssueSeverity.Error, errorPath, message));
+            foreach ((ConditionClause clause, int clauseIndex) in when.Any.Select((clause, index) => (clause, index)))
             {
-                if (Enum.TryParse(season, ignoreCase: true, out Season parsed) && Enum.IsDefined(parsed))
+                foreach (TimeRange window in clause.Times.Where(range => range.Resolve(TimeAnchors.Default).Min > range.Resolve(TimeAnchors.Default).Max))
                 {
-                    seasons.Add(parsed);
-                }
-                else
-                {
-                    Report(IssueSeverity.Error, path + ".when.seasons", $"Unknown season '{season}'.");
+                    Report(IssueSeverity.Info, $"{path}.when{(when.Any.Length > 1 ? $".any[{clauseIndex}]" : "")}.times", $"Window {window} is empty at the default anchors; it is empty on days when the anchors leave no gap.");
                 }
             }
-
-            ImmutableArray<Weather>.Builder weather = ImmutableArray.CreateBuilder<Weather>();
-            foreach (string condition in when.Weather ?? new List<string>())
-            {
-                if (Enum.TryParse(condition, ignoreCase: true, out Weather parsed) && Enum.IsDefined(parsed))
-                {
-                    weather.Add(parsed);
-                }
-                else
-                {
-                    Report(IssueSeverity.Error, path + ".when.weather", $"Unknown weather '{condition}'.");
-                }
-            }
-
-            ImmutableArray<IntRange> days = ValidateRanges(when.Days, path + ".when.days", 1, 28, Report);
-            ImmutableArray<IntRange> times = ValidateRanges(when.Times, path + ".when.times", 600, 2600, Report);
             IntRange? shoreDistance = rule.SpawnParams?.ShoreDistance is int[] shore
                 ? ValidateRange(shore, path + ".spawnParams.shoreDistance", 0, SpawnParams.MaxShoreDistance, Report)
                 : null;
@@ -536,7 +572,8 @@ public static class ContentValidator
                     ? $"{rule.BirdType} needs a tile spawn pattern, not {rule.SpawnPattern}."
                     : $"{rule.BirdType} needs {featurePattern}, not {rule.SpawnPattern}.");
             }
-            GroupLayout? group = Group(rule, path + ".spawnParams", Report);
+            string bundleRoot = Path.GetDirectoryName(Path.GetDirectoryName(file)!)!;
+            GroupLayout? group = Group(rule, path + ".spawnParams", key => ContentPaths.Texture(bundleRoot, id, key), textureExists, Report);
             if (rule.Stages is { Count: > 0 } && group?.Members is not { Count: > 0 })
             {
                 Report(IssueSeverity.Error, path + ".stages", "Stages need group members.");
@@ -577,13 +614,7 @@ public static class ContentValidator
                             resolved["rare"] = JObject.FromObject(rare.ToDictionary(action => action.Id, action => new
                             {
                                 chance = action.Chance,
-                                when = new
-                                {
-                                    seasons = action.When.Seasons.Select(season => season.ToString()).ToArray(),
-                                    weather = action.When.Weathers.Select(weather => weather.ToString()).ToArray(),
-                                    days = action.When.Days.Select(range => new[] { range.Min, range.Max }).ToArray(),
-                                    times = action.When.Times.Select(range => new[] { range.Min, range.Max }).ToArray(),
-                                },
+                                when = ConditionParser.ToJson(action.When),
                             }));
                         }
                         JObject overrides = (JObject)inline.DeepClone();
@@ -607,7 +638,7 @@ public static class ContentValidator
                     }
                 }
             }
-            rules.Add(new SpawnRule(entry.Key, new SpawnConditions(seasons.ToImmutable(), weather.ToImmutable(), days, times),
+            rules.Add(new SpawnRule(entry.Key, when,
                 locations.Distinct(StringComparer.Ordinal).ToImmutableArray(), new SpawnPatternId(rule.SpawnPattern), new BirdTypeId(rule.BirdType),
                 count, size, textures.ToImmutableDictionary(StringComparer.Ordinal), rule.Weight, new SpawnParams(shoreDistance, group, speciesDistance),
                 Composition(rule, path, file, definitions, textureExists, Report), stages));

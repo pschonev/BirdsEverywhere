@@ -19,4 +19,5 @@ public enum Formation
 public sealed record GroupLayout(Formation Formation, int Radius, int Spacing, int GroupSpacing,
     IReadOnlyDictionary<string, GroupMember>? Members = null);
 
-public sealed record GroupMember(IntRange Count, string Stage);
+/// <summary><c>Required</c>: placed first, and the group is dropped when it cannot be. <c>Textures</c>: weight map for this role (null: the rule's textures).</summary>
+public sealed record GroupMember(IntRange Count, string Stage, bool Required = false, IReadOnlyDictionary<string, int>? Textures = null);

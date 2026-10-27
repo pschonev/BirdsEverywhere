@@ -45,7 +45,9 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
             }
 
             locations.TryGetValue(assignment.Location, out List<BirdPlacement>? existing);
-            List<BirdPlacement> placements = spawner.SpawnBirds(Game1.getLocationFromName(assignment.Location), assignment.Bird, assignment.Rule, assignment.Habitat.FishArea, random, monitor,
+            GameLocation location = Game1.getLocationFromName(assignment.Location);
+            IReadOnlyList<IntRange> times = assignment.Rule.When.TimesOn(season, weather, day, GameTimeAnchors.For(location));
+            List<BirdPlacement> placements = spawner.SpawnBirds(location, assignment.Bird, assignment.Rule, assignment.Habitat.FishArea, random, monitor,
                 existing?.Select(placement => placement.Tile).ToList());
             if (placements.Count == 0)
             {
@@ -55,6 +57,7 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
             placements = AssignGroupIds(placements, existing).Select(placement => placement with
             {
                 Unseen = assignment.Unseen,
+                Times = times,
                 Composition = placement.Stage is { } stage && assignment.Rule.Stages is { } stages ? stages[stage] : assignment.Rule.Composition,
             }).ToList();
             if (existing is null)

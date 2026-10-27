@@ -1,8 +1,8 @@
+using System.Text.RegularExpressions;
 using BirdsEverywhere.Content;
 using BirdsEverywhere.Diagnostics;
 using BirdsEverywhere.Domain;
 using BirdsEverywhere.Spawners;
-using System.Text.RegularExpressions;
 
 namespace BirdsEverywhere.Playground;
 

@@ -2,5 +2,6 @@
   "id": "coal_tit",
   "name": "Coal Tit",
   "scName": "Periparus ater",
+  "shorthand": "coatit2",
   "template": "all_year_garden"
 }

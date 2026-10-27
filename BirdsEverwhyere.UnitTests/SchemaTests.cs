@@ -104,6 +104,17 @@ public class SchemaTests
     [TestCase("bird", "{" + Identity + @",""defaults"":{""stages"":{""young"":{""routine"":{""extends"":""""}}}}}", false)]
     [TestCase("bird", "{" + Identity + @",""defaults"":{""stages"":{""young"":{""routine"":{""extends"":""land_idle"",""unexpected"":1}}}}}", false)]
     [TestCase("bird", "{" + Identity + @",""defaults"":{""spawnParams"":{""group"":{""formation"":""cluster"",""members"":{""parent"":{""count"":[0,2],""stage"":""adult""}}}}}}", false)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""when"":{""times"":[[""sunrise"",""sunrise+120""],[""dusk-30"",2600]]}}}", true)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""when"":{""any"":[{""seasons"":[""spring""],""times"":[[""dark"",2600]]},{""weather"":[""rain""]}]}}}", true)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""when"":{""any"":[]}}}", false)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""when"":{""any"":[{""moon"":[""full""]}]}}}", false)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""when"":{""times"":[[""noon"",1200]]}}}", false)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""when"":{""times"":[[500,900]]}}}", false)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""spawnParams"":{""group"":{""formation"":""cluster"",""members"":{""parent"":{""count"":[1,1],""stage"":""adult"",""required"":true,""textures"":{""male"":1}}}}}}}", true)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""spawnParams"":{""group"":{""formation"":""cluster"",""members"":{""parent"":{""count"":[1,1],""stage"":""adult"",""required"":""yes""}}}}}}", false)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""spawnParams"":{""group"":{""formation"":""cluster"",""members"":{""parent"":{""count"":[1,1],""stage"":""adult"",""textures"":{""male"":0}}}}}}}", false)]
+    [TestCase("bird", @"{""id"":""x"",""name"":""X"",""scName"":""X x"",""shorthand"":""blutit""}", true)]
+    [TestCase("bird", @"{""id"":""x"",""name"":""X"",""scName"":""X x"",""shorthand"":""Blue_Tit""}", false)]
     [TestCase("template", @"{""template"":""base_bird"",""defaults"":{""groupSize"":[1,3]}}", true)]
     [TestCase("template", @"{""id"":""x""}", false)]
     [TestCase("regions", @"{""valley"":{""ratio"":0.5,""species"":[""a""],""groups"":{""g"":[""Beach""]}}}", true)]
@@ -149,6 +160,10 @@ public class SchemaTests
     [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""wormPull"":{""chance"":0.1,""when"":{""weather"":[""hail""]}}}}", false)]
     [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""wormPull"":{""chance"":0.1,""when"":{""times"":[[500,900]]}}}}", false)]
     [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""wormPull"":{""chance"":0.1,""when"":{""moon"":[""full""]}}}}", false)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""song"":{""chance"":0.1,""when"":{""any"":[{""seasons"":[""spring""],""times"":[[""sunrise"",""sunrise+120""]]},{""seasons"":[""summer""]}]}}}}", true)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""song"":{""chance"":0.1,""when"":{""times"":[[""dusk"",""dark""]]}}}}", true)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""song"":{""chance"":0.1,""when"":{""times"":[[""noon"",1200]]}}}}", false)]
+    [TestCase(@"{""chance"":0.1,""pick"":{""peck"":1},""rare"":{""song"":{""chance"":0.1,""when"":{""any"":[{""moon"":[""full""]}]}}}}", false)]
     public void Routine_SchemaAndLoaderAgree(string json, bool valid) =>
         AssertAgreement("routine", json, valid, () => RoutineLoader.Parse(Newtonsoft.Json.Linq.JToken.Parse(json), "x.json", "$"));
 
@@ -169,6 +184,10 @@ public class SchemaTests
     [TestCase(@"{""a"":{""do"":""stay"",""clip"":""peck"",""soundChance"":2}}", false)]
     [TestCase(@"{""a"":{""do"":""stay"",""clip"":""peck"",""speed"":-1}}", false)]
     [TestCase(@"{""a"":{""do"":""stay"",""clip"":""peck"",""extra"":1}}", false)]
+    [TestCase(@"{""a"":{""do"":""follow"",""target"":""groupRole:parent"",""speedFactor"":1.2}}", true)]
+    [TestCase(@"{""a"":{""do"":""follow"",""speedFactor"":1.2}}", false)]
+    [TestCase(@"{""a"":{""do"":""swimAway"",""clip"":""swim"",""speed"":2}}", true)]
+    [TestCase(@"{""a"":{""do"":""swimAway"",""clip"":""swim""}}", false)]
     public void Action_SchemaAndLoaderAgree(string json, bool valid) =>
         AssertAgreement("action", json, valid, () => ActionLoader.ParseSet(Newtonsoft.Json.Linq.JObject.Parse(json), "x.json"));
 

@@ -12,6 +12,29 @@
                 "minimum": 1
             }
         },
+        "timeBound": {
+            "description": "HHMM clock time (600-2600) or an anchor with optional minute offset: sunrise, dusk, dark, e.g. sunrise+120.",
+            "oneOf": [
+                {
+                    "type": "integer",
+                    "minimum": 600,
+                    "maximum": 2600
+                },
+                {
+                    "type": "string",
+                    "pattern": "^(sunrise|dusk|dark)([+-][0-9]{1,3})?$"
+                }
+            ]
+        },
+        "timeRange": {
+            "description": "Inclusive [from, to] of time bounds.",
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+                "$ref": "#/$defs/timeBound"
+            }
+        },
         "range": {
             "description": "Inclusive [min, max].",
             "type": "array",

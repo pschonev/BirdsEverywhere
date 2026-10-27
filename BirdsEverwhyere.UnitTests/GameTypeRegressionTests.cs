@@ -77,7 +77,10 @@ public class GameTypeRegressionTests
     {
         WaterLandBird bird = new()
         {
-            BirdID = 42, BirdName = "test", Texture = "", Services = TestBirds.Services,
+            BirdID = 42,
+            BirdName = "test",
+            Texture = "",
+            Services = TestBirds.Services,
             Composition = new BirdComposition(null, new Dictionary<string, string>(), LayoutId: "trunk_16"),
             sprite = new AnimatedSprite { SpriteWidth = 32, SpriteHeight = 32 },
         };
@@ -115,8 +118,13 @@ public class GameTypeRegressionTests
     {
         WaterLandBird owner = new()
         {
-            BirdID = 42, GroupId = 7, Role = "duckling", Stage = "young", State = BehaviorStatus.SwimmingAway,
-            position = new Vector2(64, 64), sprite = new AnimatedSprite(),
+            BirdID = 42,
+            GroupId = 7,
+            Role = "duckling",
+            Stage = "young",
+            State = BehaviorStatus.SwimmingAway,
+            position = new Vector2(64, 64),
+            sprite = new AnimatedSprite(),
         };
         BirdState state = BirdSnapshots.Capture(owner) with { FollowRole = "parent", FollowSpeedFactor = 1.2f, SwimDirection = new Vector2(1f, 0f) };
         BirdState? restored = JsonConvert.DeserializeObject<BirdState>(JsonConvert.SerializeObject(state));
@@ -144,7 +152,8 @@ public class GameTypeRegressionTests
         WaterLandBird parent = new() { State = BehaviorStatus.SwimmingAway };
         parent.RestoreExtras(new BirdState("WaterLandBird", 1, "duck", "", BehaviorStatus.SwimmingAway, Vector2.Zero,
             Vector2.Zero, false, 0, 0, 0, 0, new CurrentAnimatedSprite(new AnimatedSprite()), 0, 0, 0, null, null)
-            with { SwimDirection = new Vector2(1, 0) });
+            with
+        { SwimDirection = new Vector2(1, 0) });
         WaterLandBird young = new() { State = BehaviorStatus.SwimmingAway };
 
         young.MatchGroupFlee(parent);
@@ -224,8 +233,14 @@ public class GameTypeRegressionTests
     public void ReplicaIdle_PlaysCueOnceAndRejectsOlderRevision()
     {
         LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite(), Services = TestBirds.Services };
-        LandBird owner = new() { State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 1,
-            IdleCue = new IdleCue(12, "sleep", 4), sprite = new AnimatedSprite() };
+        LandBird owner = new()
+        {
+            State = BehaviorStatus.Stopped,
+            IdleTick = 10,
+            IdleRevision = 1,
+            IdleCue = new IdleCue(12, "sleep", 4),
+            sprite = new AnimatedSprite()
+        };
         GameTime tick = new(TimeSpan.Zero, TimeSpan.FromMilliseconds(16));
 
         replica.ApplyReplicaState(owner);
@@ -247,8 +262,14 @@ public class GameTypeRegressionTests
     public void ReplicaIdle_FleeRevokesPendingCue()
     {
         LandBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite(), Services = TestBirds.Services };
-        LandBird owner = new() { State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 1,
-            IdleCue = new IdleCue(12, "sleep", 4), sprite = new AnimatedSprite() };
+        LandBird owner = new()
+        {
+            State = BehaviorStatus.Stopped,
+            IdleTick = 10,
+            IdleRevision = 1,
+            IdleCue = new IdleCue(12, "sleep", 4),
+            sprite = new AnimatedSprite()
+        };
         replica.ApplyReplicaState(owner);
 
         owner.State = BehaviorStatus.FlyingAway;
@@ -265,8 +286,13 @@ public class GameTypeRegressionTests
     public void ReplicaRun_ContinuesWithoutSnapshots()
     {
         BushBird replica = new() { IsReplica = true, State = BehaviorStatus.Stopped, sprite = new AnimatedSprite(), Services = TestBirds.Services };
-        BushBird owner = new() { State = BehaviorStatus.Running, position = new Vector2(100, 0), flip = true,
-            sprite = new AnimatedSprite() };
+        BushBird owner = new()
+        {
+            State = BehaviorStatus.Running,
+            position = new Vector2(100, 0),
+            flip = true,
+            sprite = new AnimatedSprite()
+        };
         replica.ApplyReplicaState(owner);
         GameTime tick = new(TimeSpan.Zero, TimeSpan.FromMilliseconds(16));
 
@@ -318,8 +344,15 @@ public class GameTypeRegressionTests
     [Test]
     public void BirdSnapshot_RoundTrip_PreservesIdleSchedule()
     {
-        LandBird bird = new() { BirdID = 42, State = BehaviorStatus.Stopped, IdleTick = 10, IdleRevision = 3,
-            IdleCue = new IdleCue(30, "peck", 12), sprite = new AnimatedSprite() };
+        LandBird bird = new()
+        {
+            BirdID = 42,
+            State = BehaviorStatus.Stopped,
+            IdleTick = 10,
+            IdleRevision = 3,
+            IdleCue = new IdleCue(30, "peck", 12),
+            sprite = new AnimatedSprite()
+        };
 
         string json = BirdSnapshots.Serialize(new[] { bird });
 
@@ -331,8 +364,18 @@ public class GameTypeRegressionTests
     [Test]
     public void BirdState_RoundTrip_KeepsTypeSpecificFields()
     {
-        TreeTrunkBird trunk = new() { BirdID = 7, BirdName = "black_woodpecker", AnchorTile = new Vector2(12, 34), LocationName = "Forest",
-            PeckTimer = 1500, State = BehaviorStatus.Relocating, Relocations = 1, RelocateTarget = new Vector2(15, 30), sprite = new AnimatedSprite() };
+        TreeTrunkBird trunk = new()
+        {
+            BirdID = 7,
+            BirdName = "black_woodpecker",
+            AnchorTile = new Vector2(12, 34),
+            LocationName = "Forest",
+            PeckTimer = 1500,
+            State = BehaviorStatus.Relocating,
+            Relocations = 1,
+            RelocateTarget = new Vector2(15, 30),
+            sprite = new AnimatedSprite()
+        };
         LandBird land = new() { BirdID = 8, FlightOffset = 0.25f, WalkTimer = 700, flip = true, sprite = new AnimatedSprite() };
 
         List<BirdState> states = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BirdState>>(BirdSnapshots.Serialize(new BirdCritter[] { trunk, land }))!;

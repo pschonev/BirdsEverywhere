@@ -58,7 +58,7 @@ public partial class ModEntry : Mod
         }
         _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation, _layouts, _definitions.Routines,
             _definitions.ParsedActions(), ModManifest.UniqueID + "_", Math.Clamp(_config.SoundVolume, 0f, 1f),
-            () => Context.IsWorldReady ? new IdleWorld(Enum.Parse<Domain.Season>(Game1.currentSeason, true), CurrentWeather(), Game1.dayOfMonth, Game1.timeOfDay) : null);
+            () => Context.IsWorldReady ? new IdleWorld(Enum.Parse<Domain.Season>(Game1.currentSeason, true), CurrentWeather(), Game1.dayOfMonth, Game1.timeOfDay, Diagnostics.GameTimeAnchors.For(Game1.currentLocation)) : null);
         RegisterAudio(helper);
         _locationSpawner = new LocationSpawner(_spawnPatterns, _birdTypes, _birdServices);
 
@@ -152,6 +152,13 @@ public partial class ModEntry : Mod
 
             catalog.Add(id, bird);
             effective.Add(id, (document, sources));
+        }
+
+        foreach (ValidationIssue issue in ContentValidator.DuplicateShorthands(catalog.Values))
+        {
+            LogIssue(issue);
+            catalog.Remove(issue.Id);
+            effective.Remove(issue.Id);
         }
 
         _catalog = catalog.ToImmutableDictionary(StringComparer.Ordinal);
@@ -688,7 +695,7 @@ public partial class ModEntry : Mod
     /// <summary>Host only: validates and records an observation, then tells every peer.</summary>
     private void AcceptObservation(string birdId, ObservationData details)
     {
-if (!_catalog.TryGetValue(birdId, out BirdDefinition? bird))
+        if (!_catalog.TryGetValue(birdId, out BirdDefinition? bird))
         {
             Monitor.Log($"Dropped observation of unknown bird '{birdId}'.", LogLevel.Warn);
             return;

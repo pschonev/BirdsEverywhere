@@ -13,7 +13,7 @@ public static class RuleText
     public static IEnumerable<string> Lines(SpawnRule rule, bool eligible)
     {
         yield return $"{(eligible ? Eligible : Ineligible)} {rule.Id}  weight {rule.Weight}";
-        yield return $"   when:   seasons {List(rule.When.Seasons)} | weather {List(rule.When.Weathers)} | days {Ranges(rule.When.Days)} | times {Ranges(rule.When.Times)}";
+        yield return $"   when:   {Content.ConditionParser.Describe(rule.When)}";
         yield return $"   where:  {string.Join(", ", rule.Locations)}";
         yield return $"   spawn:  {rule.SpawnPattern.Value} → {rule.BirdType.Value} ({InitialState(rule)})";
         yield return $"   count:  {Count(rule)}";
@@ -56,10 +56,4 @@ public static class RuleText
         ("BushBird", _) => "on ground beside a bush, runs into it when approached",
         _ => "unknown bird type",
     };
-
-    private static string List<T>(IReadOnlyCollection<T> values) =>
-        values.Count == 0 ? "any" : string.Join(",", values);
-
-    private static string Ranges(IReadOnlyCollection<IntRange> ranges) =>
-        ranges.Count == 0 ? "any" : string.Join(",", ranges.Select(r => $"{r.Min}-{r.Max}"));
 }

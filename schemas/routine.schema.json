@@ -40,22 +40,7 @@
                         "maximum": 1
                     },
                     "when": {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "properties": {
-                            "seasons": {
-                                "$ref": "rule.schema.json#/properties/when/properties/seasons"
-                            },
-                            "weather": {
-                                "$ref": "rule.schema.json#/properties/when/properties/weather"
-                            },
-                            "days": {
-                                "$ref": "rule.schema.json#/properties/when/properties/days"
-                            },
-                            "times": {
-                                "$ref": "rule.schema.json#/properties/when/properties/times"
-                            }
-                        }
+                        "$ref": "rule.schema.json#/properties/when"
                     }
                 }
             }

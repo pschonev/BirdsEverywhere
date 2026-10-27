@@ -1,7 +1,7 @@
-using Microsoft.Xna.Framework;
 using BirdsEverywhere.BirdTypes.Behaviors;
 using BirdsEverywhere.Content;
 using BirdsEverywhere.Domain;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewValley;

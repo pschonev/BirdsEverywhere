@@ -6,7 +6,7 @@ namespace BirdsEverywhere.Content;
 public sealed record SpawnRuleJson
 {
     [JsonProperty("when")]
-    public SpawnWhenJson? When { get; init; }
+    public JToken? When { get; init; }
 
     [JsonProperty("locations", Required = Required.Always)]
     public List<string> Locations { get; init; } = new();
@@ -101,24 +101,15 @@ public sealed record GroupJson
 
 public sealed record GroupMemberJson
 {
-    [JsonProperty("count", Required = Required.Always)]
+    [JsonProperty("count", Required = Newtonsoft.Json.Required.Always)]
     public int[] Count { get; init; } = Array.Empty<int>();
 
-    [JsonProperty("stage", Required = Required.Always)]
+    [JsonProperty("stage", Required = Newtonsoft.Json.Required.Always)]
     public string Stage { get; init; } = "";
-}
 
-public sealed record SpawnWhenJson
-{
-    [JsonProperty("seasons")]
-    public List<string>? Seasons { get; init; }
+    [JsonProperty("required")]
+    public bool Required { get; init; }
 
-    [JsonProperty("weather")]
-    public List<string>? Weather { get; init; }
-
-    [JsonProperty("days")]
-    public List<int[]>? Days { get; init; }
-
-    [JsonProperty("times")]
-    public List<int[]>? Times { get; init; }
+    [JsonProperty("textures")]
+    public Dictionary<string, int>? Textures { get; init; }
 }

@@ -23,6 +23,16 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | D04 | Run `birds_clear` in the current location; then `birds_replan 42` twice with the same day and conditions. | Clear removes birds and local plan entries; replan repopulates with repeatable placements for that seed. |
 | D05 | Run `birds_reload`, inspect SMAPI log, then try a host-only command in the farmhand console. | Definitions reload without errors (textures may stay cached); farmhand is told to run host-only commands on the host. |
 
+## Time windows and conditions (one client)
+
+| ID | Action | Expected result |
+|---|---|---|
+| T01 | Temporarily give a rule `"when": { "times": [["dusk", "dark"]] }`, `birds_reload`, `birds_replan`, then watch the clock in the location across dusk. | Birds appear when the game starts getting dark and not before; birds already present stay after the window closes. |
+| T02 | Give a rule `"when": { "times": [["sunrise", "sunrise+120"]] }` and start a day. | Birds are present from 0600 to 0800 only; `birds_rules` shows the anchored text. |
+| T03 | Give a rule two clauses in `when.any` (for example spring all day, summer only `["dusk-60", "dusk"]`) and check a spring and a summer day. | Active in all of spring; in summer only in the dusk window; `birds_rules` prints the clauses joined by `OR`. |
+| T04 | Repeat T01 in a location with a different dark time (for example a mod or a season with earlier dusk). | The window opens at that location's own dusk time. |
+| T05 | Put `any` and a top-level `seasons` in one rule and `birds_reload`. | Load error naming the field and saying to set the inherited field to `null`. |
+
 ## Multiplayer synchronization (two SMAPI clients)
 
 | ID | Action | Expected result |

@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using BirdsEverywhere.Domain;
 using Newtonsoft.Json.Linq;
 
@@ -8,7 +7,6 @@ public static class RoutineLoader
 {
     private static readonly HashSet<string> _keys = new(StringComparer.Ordinal) { "chance", "pick", "next", "rare" };
     private static readonly HashSet<string> _rareKeys = new(StringComparer.Ordinal) { "chance", "when" };
-    private static readonly HashSet<string> _whenKeys = new(StringComparer.Ordinal) { "seasons", "weather", "days", "times" };
 
     public static (IReadOnlyDictionary<string, Routine> Routines, IReadOnlyList<ValidationIssue> Issues) LoadAll(string root) =>
         DefinitionFiles.LoadAll(ContentPaths.RoutinesDirectory(root), (_, json, file) => Parse(JToken.Parse(json), file, "$"));
@@ -77,39 +75,8 @@ public static class RoutineLoader
         return rare;
     }
 
-    private static SpawnConditions When(JToken? token, string file, string path)
-    {
-        if (token is null)
-        {
-            return new SpawnConditions(ImmutableArray<Season>.Empty, ImmutableArray<Weather>.Empty, ImmutableArray<IntRange>.Empty, ImmutableArray<IntRange>.Empty);
-        }
-        if (token is not JObject body)
-        {
-            throw new FormatException($"{file}: {path} must be an object.");
-        }
-        foreach (JProperty property in body.Properties().Where(property => !_whenKeys.Contains(property.Name)))
-        {
-            throw new FormatException($"{file}: {path}.{property.Name} is not a known condition. Known: {string.Join(", ", _whenKeys)}.");
-        }
-        return new SpawnConditions(
-            Names<Season>(body["seasons"], file, path + ".seasons"),
-            Names<Weather>(body["weather"], file, path + ".weather"),
-            Ranges(body["days"], 1, 28, file, path + ".days"),
-            Ranges(body["times"], 600, 2600, file, path + ".times"));
-    }
-
-    private static ImmutableArray<T> Names<T>(JToken? token, string file, string path) where T : struct, Enum =>
-        token is null ? ImmutableArray<T>.Empty
-        : token is JArray names && names.All(name => name.Type == JTokenType.String && Enum.TryParse(name.Value<string>(), true, out T parsed) && Enum.IsDefined(parsed))
-            ? names.Select(name => Enum.Parse<T>(name.Value<string>()!, true)).ToImmutableArray()
-            : throw new FormatException($"{file}: {path} must be a list of {string.Join(", ", Enum.GetNames<T>())}.");
-
-    private static ImmutableArray<IntRange> Ranges(JToken? token, int min, int max, string file, string path) =>
-        token is null ? ImmutableArray<IntRange>.Empty
-        : token is JArray ranges && ranges.All(range => range is JArray { Count: 2 } pair && pair.All(value => value.Type == JTokenType.Integer)
-            && pair[0].Value<int>() >= min && pair[0].Value<int>() <= pair[1].Value<int>() && pair[1].Value<int>() <= max)
-            ? ranges.Select(range => new IntRange(range[0]!.Value<int>(), range[1]!.Value<int>())).ToImmutableArray()
-            : throw new FormatException($"{file}: {path} must be a list of [min, max] within {min}–{max}.");
+    private static SpawnConditions When(JToken? token, string file, string path) =>
+        ConditionParser.Parse(token, path, (errorPath, message) => throw new FormatException($"{file}: {errorPath} {message}"));
 
     private static List<WeightedId> Weights(JToken? token, string file, string path)
     {
