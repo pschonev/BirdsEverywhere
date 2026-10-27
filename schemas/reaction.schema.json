@@ -8,35 +8,80 @@
     "properties": {
         "threat": {
             "oneOf": [
-                { "$ref": "#/$defs/legacyThreat" },
+                {
+                    "$ref": "#/$defs/legacyThreat"
+                },
                 {
                     "type": "array",
                     "minItems": 1,
                     "items": {
                         "type": "object",
-                        "required": ["flee"],
+                        "required": [
+                            "flee"
+                        ],
                         "additionalProperties": false,
                         "properties": {
                             "if": {
                                 "type": "object",
                                 "additionalProperties": false,
                                 "properties": {
-                                    "groupHasRole": { "type": "string", "minLength": 1 },
-                                    "nearWater": { "type": "boolean" },
-                                    "season": { "enum": ["spring", "summer", "fall", "winter", "Spring", "Summer", "Fall", "Winter"] },
-                                    "timeOfDay": { "$ref": "common.schema.json#/$defs/range", "items": { "minimum": 600, "maximum": 2600 } },
-                                    "weather": { "$ref": "rule.schema.json#/properties/when/properties/weather/items" },
-                                    "stage": { "type": "string", "minLength": 1 }
+                                    "groupHasRole": {
+                                        "type": "string",
+                                        "minLength": 1
+                                    },
+                                    "nearWater": {
+                                        "type": "boolean"
+                                    },
+                                    "season": {
+                                        "enum": [
+                                            "spring",
+                                            "summer",
+                                            "fall",
+                                            "winter",
+                                            "Spring",
+                                            "Summer",
+                                            "Fall",
+                                            "Winter"
+                                        ]
+                                    },
+                                    "timeOfDay": {
+                                        "$ref": "common.schema.json#/$defs/range",
+                                        "items": {
+                                            "minimum": 600,
+                                            "maximum": 2600
+                                        }
+                                    },
+                                    "weather": {
+                                        "$ref": "rule.schema.json#/properties/when/properties/weather/items"
+                                    },
+                                    "stage": {
+                                        "type": "string",
+                                        "minLength": 1
+                                    }
                                 }
                             },
                             "flee": {
                                 "type": "object",
-                                "required": ["do"],
+                                "required": [
+                                    "do"
+                                ],
                                 "additionalProperties": false,
                                 "properties": {
-                                    "radius": { "type": "integer", "minimum": 1, "maximum": 20 },
-                                    "do": { "enum": ["swimAway", "flyOff"] },
-                                    "sound": { "type": "string", "minLength": 1 }
+                                    "radius": {
+                                        "type": "integer",
+                                        "minimum": 1,
+                                        "maximum": 20
+                                    },
+                                    "do": {
+                                        "enum": [
+                                            "swimAway",
+                                            "flyOff"
+                                        ]
+                                    },
+                                    "sound": {
+                                        "type": "string",
+                                        "minLength": 1
+                                    }
                                 }
                             }
                         }
