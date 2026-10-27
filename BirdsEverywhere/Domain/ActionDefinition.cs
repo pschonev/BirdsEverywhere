@@ -14,4 +14,6 @@ public sealed record ActionDefinition(
     bool Turn,
     StepRange? PauseMs,
     StepRange? HiddenMs = null,
-    int? Radius = null);
+    int? Radius = null,
+    string? Target = null,
+    float? SpeedFactor = null);

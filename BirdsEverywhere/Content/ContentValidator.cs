@@ -41,7 +41,36 @@ public static class ContentValidator
         {
             report(IssueSeverity.Error, groupPath + ".groupSpacing", "Group spacing must be 0–40 tiles.");
         }
-        return new GroupLayout(formation, group.Radius, group.Spacing, group.GroupSpacing);
+        Dictionary<string, GroupMember>? members = null;
+        if (group.Members is { } configured)
+        {
+            members = new(StringComparer.Ordinal);
+            if (configured.Count == 0)
+            {
+                report(IssueSeverity.Error, groupPath + ".members", "Members must contain at least one role.");
+            }
+            foreach ((string role, GroupMemberJson member) in configured)
+            {
+                string memberPath = groupPath + ".members." + role;
+                if (string.IsNullOrWhiteSpace(role) || member is null || string.IsNullOrWhiteSpace(member.Stage))
+                {
+                    report(IssueSeverity.Error, memberPath, "Role and stage must not be empty.");
+                    continue;
+                }
+                members[role] = new GroupMember(ValidateRange(member.Count, memberPath + ".count", 1, 20, report), member.Stage);
+                if (rule.Stages?.ContainsKey(member.Stage) != true)
+                {
+                    report(IssueSeverity.Error, memberPath + ".stage", $"Unknown stage '{member.Stage}'.");
+                }
+            }
+            int minimum = members.Values.Sum(member => member.Count.Min);
+            int maximum = members.Values.Sum(member => member.Count.Max);
+            if (rule.GroupSize is { Length: 2 } size && (size[0] != minimum || size[1] != maximum))
+            {
+                report(IssueSeverity.Error, groupPath + ".members", $"groupSize must match member totals [{minimum}, {maximum}].");
+            }
+        }
+        return new GroupLayout(formation, group.Radius, group.Spacing, group.GroupSpacing, members);
     }
 
     /// <summary>Resolves the rule's routine (ref, inline, or bird-type default), actions (bird-type set with per-field overrides) and sounds (merged over defaults).</summary>
@@ -177,6 +206,28 @@ public static class ContentValidator
         try
         {
             Reactions reactions = ReactionLoader.Parse(token, defaults, file, reactionPath);
+            if (reactions.Alternatives is { } alternatives)
+            {
+                if (rule.BirdType != "WaterLandBird")
+                {
+                    report(IssueSeverity.Error, reactionPath + ".threat", "Threat alternatives are supported only for WaterLandBird.");
+                }
+                foreach (ThreatAlternative alternative in alternatives)
+                {
+                    if (alternative.Flee?.Sound is { } sound && !sounds.ContainsKey(sound))
+                    {
+                        report(IssueSeverity.Warn, reactionPath + ".threat.flee.sound", $"Sound role '{sound}' has no cue.");
+                    }
+                    if (alternative.Condition.GroupHasRole is { } role && rule.SpawnParams?.Group?.Members?.ContainsKey(role) != true)
+                    {
+                        report(IssueSeverity.Error, reactionPath + ".threat.if.groupHasRole", $"Unknown group role '{role}'.");
+                    }
+                    if (alternative.Condition.Stage is { } stage && rule.Stages?.ContainsKey(stage) != true)
+                    {
+                        report(IssueSeverity.Error, reactionPath + ".threat.if.stage", $"Unknown stage '{stage}'.");
+                    }
+                }
+            }
             if (reactions.Threat.Relocate is { } relocate && !profile.RelocateTargets.Contains(relocate.Target))
             {
                 report(IssueSeverity.Error, reactionPath + ".threat.relocate.target", profile.RelocateTargets.Count == 0
@@ -248,6 +299,12 @@ public static class ContentValidator
                     report(IssueSeverity.Error, actionPath + ".do", $"{rule.BirdType} cannot do '{action.Do}' in a custom action. Allowed: {string.Join(", ", profile.CustomPrimitives)}.");
                     continue;
                 }
+                if (action.Do == "follow" && (action.Target is not { } target || !target.StartsWith("groupRole:", StringComparison.Ordinal)
+                    || rule.SpawnParams?.Group?.Members?.ContainsKey(target["groupRole:".Length..]) != true))
+                {
+                    report(IssueSeverity.Error, actionPath + ".target", "Follow needs a groupRole:<role> target in this family's members.");
+                    continue;
+                }
                 if (action.Sound is { } role && !sounds.ContainsKey(role))
                 {
                     report(IssueSeverity.Warn, actionPath + ".sound", $"Sound role '{role}' has no cue; the action is silent.");
@@ -271,7 +328,7 @@ public static class ContentValidator
             try
             {
                 ActionDefinition action = ActionLoader.Parse(merged, file, actionPath);
-                if (action.Do != primitive)
+                if (action.Do != primitive && !(id == "flee" && rule.BirdType == "WaterLandBird" && action.Do == "swimAway"))
                 {
                     report(IssueSeverity.Error, actionPath + ".do", $"{rule.BirdType} runs '{id}' as '{primitive}', not '{action.Do}'.");
                 }
@@ -480,15 +537,80 @@ public static class ContentValidator
                     : $"{rule.BirdType} needs {featurePattern}, not {rule.SpawnPattern}.");
             }
             GroupLayout? group = Group(rule, path + ".spawnParams", Report);
+            if (rule.Stages is { Count: > 0 } && group?.Members is not { Count: > 0 })
+            {
+                Report(IssueSeverity.Error, path + ".stages", "Stages need group members.");
+            }
             int? speciesDistance = rule.SpawnParams?.SpeciesDistance;
             if (speciesDistance is < 0 or > 40)
             {
                 Report(IssueSeverity.Error, path + ".spawnParams.speciesDistance", "Species distance must be 0–40 tiles.");
             }
+            Dictionary<string, BirdComposition>? stages = null;
+            if (rule.Stages is { } stageDefinitions)
+            {
+                stages = new(StringComparer.Ordinal);
+                foreach ((string name, StageJson stage) in stageDefinitions)
+                {
+                    if (string.IsNullOrWhiteSpace(name) || stage is null)
+                    {
+                        Report(IssueSeverity.Error, path + ".stages", "Stage name and body must not be empty.");
+                        continue;
+                    }
+                    JToken? stageRoutine = stage.Routine;
+                    if (stageRoutine is JObject inline && inline["extends"] is { } reference)
+                    {
+                        string routineId = reference.Type == JTokenType.String ? reference.Value<string>()! : "";
+                        if (!definitions.Routines.TryGetValue(routineId, out Routine? parent))
+                        {
+                            Report(IssueSeverity.Error, path + ".stages." + name + ".routine.extends", $"Unknown shared routine '{routineId}'.");
+                            continue;
+                        }
+                        JObject resolved = JObject.FromObject(new
+                        {
+                            chance = parent.Chance,
+                            pick = parent.Pick.ToDictionary(option => option.Id, option => option.Weight),
+                            next = parent.Next.ToDictionary(entry => entry.Key, entry => entry.Value.ToDictionary(option => option.Id, option => option.Weight)),
+                        });
+                        if (parent.Rare is { } rare)
+                        {
+                            resolved["rare"] = JObject.FromObject(rare.ToDictionary(action => action.Id, action => new
+                            {
+                                chance = action.Chance,
+                                when = new
+                                {
+                                    seasons = action.When.Seasons.Select(season => season.ToString()).ToArray(),
+                                    weather = action.When.Weathers.Select(weather => weather.ToString()).ToArray(),
+                                    days = action.When.Days.Select(range => new[] { range.Min, range.Max }).ToArray(),
+                                    times = action.When.Times.Select(range => new[] { range.Min, range.Max }).ToArray(),
+                                },
+                            }));
+                        }
+                        JObject overrides = (JObject)inline.DeepClone();
+                        overrides.Remove("extends");
+                        stageRoutine = TemplateMerger.Merge(resolved, overrides);
+                    }
+                    SpawnRuleJson stageRule = rule with
+                    {
+                        Routine = stageRoutine ?? rule.Routine,
+                        Reactions = stage.Reactions ?? rule.Reactions,
+                        Actions = stage.Actions is null ? rule.Actions : TemplateMerger.Merge(rule.Actions is null ? new JObject() : (JObject)rule.Actions.DeepClone(), stage.Actions),
+                        Sounds = stage.Sounds is null ? rule.Sounds : (rule.Sounds ?? new Dictionary<string, string>()).Concat(stage.Sounds).GroupBy(pair => pair.Key).ToDictionary(group => group.Key, group => group.Last().Value),
+                    };
+                    if (Composition(stageRule, path + ".stages." + name, file, definitions, textureExists, Report) is { } composition)
+                    {
+                        if (stage.Layout is { Length: 0 })
+                        {
+                            Report(IssueSeverity.Error, path + ".stages." + name + ".layout", "Layout id must not be empty.");
+                        }
+                        stages[name] = composition with { LayoutId = stage.Layout };
+                    }
+                }
+            }
             rules.Add(new SpawnRule(entry.Key, new SpawnConditions(seasons.ToImmutable(), weather.ToImmutable(), days, times),
                 locations.Distinct(StringComparer.Ordinal).ToImmutableArray(), new SpawnPatternId(rule.SpawnPattern), new BirdTypeId(rule.BirdType),
                 count, size, textures.ToImmutableDictionary(StringComparer.Ordinal), rule.Weight, new SpawnParams(shoreDistance, group, speciesDistance),
-                Composition(rule, path, file, definitions, textureExists, Report)));
+                Composition(rule, path, file, definitions, textureExists, Report), stages));
         }
 
         foreach (Season season in Enum.GetValues<Season>())

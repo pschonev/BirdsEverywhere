@@ -29,6 +29,9 @@ internal abstract class BirdCritter : Critter
     public long IdleTick { get; set; }
     public long IdleRevision { get; set; }
     public IdleCue? IdleCue { get; set; }
+    public int? GroupId { get; set; }
+    public string? Role { get; set; }
+    public string? Stage { get; set; }
 
     public long BirdID
     {
@@ -103,6 +106,8 @@ internal abstract class BirdCritter : Critter
     internal ActionDefinition Action(string id) =>
         Composition?.Actions is { } actions ? actions[id] : RequireServices().Actions[Profile.DefaultActions][id];
 
+    protected virtual ActionDefinition ReplicaFleeAction => Action("flee");
+
     /// <summary>Rolls the sound chance when the action has a sound role: owners on the owner RNG (legacy alarm rolls), replicas on their visual RNG.</summary>
     protected void PlayActionSound(ActionDefinition action)
     {
@@ -112,9 +117,20 @@ internal abstract class BirdCritter : Critter
         }
     }
 
-    private SpriteLayout Layout => _layout ??= RequireServices().Layouts[Profile.LayoutId];
+    private SpriteLayout Layout => _layout ??= RequireServices().Layouts[Composition?.LayoutId ?? Profile.LayoutId];
 
     private SpriteLayout? _layout;
+
+    internal void ApplyLayout()
+    {
+        if (Composition?.LayoutId is not { } layoutId)
+        {
+            return;
+        }
+        SpriteLayout layout = RequireServices().Layouts[layoutId];
+        sprite.SpriteWidth = layout.FrameWidth;
+        sprite.SpriteHeight = layout.FrameHeight;
+    }
 
     internal void PlayClip(string name, Random random, AnimatedSprite.endOfAnimationBehavior? onEnd = null)
     {
@@ -142,7 +158,10 @@ internal abstract class BirdCritter : Critter
 
     public void ApplyReplicaState(BirdCritter source)
     {
-        bool continuingMotion = IsReplica && State == source.State && State is BehaviorStatus.FlyingAway or BehaviorStatus.Running or BehaviorStatus.Relocating;
+        GroupId = source.GroupId;
+        Role = source.Role;
+        Stage = source.Stage;
+        bool continuingMotion = IsReplica && State == source.State && State is BehaviorStatus.FlyingAway or BehaviorStatus.Running or BehaviorStatus.Relocating or BehaviorStatus.Following or BehaviorStatus.SwimmingAway;
         if (!IsReplica)
         {
             position = source.position;
@@ -150,16 +169,12 @@ internal abstract class BirdCritter : Critter
         _replicaTarget = source.position;
         startingPosition = source.startingPosition;
         bool pendingVisual = IsReplica && _playedIdleRevision == IdleRevision && source.IdleRevision == IdleRevision;
-        bool startsFleeing = IsReplica && State != source.State && source.State is BehaviorStatus.FlyingAway or BehaviorStatus.Running or BehaviorStatus.Relocating;
+        bool startsFleeing = IsReplica && State != source.State && source.State is BehaviorStatus.FlyingAway or BehaviorStatus.Running or BehaviorStatus.Relocating or BehaviorStatus.SwimmingAway;
         bool startsAlert = State != source.State;
         if (!pendingVisual)
         {
             State = source.State;
             flip = source.flip;
-        }
-        if (startsFleeing && Services != null)
-        {
-            PlayActionSound(Action("flee"));
         }
         if (IsReplica && source.State == BehaviorStatus.Alert && startsAlert && Threat.Alert?.Sound is { } alertSound)
         {
@@ -184,6 +199,10 @@ internal abstract class BirdCritter : Critter
         if (IsReplica)
         {
             ApplyReplicaExtras(source);
+            if (startsFleeing && Services != null)
+            {
+                PlayActionSound(ReplicaFleeAction);
+            }
             IdleTick = Math.Max(IdleTick, source.IdleTick);
             if (source.IdleRevision > IdleRevision)
             {
@@ -277,7 +296,7 @@ internal abstract class BirdCritter : Critter
 
     protected bool UpdateReplica(GameTime time, Vector2 velocity = default, float verticalVelocity = 0f)
     {
-        if (State is BehaviorStatus.FlyingAway or BehaviorStatus.Running or BehaviorStatus.Relocating)
+        if (State is BehaviorStatus.FlyingAway or BehaviorStatus.Running or BehaviorStatus.Relocating or BehaviorStatus.SwimmingAway)
         {
             position += velocity;
             yOffset += verticalVelocity;

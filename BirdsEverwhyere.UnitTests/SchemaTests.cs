@@ -97,6 +97,13 @@ public class SchemaTests
     [TestCase("bird", "{" + Identity + @",""defaults"":{""routine"":{""pick"":{""peck"":1}}}}", false)]
     [TestCase("bird", "{" + Identity + @",""defaults"":{""sounds"":{""alarm"":1}}}", false)]
     [TestCase("bird", "{" + Identity + @",""defaults"":{""routineWeights"":{""peck"":1}}}", false)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""spawnParams"":{""group"":{""formation"":""cluster"",""members"":{""parent"":{""count"":[1,2],""stage"":""adult""}}}},""stages"":{""adult"":{""sounds"":{""alarm"":""crow""}}}}}", true)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""stages"":{""young"":{""routine"":{""extends"":""land_idle"",""pick"":{""followParent"":1}}}}}}", true)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""stages"":{""young"":{""layout"":""waterland_32""}}}}", true)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""stages"":{""young"":{""layout"":""""}}}}", false)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""stages"":{""young"":{""routine"":{""extends"":""""}}}}}", false)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""stages"":{""young"":{""routine"":{""extends"":""land_idle"",""unexpected"":1}}}}}", false)]
+    [TestCase("bird", "{" + Identity + @",""defaults"":{""spawnParams"":{""group"":{""formation"":""cluster"",""members"":{""parent"":{""count"":[0,2],""stage"":""adult""}}}}}}", false)]
     [TestCase("template", @"{""template"":""base_bird"",""defaults"":{""groupSize"":[1,3]}}", true)]
     [TestCase("template", @"{""id"":""x""}", false)]
     [TestCase("regions", @"{""valley"":{""ratio"":0.5,""species"":[""a""],""groups"":{""g"":[""Beach""]}}}", true)]
@@ -178,6 +185,9 @@ public class SchemaTests
     [TestCase(@"{""threat"":{""relocate"":{""target"":""otherTree"",""maxDistance"":10,""maxRelocations"":2}}}", true)]
     [TestCase(@"{""threat"":{""relocate"":{""maxDistance"":10}}}", false)]
     [TestCase(@"{""threat"":{""relocate"":{""target"":""otherTree"",""maxRelocations"":0}}}", false)]
+    [TestCase(@"{""threat"":[{""if"":{""groupHasRole"":""parent"",""nearWater"":true,""season"":""spring"",""timeOfDay"":[600,1200],""weather"":""sun"",""stage"":""young""},""flee"":{""radius"":3,""do"":""swimAway""}},{""flee"":{""do"":""flyOff""}}]}", true)]
+    [TestCase(@"{""threat"":[{""flee"":{""do"":""dive""}}]}", false)]
+    [TestCase(@"{""threat"":[{""flee"":{""do"":""swimAway"",""target"":""groupRole:parent""}}]}", false)]
     [TestCase(@"{""playerEnters"":{}}", false)]
     public void Reaction_SchemaAndLoaderAgree(string json, bool valid) =>
         AssertAgreement("reaction", json, valid, () => ReactionLoader.Parse(Newtonsoft.Json.Linq.JToken.Parse(json), new Reactions(new ThreatReaction(1)), "x.json", "$"));

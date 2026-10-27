@@ -46,6 +46,27 @@ public sealed record SpawnRuleJson
 
     [JsonProperty("actions")]
     public JObject? Actions { get; init; }
+
+    [JsonProperty("stages")]
+    public Dictionary<string, StageJson>? Stages { get; init; }
+}
+
+public sealed record StageJson
+{
+    [JsonProperty("layout")]
+    public string? Layout { get; init; }
+
+    [JsonProperty("routine")]
+    public JToken? Routine { get; init; }
+
+    [JsonProperty("reactions")]
+    public JToken? Reactions { get; init; }
+
+    [JsonProperty("actions")]
+    public JObject? Actions { get; init; }
+
+    [JsonProperty("sounds")]
+    public Dictionary<string, string>? Sounds { get; init; }
 }
 
 public sealed record SpawnParamsJson
@@ -73,6 +94,18 @@ public sealed record GroupJson
 
     [JsonProperty("groupSpacing")]
     public int GroupSpacing { get; init; }
+
+    [JsonProperty("members")]
+    public Dictionary<string, GroupMemberJson>? Members { get; init; }
+}
+
+public sealed record GroupMemberJson
+{
+    [JsonProperty("count", Required = Required.Always)]
+    public int[] Count { get; init; } = Array.Empty<int>();
+
+    [JsonProperty("stage", Required = Required.Always)]
+    public string Stage { get; init; } = "";
 }
 
 public sealed record SpawnWhenJson

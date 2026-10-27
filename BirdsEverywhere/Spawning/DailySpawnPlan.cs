@@ -19,7 +19,10 @@ public sealed record BirdPlacement(
     int Seed,
     bool Forced = false,
     bool Unseen = false,
-    BirdComposition? Composition = null)
+    BirdComposition? Composition = null,
+    int? GroupId = null,
+    string? Role = null,
+    string? Stage = null)
 {
     public bool IsActiveAt(int time) => Times.Count == 0 || Times.Any(range => range.Contains(time));
 }
@@ -49,7 +52,11 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
                 return false;
             }
 
-            placements = placements.Select(placement => placement with { Unseen = assignment.Unseen, Composition = assignment.Rule.Composition }).ToList();
+            placements = AssignGroupIds(placements, existing).Select(placement => placement with
+            {
+                Unseen = assignment.Unseen,
+                Composition = placement.Stage is { } stage && assignment.Rule.Stages is { } stages ? stages[stage] : assignment.Rule.Composition,
+            }).ToList();
             if (existing is null)
             {
                 locations.Add(assignment.Location, placements);
@@ -66,5 +73,14 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
 
         SpawnPlanner.Plan(regions, catalog, seenBirds, season, weather, day, luck, level, random, GameHabitat.Exists, Place, LocationArea, skipped);
         return new DailySpawnPlan(locations.ToDictionary(entry => entry.Key, entry => (IReadOnlyList<BirdPlacement>)entry.Value, StringComparer.Ordinal));
+    }
+
+    internal static List<BirdPlacement> AssignGroupIds(IReadOnlyList<BirdPlacement> placements, IReadOnlyList<BirdPlacement>? existing)
+    {
+        Dictionary<int, int> groupIds = new();
+        int nextGroupId = (existing?.Select(placement => placement.GroupId ?? -1).DefaultIfEmpty(-1).Max() ?? -1) + 1;
+        return placements.Select(placement => placement.GroupId is { } localGroup
+            ? placement with { GroupId = groupIds.TryGetValue(localGroup, out int groupId) ? groupId : groupIds[localGroup] = nextGroupId++ }
+            : placement).ToList();
     }
 }

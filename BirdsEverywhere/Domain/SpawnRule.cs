@@ -13,7 +13,8 @@ public sealed record SpawnRule(
     IReadOnlyDictionary<string, int> Textures,
     double Weight,
     SpawnParams Params,
-    BirdComposition? Composition = null)
+    BirdComposition? Composition = null,
+    IReadOnlyDictionary<string, BirdComposition>? Stages = null)
 {
     public string PickTexture(BirdId bird, Random random)
     {

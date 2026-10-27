@@ -5,11 +5,11 @@ namespace BirdsEverywhere.Content;
 
 public static class ActionLoader
 {
-    public static readonly IReadOnlyList<string> Primitives = new[] { "stay", "walk", "hop", "flyOff", "runToBush", "swim", "dive" };
+    public static readonly IReadOnlyList<string> Primitives = new[] { "stay", "walk", "hop", "flyOff", "runToBush", "swim", "dive", "swimAway", "follow" };
 
     private static readonly HashSet<string> _keys = new(StringComparer.Ordinal)
     {
-        "do", "clip", "sound", "soundChance", "durationMs", "endChance", "speed", "climb", "impulse", "turn", "pauseMs", "hiddenMs", "radius",
+        "do", "clip", "sound", "soundChance", "durationMs", "endChance", "speed", "climb", "impulse", "turn", "pauseMs", "hiddenMs", "radius", "target", "speedFactor",
     };
 
     /// <summary>Loads <c>actions/*.json</c> sets (action id → definition) as raw objects so rules can override single fields; each set is parsed once to fail fast.</summary>
@@ -56,7 +56,9 @@ public static class ActionLoader
             body["hiddenMs"] is { } hidden ? LayoutLoader.ParseRange(hidden, file, $"{path}.hiddenMs") : null,
             body["radius"] is { } radius
                 ? radius.Type == JTokenType.Integer && radius.Value<int>() is >= 1 and <= 10 ? radius.Value<int>() : throw new FormatException($"{file}: {path}.radius must be an integer from 1 to 10.")
-                : null);
+                : null,
+            Text(body, "target", file, path),
+            Number(body, "speedFactor", file, path));
 
         string? missing = action.Do switch
         {
@@ -67,6 +69,8 @@ public static class ActionLoader
             "hop" when action.Impulse is null => "impulse",
             "flyOff" when action.Clip is null || action.Speed is null || action.Climb is null => "clip, speed and climb",
             "runToBush" when action.Clip is null || action.Speed is null => "clip and speed",
+            "swimAway" when action.Clip is null || action.Speed is null => "clip and speed",
+            "follow" when action.Target is null || action.SpeedFactor is null => "target and speedFactor",
             _ => null,
         };
         return missing is null ? action : throw new FormatException($"{file}: {path} ('{action.Do}') needs {missing}.");

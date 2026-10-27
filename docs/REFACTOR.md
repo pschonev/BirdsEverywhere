@@ -466,6 +466,10 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 
 **Exit:** a duck-family fixture (parents + young that follow and swim away together, placeholder layouts) is JSON-only, passes pure tests, and syncs in two-player SMAPI.
 
+**Implemented (compile/test verified, not tested in game):** `group.members` assigns roles and stages with stable, location-unique group IDs; staged compositions override routine, actions, reactions, sounds and layout. Stage routines can extend shared routines without dropping inherited rare actions. Stage layouts are validated for clips, events and texture capacity; live sprites use their selected frame size. JSON-only family fixtures cover parent/young placement, following and coordinated swim-flee; group metadata, committed movement and sprite dimensions survive snapshots, and replicas replay them. A location has one simulation owner, so family members share ownership on handoff. Rules without family fields retain their old placement RNG behavior. The shipped species and art are unchanged.
+
+**Still open:** verify the duck-family fixture's appearance, behavior and two-player synchronization in SMAPI. The exit criterion and Phase 10 steps 3–7 checkbox remain unchecked until that in-game check is recorded.
+
 **Prototype species once art exists** ([table](#backlog)): mallard (male, female, ducklings; eclipse plumage in late summer).
 
 ---

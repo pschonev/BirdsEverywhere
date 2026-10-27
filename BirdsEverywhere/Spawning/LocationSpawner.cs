@@ -80,6 +80,10 @@ internal sealed class LocationSpawner
 
             bird.BirdID = placement.Seed;
             bird.Composition = placement.Composition;
+            bird.ApplyLayout();
+            bird.GroupId = placement.GroupId;
+            bird.Role = placement.Role;
+            bird.Stage = placement.Stage;
             location.critters.Add(bird);
             _spawned.Add(placement);
             _services.Monitor.Log($"Added {placement.BirdId} at {(int)placement.Tile.X} - {(int)placement.Tile.Y}.", LogLevel.Debug);

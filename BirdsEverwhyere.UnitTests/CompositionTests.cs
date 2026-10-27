@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using BirdsEverywhere;
 using BirdsEverywhere.BirdTypes;
 using BirdsEverywhere.BirdTypes.Behaviors;
@@ -5,6 +6,7 @@ using BirdsEverywhere.Content;
 using BirdsEverywhere.Domain;
 using BirdsEverywhere.Spawners;
 using Microsoft.Xna.Framework;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using StardewValley;
 
@@ -24,7 +26,17 @@ public class CompositionTests
             ""routine"":{""chance"":0.02,""pick"":{""walk"":3,""peck"":1},""next"":{""peck"":{""sleep"":1}}},
             ""sounds"":{""alarm"":""crow"",""peck"":""""}}}";
 
-    private static (BirdDefinition? Bird, IReadOnlyList<ValidationIssue> Issues) Load(string birdJson, Func<string, bool>? fileExists = null)
+    private const string FamilySpecies =
+        @"{""id"":""test"",""name"":""Duck family"",""scName"":""Anas testus"",""template"":""base"",""defaults"":{
+            ""birdType"":""WaterLandBird"",""spawnPattern"":""WaterSpawner"",""groupSize"":[4,6],
+            ""spawnParams"":{""group"":{""formation"":""cluster"",""radius"":5,""members"":{
+                ""parent"":{""count"":[1,2],""stage"":""adult""},""duckling"":{""count"":[3,4],""stage"":""young""}}}},
+            ""reactions"":{""threat"":[{""if"":{""groupHasRole"":""parent"",""nearWater"":true,""stage"":""young""},""flee"":{""radius"":3,""do"":""swimAway""}},
+                {""if"":{},""flee"":{""radius"":4,""do"":""flyOff""}}]},
+            ""stages"":{""adult"":{""sounds"":{""alarm"":""crow""}},""young"":{""routine"":{""chance"":0.02,""pick"":{""followParent"":1}},""actions"":{""flee"":{""do"":""swimAway"",""clip"":""swim"",""speed"":2},""followParent"":{""do"":""follow"",""target"":""groupRole:parent"",""speedFactor"":1.2}}}}}}";
+
+    private static (BirdDefinition? Bird, IReadOnlyList<ValidationIssue> Issues) Load(string birdJson, Func<string, bool>? fileExists = null,
+        SharedDefinitions? definitions = null)
     {
         Dictionary<string, string> files = new()
         {
@@ -32,7 +44,7 @@ public class CompositionTests
             [ContentPaths.Template(Root, "base")] = _template,
         };
         (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues, _, _) = ContentLoader.LoadBird(Root, "test",
-            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, TestBirds.Definitions,
+            new Dictionary<string, IReadOnlyList<string>>(), ContentTests.Patterns, ContentTests.BirdTypes, definitions ?? TestBirds.Definitions,
             path => files.GetValueOrDefault(path), fileExists ?? (_ => true));
         return (bird, issues);
     }
@@ -55,6 +67,84 @@ public class CompositionTests
             Assert.That(composition.Routine.Pick, Is.EqualTo(new[] { new WeightedId("walk", 3), new WeightedId("peck", 1) }));
             Assert.That(composition.Sounds, Is.EquivalentTo(new Dictionary<string, string> { ["alarm"] = "crow", ["flap"] = "batFlap", ["peck"] = "" }));
         });
+    }
+
+    [Test]
+    public void FamilyFixture_ResolvesStagesAndMemberRoles()
+    {
+        (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues) = Load(FamilySpecies);
+
+        Assert.That(issues.Where(issue => issue.Severity == IssueSeverity.Error), Is.Empty);
+        SpawnRule rule = bird!.Rules.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(rule.Params.Group!.Members!["duckling"], Is.EqualTo(new GroupMember(new IntRange(3, 4), "young")));
+            Assert.That(rule.Stages!["adult"].Sounds["alarm"], Is.EqualTo("crow"));
+            Assert.That(rule.Stages["young"].Routine!.Pick, Is.EqualTo(new[] { new WeightedId("followParent", 1) }));
+            Assert.That(rule.Stages["young"].Actions!["followParent"].Target, Is.EqualTo("groupRole:parent"));
+            Assert.That(rule.Stages["young"].Actions["flee"].Do, Is.EqualTo("swimAway"));
+            Assert.That(rule.Stages["young"].Reactions!.Select(new ReactionContext(new[] { "parent" }, true,
+                BirdsEverywhere.Domain.Season.Spring, Weather.Sun, 900, "young")).Flee?.Do, Is.EqualTo("swimAway"));
+        });
+    }
+
+    [Test]
+    public void FamilyFixture_StageExtendsSharedRoutineWithoutDroppingRareActions()
+    {
+        Routine parent = TestBirds.Definitions.Routines["waterland_idle"] with
+        {
+            Rare = new[] { new RareAction("walk", 0.25, new SpawnConditions(ImmutableArray<BirdsEverywhere.Domain.Season>.Empty,
+                ImmutableArray.Create(Weather.Rain), ImmutableArray<IntRange>.Empty, ImmutableArray<IntRange>.Empty)) },
+        };
+        SharedDefinitions definitions = TestBirds.Definitions with
+        {
+            Routines = TestBirds.Definitions.Routines.Concat(new[] { new KeyValuePair<string, Routine>("family_idle", parent) })
+                .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal),
+        };
+        string fixture = FamilySpecies.Replace(@"""routine"":{""chance"":0.02,""pick"":{""followParent"":1}}",
+            @"""routine"":{""extends"":""family_idle"",""pick"":{""followParent"":1}}", StringComparison.Ordinal);
+
+        (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues) = Load(fixture, definitions: definitions);
+
+        Assert.That(issues.Where(issue => issue.Severity == IssueSeverity.Error), Is.Empty);
+        Routine routine = bird!.Rules.Single().Stages!["young"].Routine!;
+        RareAction rare = routine.Rare!.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(routine.Chance, Is.EqualTo(parent.Chance));
+            Assert.That(routine.Pick, Is.EqualTo(parent.Pick.Append(new WeightedId("followParent", 1))));
+            Assert.That(rare.Id, Is.EqualTo("walk"));
+            Assert.That(rare.Chance, Is.EqualTo(0.25));
+            Assert.That(rare.When.Weathers, Is.EqualTo(new[] { Weather.Rain }));
+        });
+    }
+
+    [Test]
+    public void FamilyFixture_StageSelectsLayout()
+    {
+        string fixture = FamilySpecies.Replace(@"""young"":{""routine""", @"""young"":{""layout"":""waterland_32"",""routine""", StringComparison.Ordinal);
+
+        (BirdDefinition? bird, IReadOnlyList<ValidationIssue> issues) = Load(fixture);
+
+        Assert.That(issues.Where(issue => issue.Severity == IssueSeverity.Error), Is.Empty);
+        Assert.That(bird!.Rules.Single().Stages!["young"].LayoutId, Is.EqualTo("waterland_32"));
+    }
+
+    [Test]
+    public void FamilyFixture_RejectsUnknownStages()
+    {
+        IReadOnlyList<ValidationIssue> issues = Load(FamilySpecies.Replace(@"""stage"":""young""", @"""stage"":""missing""", StringComparison.Ordinal)).Issues;
+
+        Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error && issue.Path.EndsWith(".stage", StringComparison.Ordinal)));
+    }
+
+    [Test]
+    public void FamilyFixture_RejectsUnknownReactionRole()
+    {
+        IReadOnlyList<ValidationIssue> issues = Load(FamilySpecies.Replace(@"""groupHasRole"":""parent""", @"""groupHasRole"":""stranger""", StringComparison.Ordinal)).Issues;
+
+        Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue.Severity == IssueSeverity.Error
+            && issue.Path.EndsWith(".threat.if.groupHasRole", StringComparison.Ordinal)));
     }
 
     [TestCase("great_tit", "land_idle", "SpringBirds")]
@@ -110,6 +200,23 @@ public class CompositionTests
             Assert.That(FixtureComposition().Reactions, Is.EqualTo(new Reactions(new ThreatReaction(4))));
             Assert.That(Resolve("\"reactions\":\"wary\""), Is.EqualTo(new Reactions(new ThreatReaction(3, new AlertReaction(7, "stand", null, 2000), 2))));
             Assert.That(Resolve("\"reactions\":{\"threat\":{\"runningMultiplier\":1.5}}"), Is.EqualTo(new Reactions(new ThreatReaction(4, null, 1.5))));
+        });
+    }
+
+    [Test]
+    public void Reactions_ChooseFirstMatchingAlternativeOrLegacyFallback()
+    {
+        Reactions reactions = ReactionLoader.Parse(JObject.Parse(
+            @"{""threat"":[{""if"":{""groupHasRole"":""parent"",""nearWater"":true},""flee"":{""radius"":3,""do"":""swimAway""}},
+                {""if"":{""nearWater"":true},""flee"":{""radius"":5,""do"":""flyOff""}}]}"),
+            new Reactions(new ThreatReaction(4)), "fixture", "$.reactions");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reactions.Select(new ReactionContext(new[] { "parent" }, true, BirdsEverywhere.Domain.Season.Spring, Weather.Sun, 900, "young")).Flee?.Do, Is.EqualTo("swimAway"));
+            Assert.That(reactions.Select(new ReactionContext(Array.Empty<string>(), true, BirdsEverywhere.Domain.Season.Spring, Weather.Sun, 900, "young")).Threat.FleeRadius, Is.EqualTo(5));
+            Assert.That(reactions.Select(new ReactionContext(Array.Empty<string>(), false, BirdsEverywhere.Domain.Season.Spring, Weather.Sun, 900, "young")).Threat.FleeRadius, Is.EqualTo(4));
+            Assert.That(reactions.Select(new ReactionContext(Array.Empty<string>(), false, BirdsEverywhere.Domain.Season.Spring, Weather.Sun, 900, "young")).Flee, Is.Null);
         });
     }
 
