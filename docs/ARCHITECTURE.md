@@ -613,7 +613,7 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 - Primitives are a closed C# vocabulary: `stay`, `walk`, `hop`, `flyOff`, `flyTo`, `runToBush`, `swim`, `swimAway`, `dive`, `hide`, `follow`.
 - Common fields: `clip`, `sound` (role played when the action starts), `soundChance`, and how the action ends: clip end (default for non-looping clips), `durationMs`, or `endChance` (per-tick chance, legacy `Wake`/`StopWalking`).
 - Primitive-specific fields (`speed`, `impulse`, `turn`, `hiddenMs`, `target`, `speedFactor`, ...) are validated per `do`.
-- Targets are `kind` or `kind:arg` strings. Planned (step 8): a closed kind list (only `groupRole:<role>` and the `flyTo` searches today) with a clear error for unknown kinds, so later kinds such as `food:<id>` (bird feeding) need only a new search and no format change. Feeding itself is not designed here.
+- Targets are `kind` or `kind:arg` strings. Step 8 (implemented): a closed kind list (only `groupRole:<role>` and the `flyTo` searches today) with a clear error for unknown kinds, so later kinds such as `food:<id>` (bird feeding) need only a new search and no format change. Feeding itself is not designed here.
 - Action ids are strings. They replace the `BirdAction` enum, and `IdleCue.Action` becomes the action id.
 - Implemented (step 3b): action sets per bird type in `assets/actions/<type>_actions.json` (one file per set rather than one per action, since shipped actions are small and belong to a body). A rule's `actions` overrides single fields per id. Built-in ids are fixed per bird type (`BirdTypeProfiles.ActionPrimitives`); `soundChance` is rolled on the owner RNG only when the action has a `sound`. Step 3c: `IdleCue.Action` is a string id, and a rule on a routine-driven bird type may add new ids with `do: "stay"` and a `clip`; the routine can pick them, and the bird plays the clip (and sound) while staying stopped.
 
@@ -786,7 +786,7 @@ Reactions (and routine `rare.when`) can branch on context. A list of alternative
 
 Condition keys are a fixed C# vocabulary: `groupHasRole`, `nearWater`, `season`, `timeOfDay`, `weather`, `stage`. Keys in one object are ANDed; there is no OR/NOT inside an object (use separate alternatives).
 
-Planned (step 8) member fields:
+Member fields (step 8, implemented):
 
 - `required: true`: the group is placed only if every required member can be placed, and required roles are placed first so a partial placement never drops a parent. The validator requires `count` min ≥ 1 for them.
 - `textures`: optional weight map for that role, picked after role assignment and falling back to the rule's `textures`; without it the RNG order is unchanged. Lets a role (e.g. `drake`) use its own plumage.
@@ -796,7 +796,7 @@ Planned (step 8) member fields:
 - Each bird carries `groupId` and `role` (also in `BirdState`).
 - Group-level reactions are possible (one member's flee triggers the group).
 - The owner of the group leader owns the whole group.
-- `follow` is committed movement relative to the leader; later reused for cattle egrets on farm animals (moving anchor).
+- `follow` is committed movement relative to the leader. Each follower takes a stable slot (rank among same-role members by bird id) on a golden-angle spiral around the leader (`FollowSlot`), so a brood spreads out instead of stacking; a slot that is not water falls back to the leader's position. Later reused for cattle egrets on farm animals (moving anchor).
 
 #### Placement controls
 

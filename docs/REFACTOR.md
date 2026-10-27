@@ -542,7 +542,7 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 **Bird types and behaviors** (as Phase 10 composition where possible; a new body only when anchoring or drawing differs)
 
 - Birds flying into trees.
-- Water birds that swim away. Open: on land `swimAway` falls back to flight; a land/water-aware family flee is not designed.
+- Water birds that swim away. On land `swimAway` falls back to flight. Not needed for families that spawn only on water (e.g. mallards); a land/water-aware family flee is not designed.
 - Singing: seasonal `rare` `sing` entries with `when.any` and time anchors (step 8); needs song clips and `audio:` cues per species.
 - Visible birds in tree canopies that fly off when the tree is shaken.
 - Shore birds.

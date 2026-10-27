@@ -415,14 +415,22 @@ internal sealed class WaterLandBird : BirdCritter
     private void Follow(GameTime time, GameLocation environment)
     {
         BirdCritter? leader = null;
+        int slot = 0;
         if (GroupId is { } groupId && _followRole is { } role && environment.critters is { } critters)
         {
             foreach (var critter in critters)
             {
-                if (critter is BirdCritter candidate && candidate != this && candidate.GroupId == groupId && candidate.BirdName == BirdName && candidate.Role == role)
+                if (critter is not BirdCritter candidate || candidate == this || candidate.GroupId != groupId || candidate.BirdName != BirdName)
                 {
-                    leader = candidate;
-                    break;
+                    continue;
+                }
+                if (candidate.Role == role)
+                {
+                    leader ??= candidate;
+                }
+                else if (candidate.Role == Role && candidate.BirdID < BirdID)
+                {
+                    slot++;
                 }
             }
         }
@@ -431,13 +439,19 @@ internal sealed class WaterLandBird : BirdCritter
             State = BehaviorStatus.Swimming;
             return;
         }
-        Vector2 difference = leader.position - position;
+        (float offsetX, float offsetY) = FollowSlot.Offset(slot);
+        Vector2 target = leader.position + new Vector2(offsetX, offsetY);
+        if (!IsWater(environment, target))
+        {
+            target = leader.position;
+        }
+        Vector2 difference = target - position;
         float distance = difference.Length();
-        if (distance > 64f)
+        if (distance > 8f)
         {
             float speed = Action("walk").Speed!.Value * _followSpeedFactor;
-            Vector2 next = position + Vector2.Normalize(difference) * Math.Min(speed, distance - 64f);
-            if (environment.doesTileHaveProperty((int)(next.X / 64), (int)(next.Y / 64), "Water", "Back") != null)
+            Vector2 next = position + Vector2.Normalize(difference) * Math.Min(speed, distance);
+            if (IsWater(environment, next))
             {
                 flip = difference.X > 0;
                 position = next;
@@ -445,6 +459,9 @@ internal sealed class WaterLandBird : BirdCritter
         }
         Swim(time, environment);
     }
+
+    private static bool IsWater(GameLocation environment, Vector2 point) =>
+        environment.doesTileHaveProperty((int)(point.X / 64), (int)(point.Y / 64), "Water", "Back") != null;
 
     private bool IsOnWater(GameLocation environment) =>
         environment.doesTileHaveProperty((int)(position.X / 64), (int)(position.Y / 64), "Water", "Back") != null;

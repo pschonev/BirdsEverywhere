@@ -33,6 +33,13 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | T04 | Repeat T01 in a location with a different dark time (for example a mod or a season with earlier dusk). | The window opens at that location's own dusk time. |
 | T05 | Put `any` and a top-level `seasons` in one rule and `birds_reload`. | Load error naming the field and saying to set the inherited field to `null`. |
 
+## Group following (one client)
+
+| ID | Action | Expected result |
+|---|---|---|
+| F01 | Spawn a water group with one `parent` and 6 `follow`ing juveniles, then walk the parent around the pond. | Juveniles trail the parent spread around it without overlapping each other or the parent; none stack on one spot. |
+| F02 | Let the parent turn and change direction repeatedly, then watch the juveniles. | Juveniles keep their relative places and do not jitter; slots on land are replaced by the parent's position. |
+
 ## Multiplayer synchronization (two SMAPI clients)
 
 | ID | Action | Expected result |
