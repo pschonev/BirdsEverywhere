@@ -472,6 +472,38 @@ Use the debug mode and console commands from the prerequisite above to reach spe
 
 **Prototype species once art exists** ([table](#backlog)): mallard (male, female, ducklings; eclipse plumage in late summer).
 
+### Step 8: condition clauses, time anchors and family polish (planned)
+
+Design: [ARCHITECTURE.md → Condition clauses and time anchors](ARCHITECTURE.md#condition-clauses-and-time-anchors-planned-step-8). Needed for seasonal behaviors such as singing (spring all day, summer only after sunrise and around dusk) and for mallard families that must always include a parent.
+
+**A. Condition clauses (`when.any`)**
+
+- `ConditionClause(Seasons, Weathers, Days, Times)`; `SpawnConditions(AnyOf)`; `MatchesDay`, `TimesOn(season, weather, day)`, `RareAction.Matches(IdleWorld)` over clauses. A plain `when` is one clause.
+- `DailySpawnPlan.Place` sets placement `Times` from `TimesOn`; `TileSpawner` stops reading `When.Times`; `RuleText` prints `OR`.
+- `ContentValidator`/`RoutineLoader`: one clause parser for rules and `rare.when`; `any` plus top-level fields is an error (including inherited ones); stage `extends` round-trips rare clauses.
+- Schemas: shared `dayClause`, `dependentSchemas` for the mixing rule.
+
+**B. Time anchors**
+
+- `times` bounds accept `HHMM` or `"sunrise|dusk|dark[+|-minutes]"`. `dusk` and `dark` resolve per location from `Game1.getStartingToGetDarkTime`/`getTrulyDarkTime`; `sunrise` is fixed at 0600.
+- Confirm both method signatures against 1.6.15 before coding. Resolve at evaluation time (spawn check, `rare` roll), not at load.
+- Move `nocturnal` to `[["dark", 2600]]`; add a day-1 coverage `Info` for windows that resolve empty.
+
+**C. Family polish**
+
+- Group member `required: true`: required roles placed first, group dropped if one cannot be placed; validator requires `count` min ≥ 1.
+- Member `textures` weight map (falls back to the rule's `textures`; same RNG order when absent).
+- Action targets as typed `kind:arg` with a closed kind list and an unknown-kind error.
+
+**D. Housekeeping**
+
+- Every species sets a verified eBird `shorthand`; validator checks format and uniqueness; `ContentTests` asserts it (codes confirmed with the maintainer).
+- `action.schema.json` gains `follow`, `swimAway`, `target`, `speedFactor`, covered by the schema/loader agreement table.
+
+**Tests:** OR matching and overlap counting; combined `TimesOn` (open-all-day clause wins); mixing error including an inherited `times`; seasonal `sing` rare entry with two clauses; anchor parsing, per-location resolution with a fake location and offset arithmetic (`sunrise+120` = 0800); required-role drop; role-texture fallback and unchanged RNG; unknown target kind; shorthand uniqueness; schema agreement cases for each new field.
+
+**Exit:** the tests above pass; existing goldens unchanged for rules without the new fields; a fixture species sings only in the configured windows. Verification stays separate: compile-only mod and playground builds, `dotnet test BirdsEverywhere.sln --arch x64`, a playground check of `any` output, then in-game and two-player checks recorded in [MANUAL_TESTS.md](MANUAL_TESTS.md) (never claimed from builds or tests). No shipped species has song audio yet, so shipped behavior does not change.
+
 ---
 
 ## Open items and definition of done
@@ -485,6 +517,7 @@ The refactor is done when every box is checked. Phase sections hold the details;
 - [ ] Phase 9: in-game verification recorded in [MANUAL_TESTS.md](MANUAL_TESTS.md) for Phases 3–8 (content and spawning, registries, behaviors per bird type, observations, two-player sync, ownership handoff, late join, disconnect, day change) and the debug commands.
 - [ ] Phase 10 step 2: in-game check (see step 2), including whether the `"flip"` frame tags are visible.
 - [ ] Phase 10 steps 3–7: exit criteria met.
+- [ ] Phase 10 step 8: implemented and exit criteria met.
 - [ ] Phase 9 smoke test and full pass recorded before release.
 
 ---
@@ -509,7 +542,8 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 **Bird types and behaviors** (as Phase 10 composition where possible; a new body only when anchoring or drawing differs)
 
 - Birds flying into trees.
-- Water birds that swim away.
+- Water birds that swim away. Open: on land `swimAway` falls back to flight; a land/water-aware family flee is not designed.
+- Singing: seasonal `rare` `sing` entries with `when.any` and time anchors (step 8); needs song clips and `audio:` cues per species.
 - Visible birds in tree canopies that fly off when the tree is shaken.
 - Shore birds.
 - Flyovers: migrating birds passing through, predators circling.
@@ -562,6 +596,7 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 - Bird food: grown or processed by the player, or bought at Pierre's or JojaMart. Using it scatters it on a tile and attracts birds nearby for a while.
 - Bird feeder: craftable placed object like the bee house; holds food, birds appear in nearby trees and fly to it.
 - Both need a runtime attraction point (tile, radius, expiry, food-to-species affinity) next to the daily plan; how it combines with the plan is undecided.
+- Birds approaching food or a feeder need a `food:<id>` action target, a consume effect and sync; step 8 only reserves the typed target format.
 
 **Progression and story**
 
