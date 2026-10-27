@@ -62,9 +62,24 @@ public static class TileSelection
 
     private static readonly Vector2[] _lineDirections = { new(1, 0), new(0, 1), new(1, 1), new(1, -1) };
 
+    public static List<(Vector2 Tile, int Group, string Role, string Stage)> Family(ILocationQuery location, TileSpawnCondition condition,
+        IntRange groupCount, Random random, GroupLayout layout, int attemptsStartTile = 100, int attemptsPerBird = 20,
+        IReadOnlyCollection<Vector2>? avoid = null, int speciesDistance = MinSpeciesDistance)
+    {
+        List<(Vector2, int, string, string)> result = new();
+        if (layout.Members is not { Count: > 0 } || location.MapSize.X < MinMapSize || location.MapSize.Y < MinMapSize)
+        {
+            return result;
+        }
+        Grouped(location, condition, groupCount, new IntRange(1, 1), random, attemptsStartTile, attemptsPerBird,
+            avoid, layout, speciesDistance, result);
+        return result;
+    }
+
     /// <summary>Rejection sampling per formation; groups may place fewer members than drawn when tiles run out.</summary>
     private static List<Vector2> Grouped(ILocationQuery location, TileSpawnCondition condition, IntRange groupCount, IntRange groupSize,
-        Random random, int attemptsStartTile, int attemptsPerBird, IReadOnlyCollection<Vector2>? avoid, GroupLayout layout, int speciesDistance)
+        Random random, int attemptsStartTile, int attemptsPerBird, IReadOnlyCollection<Vector2>? avoid, GroupLayout layout, int speciesDistance,
+        List<(Vector2 Tile, int Group, string Role, string Stage)>? family = null)
     {
         Point mapSize = location.MapSize;
         List<Vector2> tiles = new();
@@ -77,7 +92,20 @@ public static class TileSelection
         int groups = Utils.NextInclusive(random, groupCount.Min, groupCount.Max);
         for (int group = 0; group < groups; group++)
         {
-            int size = Utils.NextInclusive(random, groupSize.Min, groupSize.Max);
+            List<(string Role, string Stage)>? roles = null;
+            if (family is not null)
+            {
+                roles = new();
+                foreach ((string role, GroupMember member) in layout.Members!)
+                {
+                    int count = Utils.NextInclusive(random, member.Count.Min, member.Count.Max);
+                    for (int index = 0; index < count; index++)
+                    {
+                        roles.Add((role, member.Stage));
+                    }
+                }
+            }
+            int size = roles?.Count ?? Utils.NextInclusive(random, groupSize.Min, groupSize.Max);
             List<Vector2> members = new();
             for (int attempt = 0; attempt < attemptsStartTile && members.Count == 0; attempt++)
             {
@@ -124,6 +152,13 @@ public static class TileSelection
                 }
             }
             tiles.AddRange(members);
+            if (roles is not null)
+            {
+                for (int index = 0; index < members.Count; index++)
+                {
+                    family!.Add((members[index], group, roles[index].Role, roles[index].Stage));
+                }
+            }
         }
         return tiles;
     }

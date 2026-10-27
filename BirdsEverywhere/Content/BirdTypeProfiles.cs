@@ -29,7 +29,7 @@ public static class BirdTypeProfiles
             Threat(4),
             CanAlert: true,
             Array.Empty<string>(),
-            new[] { "stay", "dive" }),
+            new[] { "stay", "dive", "follow" }),
         ["TreeTrunkBird"] = new("trunk_16",
             Array.Empty<string>(),
             new[] { "peck", "flap" },

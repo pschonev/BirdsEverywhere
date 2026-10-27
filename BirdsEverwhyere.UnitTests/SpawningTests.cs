@@ -237,6 +237,53 @@ public class SpawningTests
         }
     }
 
+    [TestCase(Formation.Cluster)]
+    [TestCase(Formation.Scattered)]
+    [TestCase(Formation.Line)]
+    public void Family_AssignsRolesAndStagesWithinEachGroup(Formation formation)
+    {
+        GroupLayout layout = new(formation, 6, 1, 0, new Dictionary<string, GroupMember>
+        {
+            ["parent"] = new(new IntRange(1, 2), "adult"),
+            ["duckling"] = new(new IntRange(3, 4), "young"),
+        });
+        for (int seed = 0; seed < 20; seed++)
+        {
+            var members = TileSelection.Family(new FakeLocation(), Condition.IsValidGroundTile, new IntRange(2, 2), new Random(seed), layout);
+            Assert.That(members.Select(member => member.Tile), Is.Unique);
+            foreach (var group in members.GroupBy(member => member.Group))
+            {
+                var placed = group.ToList();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(placed.Count(member => member.Role == "parent" && member.Stage == "adult"), Is.InRange(1, 2));
+                    Assert.That(placed.Count(member => member.Role == "duckling" && member.Stage == "young"), Is.InRange(3, 4));
+                    Assert.That(placed.All(member => Vector2.Distance(member.Tile, placed[0].Tile) <= layout.Radius + 0.5f), Is.True);
+                });
+            }
+            Assert.That(members.Select(member => member.Group).Distinct().Count(), Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public void Family_GroupsFromSeparateAssignmentsStayDistinct()
+    {
+        BirdPlacement Member(int? group) => new("duck", "spring", "WaterLandBird", "WaterSpawner", Vector2.Zero,
+            null, Array.Empty<IntRange>(), "", 123, GroupId: group);
+
+        List<BirdPlacement> first = DailySpawnPlan.AssignGroupIds(new[] { Member(0), Member(0), Member(1) }, null);
+        List<BirdPlacement> second = DailySpawnPlan.AssignGroupIds(new[] { Member(0), Member(0), Member(null) }, first);
+        List<BirdPlacement> afterUngrouped = DailySpawnPlan.AssignGroupIds(new[] { Member(0) }, new[] { Member(null) });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first.Select(member => member.GroupId), Is.EqualTo(new int?[] { 0, 0, 1 }));
+            Assert.That(second.Select(member => member.GroupId), Is.EqualTo(new int?[] { 2, 2, null }));
+            Assert.That(second.Select(member => member.Seed), Is.All.EqualTo(123));
+            Assert.That(afterUngrouped.Single().GroupId, Is.EqualTo(0));
+        });
+    }
+
     [TestCase(null)]
     [TestCase(Formation.Cluster)]
     public void SpeciesDistance_IsConfigurable(Formation? formation)

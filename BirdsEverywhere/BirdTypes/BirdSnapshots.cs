@@ -15,7 +15,8 @@ internal static class BirdSnapshots
     public static BirdState Capture(BirdCritter bird) => bird.CaptureExtras(new BirdState(
         bird.BirdTypeName, bird.BirdID, bird.BirdName, bird.Texture, bird.State, bird.position, bird.startingPosition, bird.flip,
         bird.gravityAffectedDY, bird.yOffset, bird.yJumpOffset, bird.baseFrame, new CurrentAnimatedSprite(bird.sprite),
-        bird.CharacterCheckTimer, bird.IdleTick, bird.IdleRevision, bird.IdleCue, bird.Composition));
+        bird.CharacterCheckTimer, bird.IdleTick, bird.IdleRevision, bird.IdleCue, bird.Composition) with
+        { GroupId = bird.GroupId, Role = bird.Role, Stage = bird.Stage });
 
     /// <summary>Recreates a bird (loading its texture); null for an unknown bird type.</summary>
     public static BirdCritter? Restore(BirdState state)
@@ -42,6 +43,9 @@ internal static class BirdSnapshots
         bird.IdleRevision = state.IdleRevision;
         bird.IdleCue = state.IdleCue;
         bird.Composition = state.Composition;
+        bird.GroupId = state.GroupId;
+        bird.Role = state.Role;
+        bird.Stage = state.Stage;
         bird.sprite = CurrentAnimatedSprite.CurrentToAnimatedSprite(state.Sprite);
         bird.RestoreExtras(state);
         return bird;

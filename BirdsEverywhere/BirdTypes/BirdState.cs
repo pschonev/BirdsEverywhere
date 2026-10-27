@@ -33,4 +33,11 @@ internal sealed record BirdState(
     Vector2? RelocateTarget = null,
     bool Hidden = false,
     int DiveTimer = 0,
-    int DiveRadius = 0);
+    int DiveRadius = 0,
+    int? GroupId = null,
+    string? Role = null,
+    string? Stage = null,
+    string? FollowRole = null,
+    float FollowSpeedFactor = 1f,
+    Vector2 SwimDirection = default,
+    ActionDefinition? ActiveFlee = null);

@@ -6,6 +6,7 @@ using BirdsEverywhere.Multiplayer;
 using BirdsEverywhere.Registries;
 using BirdsEverywhere.Spawners;
 using Microsoft.Xna.Framework;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using StardewValley;
 
@@ -69,6 +70,90 @@ public class GameTypeRegressionTests
         CurrentAnimatedSprite current = new CurrentAnimatedSprite(sprite);
 
         Assert.That(current.CurrentAnimation, Is.EqualTo(new List<(int, int)> { (3, 100), (4, 200) }));
+    }
+
+    [Test]
+    public void StageLayout_SetsSpriteFrameSizeAndSurvivesSnapshot()
+    {
+        WaterLandBird bird = new()
+        {
+            BirdID = 42, BirdName = "test", Texture = "", Services = TestBirds.Services,
+            Composition = new BirdComposition(null, new Dictionary<string, string>(), LayoutId: "trunk_16"),
+            sprite = new AnimatedSprite { SpriteWidth = 32, SpriteHeight = 32 },
+        };
+
+        bird.ApplyLayout();
+        BirdState restored = JsonConvert.DeserializeObject<BirdState>(JsonConvert.SerializeObject(BirdSnapshots.Capture(bird)))
+            ?? throw new InvalidOperationException("Expected a snapshot.");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(bird.sprite.SpriteWidth, Is.EqualTo(16));
+            Assert.That(bird.sprite.SpriteHeight, Is.EqualTo(16));
+            Assert.That(restored.Sprite.SpriteWidth, Is.EqualTo(16));
+            Assert.That(restored.Sprite.SpriteHeight, Is.EqualTo(16));
+        });
+    }
+
+    [Test]
+    public void FamilyMetadata_SurvivesSnapshotRoundTrip()
+    {
+        WaterLandBird bird = new() { BirdID = 42, GroupId = 7, Role = "duckling", Stage = "young", sprite = new AnimatedSprite() };
+
+        BirdState? restored = JsonConvert.DeserializeObject<BirdState>(JsonConvert.SerializeObject(BirdSnapshots.Capture(bird)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(restored?.GroupId, Is.EqualTo(7));
+            Assert.That(restored?.Role, Is.EqualTo("duckling"));
+            Assert.That(restored?.Stage, Is.EqualTo("young"));
+        });
+    }
+
+    [Test]
+    public void FamilyMovement_SurvivesSnapshotAndReplicaUpdate()
+    {
+        WaterLandBird owner = new()
+        {
+            BirdID = 42, GroupId = 7, Role = "duckling", Stage = "young", State = BehaviorStatus.SwimmingAway,
+            position = new Vector2(64, 64), sprite = new AnimatedSprite(),
+        };
+        BirdState state = BirdSnapshots.Capture(owner) with { FollowRole = "parent", FollowSpeedFactor = 1.2f, SwimDirection = new Vector2(1f, 0f) };
+        BirdState? restored = JsonConvert.DeserializeObject<BirdState>(JsonConvert.SerializeObject(state));
+        Assert.That(restored, Is.Not.Null);
+        WaterLandBird replica = new() { IsReplica = true, sprite = new AnimatedSprite(), Services = TestBirds.Services };
+        owner.RestoreExtras(restored!);
+        replica.ApplyReplicaState(owner);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(restored!.FollowRole, Is.EqualTo("parent"));
+            Assert.That(restored.SwimDirection, Is.EqualTo(new Vector2(1f, 0f)));
+            Assert.That(replica.State, Is.EqualTo(BehaviorStatus.SwimmingAway));
+            Assert.That(replica.FollowRole, Is.EqualTo("parent"));
+            Assert.That(replica.SwimDirection, Is.EqualTo(new Vector2(1f, 0f)));
+        });
+        Vector2 before = replica.position;
+        Assert.That(replica.update(new GameTime(TimeSpan.Zero, TimeSpan.FromMilliseconds(16)), null!), Is.False);
+        Assert.That(replica.position.X, Is.GreaterThan(before.X));
+    }
+
+    [Test]
+    public void FamilyFlee_SwimmingYoungTakesParentDirection()
+    {
+        WaterLandBird parent = new() { State = BehaviorStatus.SwimmingAway };
+        parent.RestoreExtras(new BirdState("WaterLandBird", 1, "duck", "", BehaviorStatus.SwimmingAway, Vector2.Zero,
+            Vector2.Zero, false, 0, 0, 0, 0, new CurrentAnimatedSprite(new AnimatedSprite()), 0, 0, 0, null, null)
+            with { SwimDirection = new Vector2(1, 0) });
+        WaterLandBird young = new() { State = BehaviorStatus.SwimmingAway };
+
+        young.MatchGroupFlee(parent);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(young.SwimDirection, Is.EqualTo(new Vector2(1, 0)));
+            Assert.That(young.flip, Is.True);
+        });
     }
 
     [Test]

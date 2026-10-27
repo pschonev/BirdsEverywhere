@@ -160,6 +160,19 @@
                             "type": "integer",
                             "minimum": 0,
                             "maximum": 40
+                        },
+                        "members": {
+                            "type": "object",
+                            "minProperties": 1,
+                            "additionalProperties": {
+                                "type": "object",
+                                "required": ["count", "stage"],
+                                "additionalProperties": false,
+                                "properties": {
+                                    "count": { "$ref": "#/$defs/range", "items": { "minimum": 1 } },
+                                    "stage": { "type": "string", "minLength": 1 }
+                                }
+                            }
                         }
                     }
                 },
@@ -215,6 +228,37 @@
             "type": "object",
             "additionalProperties": {
                 "$ref": "action.schema.json#/$defs/partialAction"
+            }
+        },
+        "stages": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "layout": { "type": "string", "minLength": 1 },
+                    "routine": {
+                        "oneOf": [
+                            { "$ref": "#/properties/routine" },
+                            {
+                                "type": "object",
+                                "required": ["extends"],
+                                "properties": {
+                                    "extends": { "type": "string", "minLength": 1 },
+                                    "chance": { "$ref": "routine.schema.json#/properties/chance" },
+                                    "pick": { "$ref": "routine.schema.json#/properties/pick" },
+                                    "next": { "$ref": "routine.schema.json#/properties/next" },
+                                    "rare": { "$ref": "routine.schema.json#/properties/rare" }
+                                },
+                                "additionalProperties": false
+                            }
+                        ]
+                    },
+                    "reactions": { "$ref": "#/properties/reactions" },
+                    "actions": { "$ref": "#/properties/actions" },
+                    "sounds": { "$ref": "#/properties/sounds" }
+                }
             }
         }
     },

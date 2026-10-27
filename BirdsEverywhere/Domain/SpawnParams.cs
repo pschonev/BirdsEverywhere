@@ -16,4 +16,7 @@ public enum Formation
 }
 
 /// <summary>Members within <c>Radius</c> tiles of the group's first tile, at least <c>Spacing</c> apart; groups at least <c>GroupSpacing</c> apart.</summary>
-public sealed record GroupLayout(Formation Formation, int Radius, int Spacing, int GroupSpacing);
+public sealed record GroupLayout(Formation Formation, int Radius, int Spacing, int GroupSpacing,
+    IReadOnlyDictionary<string, GroupMember>? Members = null);
+
+public sealed record GroupMember(IntRange Count, string Stage);

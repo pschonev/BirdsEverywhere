@@ -67,4 +67,25 @@ public class LayoutSheetTests
 
         Assert.That(messages, Has.Some.Contains("no clip 'peck'").And.Some.Contains("unknown event 'sing'"));
     }
+
+    [TestCase("missing", "is missing or invalid")]
+    [TestCase("land_32", "no clip 'swim'")]
+    public void ValidateBird_RejectsInvalidStageLayout(string layoutId, string expected)
+    {
+        SpawnRule rule = ContentTests.LoadBird("herring_gull").Rules.First();
+        BirdComposition composition = rule.Composition ?? throw new InvalidOperationException("Expected a resolved composition.");
+        BirdDefinition bird = ContentTests.LoadBird("herring_gull") with
+        {
+            Rules = System.Collections.Immutable.ImmutableArray.Create(rule with
+            {
+                Stages = new Dictionary<string, BirdComposition> { ["young"] = composition with { LayoutId = layoutId } },
+            }),
+        };
+
+        IEnumerable<ValidationIssue> issues = LayoutValidator.ValidateBird(bird, _assetsDir, TestBirds.Services.Layouts, _ => null);
+
+        Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue is not null
+            && issue.Path?.EndsWith(".stages.young.layout", StringComparison.Ordinal) == true
+            && issue.Message?.Contains(expected, StringComparison.Ordinal) == true));
+    }
 }

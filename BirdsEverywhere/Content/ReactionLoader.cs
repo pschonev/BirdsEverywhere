@@ -11,6 +11,9 @@ public static class ReactionLoader
     private static readonly HashSet<string> _threatKeys = new(StringComparer.Ordinal) { "fleeRadius", "runningMultiplier", "alert", "relocate" };
     private static readonly HashSet<string> _alertKeys = new(StringComparer.Ordinal) { "radius", "clip", "sound", "calmMs" };
     private static readonly HashSet<string> _relocateKeys = new(StringComparer.Ordinal) { "target", "maxDistance", "maxRelocations" };
+    private static readonly HashSet<string> _alternativeKeys = new(StringComparer.Ordinal) { "if", "flee" };
+    private static readonly HashSet<string> _conditionKeys = new(StringComparer.Ordinal) { "groupHasRole", "nearWater", "season", "timeOfDay", "weather", "stage" };
+    private static readonly HashSet<string> _fleeKeys = new(StringComparer.Ordinal) { "radius", "do", "sound", "target", "speedFactor" };
 
     /// <summary>Loads <c>reactions/*.json</c> raw so rules can override single fields; each file is parsed once against a neutral default to fail fast.</summary>
     public static (IReadOnlyDictionary<string, JObject> Sets, IReadOnlyList<ValidationIssue> Issues) LoadAll(string root) =>
@@ -31,6 +34,54 @@ public static class ReactionLoader
         }
 
         string threatPath = path + ".threat";
+        if (threatToken is JArray alternatives)
+        {
+            if (alternatives.Count == 0)
+            {
+                throw new FormatException($"{file}: {threatPath} needs at least one alternative.");
+            }
+            List<ThreatAlternative> choices = new();
+            for (int index = 0; index < alternatives.Count; index++)
+            {
+                string choicePath = $"{threatPath}[{index}]";
+                JObject choice = Object(alternatives[index], file, choicePath, _alternativeKeys);
+                JObject condition = choice["if"] is { } conditionToken
+                    ? Object(conditionToken, file, choicePath + ".if", _conditionKeys) : new JObject();
+                JObject fleeBody = Object(choice["flee"] ?? throw new FormatException($"{file}: {choicePath}.flee is required."), file, choicePath + ".flee", _fleeKeys);
+                string primitive = Text(fleeBody["do"], file, choicePath + ".flee.do")
+                    ?? throw new FormatException($"{file}: {choicePath}.flee.do is required.");
+                if (primitive is not ("swimAway" or "flyOff"))
+                {
+                    throw new FormatException($"{file}: {choicePath}.flee.do must be swimAway or flyOff.");
+                }
+                if (fleeBody["target"] is not null || fleeBody["speedFactor"] is not null)
+                {
+                    throw new FormatException($"{file}: {choicePath}.flee.target and speedFactor require a follow reaction (not supported yet).");
+                }
+                int radius = fleeBody["radius"] is { } radiusToken ? Int(radiusToken, 1, MaxRadius, file, choicePath + ".flee.radius") : defaults.Threat.FleeRadius;
+                bool? nearWater = condition["nearWater"] switch
+                {
+                    null => null,
+                    { Type: JTokenType.Boolean } value => value.Value<bool>(),
+                    _ => throw new FormatException($"{file}: {choicePath}.if.nearWater must be a boolean."),
+                };
+                Season? season = Name<Season>(condition["season"], file, choicePath + ".if.season");
+                Weather? weather = Name<Weather>(condition["weather"], file, choicePath + ".if.weather");
+                IntRange? time = condition["timeOfDay"] is { } range ? new IntRange(
+                    Int(range is JArray { Count: 2 } pair ? pair[0] : range, 600, 2600, file, choicePath + ".if.timeOfDay"),
+                    Int(range is JArray { Count: 2 } times ? times[1] : range, 600, 2600, file, choicePath + ".if.timeOfDay")) : null;
+                if (time is { } hours && hours.Min > hours.Max)
+                {
+                    throw new FormatException($"{file}: {choicePath}.if.timeOfDay must be ordered.");
+                }
+                choices.Add(new ThreatAlternative(
+                    new ReactionCondition(Text(condition["groupHasRole"], file, choicePath + ".if.groupHasRole"), nearWater, season, time, weather,
+                        Text(condition["stage"], file, choicePath + ".if.stage")),
+                    defaults.Threat with { FleeRadius = radius },
+                    new ActionDefinition(primitive, null, Text(fleeBody["sound"], file, choicePath + ".flee.sound"), 1, null, null, null, null, null, false, null)));
+            }
+            return new Reactions(defaults.Threat, choices);
+        }
         JObject threat = Object(threatToken, file, threatPath, _threatKeys);
         int fleeRadius = threat["fleeRadius"] is { } flee ? Int(flee, 1, MaxRadius, file, threatPath + ".fleeRadius") : defaults.Threat.FleeRadius;
         double running = threat["runningMultiplier"] is { } multiplier
@@ -98,4 +149,15 @@ public static class ReactionLoader
         { Type: JTokenType.String } value when value.Value<string>()!.Length > 0 => value.Value<string>(),
         _ => throw new FormatException($"{file}: {path} must be a non-empty string."),
     };
+
+    private static T? Name<T>(JToken? token, string file, string path) where T : struct, Enum
+    {
+        string? name = Text(token, file, path);
+        if (name is null)
+        {
+            return null;
+        }
+        return Enum.TryParse(name, true, out T parsed) && Enum.IsDefined(parsed)
+            ? parsed : throw new FormatException($"{file}: {path} has unknown value '{name}'.");
+    }
 }

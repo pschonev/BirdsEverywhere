@@ -20,26 +20,32 @@ public static class LayoutValidator
                 issues.Add(Error(file, bird, path, $"Bird type '{rule.BirdType.Value}' has no layout."));
                 continue;
             }
-            if (!layouts.TryGetValue(requirement.LayoutId, out SpriteLayout? layout))
+            foreach ((string stagePath, BirdComposition? composition) in new[] { (path, rule.Composition) }
+                .Concat(rule.Stages?.Select(stage => ($"$.rules.{rule.Id}.stages.{stage.Key}.layout", (BirdComposition?)stage.Value))
+                    ?? Enumerable.Empty<(string, BirdComposition?)>()))
             {
-                issues.Add(Error(file, bird, path, $"Layout '{requirement.LayoutId}' is missing or invalid."));
-                continue;
-            }
-
-            issues.AddRange(Requirement(layout, requirement, rule.Composition).Select(message => Error(file, bird, path, message)));
-            foreach (string variant in rule.Textures.Keys)
-            {
-                string texture = ContentPaths.Texture(root, bird.Id.Value, variant);
-                if (textureSize(texture) is not { } size)
+                string layoutId = composition?.LayoutId ?? requirement.LayoutId;
+                if (!layouts.TryGetValue(layoutId, out SpriteLayout? layout))
                 {
+                    issues.Add(Error(file, bird, stagePath, $"Layout '{layoutId}' is missing or invalid."));
                     continue;
                 }
-                int cells = size.Width / layout.FrameWidth * (size.Height / layout.FrameHeight);
-                int needed = LayoutSheet.CellCount(layout);
-                if (needed > cells)
+
+                issues.AddRange(Requirement(layout, requirement, composition).Select(message => Error(file, bird, stagePath, message)));
+                foreach (string variant in rule.Textures.Keys)
                 {
-                    issues.Add(Error(texture, bird, $"$.rules.{rule.Id}.textures.{variant}",
-                        $"Layout '{layout.Id}' uses {needed} cells but {Path.GetFileName(texture)} has {cells} ({size.Width}x{size.Height} at {layout.FrameWidth}x{layout.FrameHeight})."));
+                    string texture = ContentPaths.Texture(root, bird.Id.Value, variant);
+                    if (textureSize(texture) is not { } size)
+                    {
+                        continue;
+                    }
+                    int cells = size.Width / layout.FrameWidth * (size.Height / layout.FrameHeight);
+                    int needed = LayoutSheet.CellCount(layout);
+                    if (needed > cells)
+                    {
+                        issues.Add(Error(texture, bird, stagePath,
+                            $"Layout '{layout.Id}' uses {needed} cells but {Path.GetFileName(texture)} has {cells} ({size.Width}x{size.Height} at {layout.FrameWidth}x{layout.FrameHeight})."));
+                    }
                 }
             }
         }
