@@ -1,0 +1,43 @@
+using Birding.Domain;
+using Microsoft.Xna.Framework;
+
+namespace Birding.BirdTypes;
+
+/// <summary>Explicit snapshot of a live bird for multiplayer messages. Type-specific fields keep their defaults on other types.</summary>
+internal sealed record BirdState(
+    string BirdTypeName,
+    long BirdId,
+    string BirdName,
+    string Texture,
+    BehaviorStatus State,
+    Vector2 Position,
+    Vector2 StartingPosition,
+    bool Flip,
+    float GravityAffectedDY,
+    float YOffset,
+    float YJumpOffset,
+    int BaseFrame,
+    CurrentAnimatedSprite Sprite,
+    int CharacterCheckTimer,
+    long IdleTick,
+    long IdleRevision,
+    IdleCue? IdleCue,
+    BirdComposition? Composition,
+    float FlightOffset = 0,
+    int WalkTimer = 0,
+    Vector2? AnchorTile = null,
+    string? LocationName = null,
+    int PeckTimer = 0,
+    int FlightDistance = 0,
+    int Relocations = 0,
+    Vector2? RelocateTarget = null,
+    bool Hidden = false,
+    int DiveTimer = 0,
+    int DiveRadius = 0,
+    int? GroupId = null,
+    string? Role = null,
+    string? Stage = null,
+    string? FollowRole = null,
+    float FollowSpeedFactor = 1f,
+    Vector2 SwimDirection = default,
+    ActionDefinition? ActiveFlee = null);

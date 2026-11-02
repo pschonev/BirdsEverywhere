@@ -1,14 +1,14 @@
-# Goal Architecture
+# Architecture
 
-Target design for Birds Everywhere after the refactor described in [REFACTOR.md](REFACTOR.md). Coding rules come from the global C# standards and [birdseverywhere.instructions.md](../.github/instructions/birdseverywhere.instructions.md); this document only covers structure, data flow, and ownership.
+Structure, data flow, and ownership of Stardew Valley: Birding (`Birding`), as implemented. Coding rules come from the global C# standards and [birding.instructions.md](../.github/instructions/birding.instructions.md). Migration history and open work: [REFACTOR.md](REFACTOR.md). Sections under [Future design goals](#future-design-goals) and items marked planned are not built yet; items marked "not tested in game" are compile and unit-test verified only.
 
-The current code is legacy. Where it conflicts with this document, this document wins.
+Keep this document current: a change to structure, data flow, ownership, or the JSON format updates it in the same change.
 
 ## Principles
 
 - **Functional core, imperative shell.** Decisions (what to spawn, where, whether a bird is valid, what an observation changes) are pure functions over records. Game and SMAPI access happens in thin adapters around them.
 - **Data in, domain out.** JSON is merged, validated, and converted to immutable domain records once at load. Nothing after load sees raw JSON or nullable config fields.
-- **Explicit wiring.** `ModEntry` builds every object, owns all long-lived state, and passes dependencies down. No static fields, singletons, reflection-based discovery, or process-wide settings.
+- **Explicit wiring.** `ModEntry` builds every object, owns all long-lived state, and passes dependencies down. No mutable static state, singletons, reflection-based discovery, or process-wide settings.
 - **Host is authoritative.** The host owns spawn plans and save data. Farmhands request; the host decides and broadcasts.
 - **Fail safe in game, fail loud in tests.** Invalid content is rejected at load with a precise message. At runtime, a missing tree or unknown ID logs a warning and despawns the bird; it never crashes the game.
 
@@ -25,9 +25,9 @@ flowchart LR
         Content["Content loader"]
         Birds["Bird critters"]
         Spawn["Location spawner"]
-        MP["Multiplayer messenger"]
-        Persist["Save store"]
+        MP["Multiplayer sync"]
         UI["Collections tab"]
+        Diag["Console commands"]
     end
     subgraph Domain["Domain (pure, game-free)"]
         Defs["Bird definitions & spawn rules"]
@@ -46,71 +46,71 @@ flowchart LR
 | Game adapters | Domain, SMAPI, Stardew, MonoGame, Newtonsoft | other adapters' internals | x64, or via domain + fakes |
 | Composition root | everything | business logic | in-game only |
 
-`Vector2`/`Point` from MonoGame are the one tolerated exception in domain code if replacing them costs more than it gains; prefer a domain `readonly record struct Tile(int X, int Y)`.
+Pure code uses MonoGame `Vector2` for tiles (the one tolerated exception); `ILocationQuery` is the seam that keeps tile selection testable without game types. There is one mod project; the layers are enforced by folder and review, not by assembly. Pure logic (planner, merge, validation, behavior decisions) is tested on arm64; tests that load game or SMAPI types need the x64 test host (see the test map in [AGENTS.md](../AGENTS.md)).
 
-## Target folder layout
+## Folder layout
 
-Feature folders, one top-level type per file, namespaces mirror folders. One mod project and one test project.
+Feature folders, namespaces mirror folders (a few legacy namespaces such as `Birding.Spawners` differ). One mod project, one test project, one offline playground.
 
 ```text
-BirdsEverywhere/
-  ModEntry.cs                 composition root: build, subscribe, delegate
-  Content/                    JSON boundary
+Birding/                      mod project (net6.0)
+  ModEntry.cs                 composition root: build, subscribe, delegate; reads/writes SaveData
+  ModConfig.cs, Logging.cs, Utils.cs, VanillaBirds.cs, MessageJson.cs, CustomJSONConverters.cs
+  Content/                    JSON boundary and loaders
     BirdJson.cs, SpawnRuleJson.cs
     TemplateMerger.cs         JObject merge, rule expansion, cycle detection, provenance
-    ContentValidator.cs       JSON model -> domain, errors with file/field/chain
-    ContentPaths.cs           all asset path construction
-  Domain/
-    BirdDefinition.cs, SpawnRule.cs, SpawnConditions.cs, IntRange.cs, Tile.cs
-    Season.cs, Weather.cs
-    Ids.cs                    BirdId, BirdTypeId, SpawnPatternId, BehaviorId
+    ContentLoader.cs, ContentValidator.cs, ContentPaths.cs, ValidationIssue.cs
+    ConditionParser.cs        one parser for `when` (rules and routine `rare`)
+    LayoutLoader/Validator/Sheet, RoutineLoader, ActionLoader, ReactionLoader, SharedDefinitions, DefinitionFiles
+    BirdTypeProfile(s).cs, AudioCues.cs
+  Domain/                     immutable records
+    BirdDefinition, SpawnRule, SpawnConditions, ConditionClause, SpawnParams, Region
+    BirdComposition, SpriteLayout, SpriteClip, ClipFrame, ClipRepeat, Routine, RareAction, ActionDefinition, Reactions
+    FollowSlot, WeightedId, IntRange, StepRange, TimeRange, TimeBound, TimeAnchors, AnchorKind
+    Habitat, Season, Weather, Ids (BirdTypeId, SpawnPatternId, BirdId)
   Spawning/
-    SpawnPlanner.cs           pure: rules + date + weather + Random -> DailySpawnPlan
-    DailySpawnPlan.cs
-    TileSelection.cs          pure tile/feature selection over ILocationQuery
+    SpawnPlanner.cs           pure: rules + date + weather + luck + Random -> SpawnAssignment list
+    DailySpawnPlan.cs         per location BirdPlacement lists
+    TileSelection.cs, ShoreDistance.cs   pure placement over ILocationQuery
+    LocationQuery.cs          ILocationQuery + GameLocationQuery adapter
     LocationSpawner.cs        adapter: plan + GameLocation -> critters
-  Birds/
+    Spawners/                 spawn patterns (TileSpawner, TerrainFeatureSpawner, Condition)
+  BirdTypes/
     BirdCritter.cs            the one mod-owned abstract layer under Critter
-    LandBird.cs, WaterLandBird.cs, TreeTrunkBird.cs, BushBird.cs (sealed)
-    Behaviors/                IBirdBehavior + small behavior implementations
-    TerrainAnchor.cs          location + tile + feature kind
-                              Phase 10: one sealed Bird + Bodies/, Actions/, Reactions/, Routine, SoundSet, Layouts/ (clip playback)
-  assets/layouts|actions|routines|reactions/   Phase 10: shared composition definitions, <id>.json
-  schemas/                    editor/test JSON schemas, one per file kind + common.schema.json
-  Registries/
-    BirdTypeRegistry.cs, SpawnPatternRegistry.cs
-  Observations/
-    ObservationLog.cs         pure: TryApply (new log copy, version + 1) and Check (delta status)
-    DeltaStatus.cs            Duplicate / Next / Gap
-  Multiplayer/
-    Messages.cs               versioned message records (IMessage.CurrentVersion)
-    MultiplayerSync.cs        adapter over Helper.Multiplayer
-  Persistence/
-    SaveData.cs               versioned save record
-    SaveStore.cs              adapter over Helper.Data, migrations
-  UI/
-    CollectionsPageWithBirds.cs
-  Diagnostics/
-    ConsoleCommands.cs        in-game checks (spawn, list, validate)
+    LandBird, WaterLandBird, TreeTrunkBird, BushBird (sealed)
+    BirdServices.cs, BirdState.cs, BirdSnapshots.cs, ClipPlayer.cs, IdleCue.cs, Relocation.cs
+    TerrainAnchor.cs          location name + tile
+    Behaviors/                IBirdBehavior, BirdContext, BirdActionIds, flee/alert/calm/wake/stop-walking
+  Registries/                 BirdTypeRegistry, SpawnPatternRegistry
+  Observations/               ObservationLog (static, pure), DeltaStatus, BirdingProgress (XP, level)
+  Multiplayer/                Messages.cs (versioned records), MultiplayerSync.cs (adapter over Helper.Multiplayer)
+  Data/SaveData.cs            save record and ObservationData
+  BirdList/                   collections tab UI
+  Diagnostics/                ConsoleCommands, InspectCommands, PlanText, RuleText, BirdSelector, GameHabitat, GameTimeAnchors, SpawnTarget
+  assets/                     <bird_id>/ (json + textures), templates/, layouts/, actions/, routines/, reactions/, compat/, regions.json
+schemas/                      editor/test JSON schemas, one per file kind + common.schema.json
+Birding.UnitTests/            NUnit tests; test map in AGENTS.md
+Birding.Playground/           offline planner CLI over the same pure code
 ```
 
 ## Key types
 
-All domain types are records with read-only collections.
+Domain types are immutable records with read-only collections.
 
-| Type | Role | Replaces |
-|---|---|---|
-| `BirdDefinition` | Validated species: id, names (descriptions and optional local names live in `i18n/`), `IReadOnlyList<SpawnRule>` | `BirdData` (config half) |
-| `SpawnRule` | Fully merged rule: id, `SpawnConditions`, expanded location names, `SpawnPatternId`, `BirdTypeId`, group count and size (`IntRange`, inclusive), texture weights, selection weight | `SpawnData` |
-| `SpawnConditions` | Seasons, weathers, day ranges, time ranges; an empty set means "any". A list of `ConditionClause` alternatives (step 8), see [Condition clauses](#condition-clauses-and-time-anchors-step-8) | `SpawnData` weather/day/time fields |
-| `DailySpawnPlan` | Per location: chosen bird, chosen rule, planned bird placements. Built once per day by the host | `DailySpawner` + `BirdData.currentSpawnData` |
-| `BirdPlacement` | Bird id, rule, `Tile` or `TerrainAnchor`, texture, seed | `SingleBirdSpawnParameters*` |
-| `TerrainAnchor` | Location name, tile, feature kind (`Tree`/`Bush`) | stored collection index |
-| `BirdState` | Serializable snapshot of a live bird (placement, position, behavior state, animation) | reflection-based converter output |
-| `ObservationLog` | Seen birds and observation details | `SaveData` contents |
-| `SaveData` | `int Version` + `ObservationLog` | `SaveData` |
+| Type | Role |
+|---|---|
+| `BirdDefinition` | Validated species: id, names (descriptions live in `i18n/`), shorthand, `IReadOnlyList<SpawnRule>` |
+| `SpawnRule` | Fully merged rule: id, `SpawnConditions`, expanded location names, `SpawnPatternId`, `BirdTypeId`, group count and size (`IntRange`, inclusive), texture weights, selection weight, `SpawnParams`, optional resolved `BirdComposition` and per-stage compositions |
+| `SpawnConditions` | `SpawnConditions(ImmutableArray<ConditionClause> Any)`; each clause has seasons, weathers, day ranges, time bounds; an empty set means "any". See [Condition clauses](#condition-clauses-and-time-anchors-step-8) |
+| `SpawnAssignment` | Planner output per location: habitat, bird, rule, region, unseen flag (`Spawning/SpawnPlanner.cs`) |
+| `DailySpawnPlan` | Per location name, the `BirdPlacement` list. Built once per day by the host |
+| `BirdPlacement` | Bird id, rule id, bird type, spawn pattern, tile, optional feature tile, active time windows, texture, seed, composition, group id, role, stage (`Spawning/DailySpawnPlan.cs`) |
+| `TerrainAnchor` | `TerrainAnchor(string? LocationName, Vector2 Tile)`; the tree or bush tile a trunk or bush bird is bound to (`BirdTypes/`) |
+| `BirdState` | Serializable snapshot of a live bird (position, behavior state, animation, anchor, group metadata, committed movement) |
+| `ObservationLog` | Static pure functions (`TryApply`, `Check`) over `SaveData` |
+| `SaveData` | `SeenBirds`, `BirdObservations`, `LogVersion`, `BirdingXp`, `SightingsDay`, `Sightings` (`Data/SaveData.cs`) |
 
-IDs are `readonly record struct` wrappers over `string` so a bird id cannot be passed where a spawn pattern id is expected.
+There are three id wrappers, `BirdId`, `BirdTypeId` and `SpawnPatternId` (`readonly record struct` over `string`), so a bird id cannot be passed where a spawn pattern id is expected. `BirdPlacement` and `BirdState` still carry plain strings at the game boundary.
 
 ## Content pipeline
 
@@ -158,9 +158,10 @@ A rule is one situation in which the bird can appear. `defaults` has the same fi
 | `groupCount`, `groupSize` | `[min, max]` | inclusive |
 | `textures` | `{ "<variant>": weight }` | `""` is the base sprite; other keys are texture variants |
 | `weight` | number > 0 | selection weight among eligible rules; C# fallback `1` |
-| `routine`, `sounds` | ref or inline / role → cue | implemented (step 3a); see [Routine](#3-routine-idle) and [Species composition](#5-species-composition) |
-| `body`, `layout`, `actions`, `reactions`, `stages` | ref or inline | planned, [Bird composition](#bird-composition-config-driven-behavior); `body` replaces `birdType` |
-| `group`, `groupSpacing`, `near`, `avoid`, `space`, `packing`, `speciesDistance` | see [Spawning v2](#spawning-v2-groups-stages-spacing) | planned; same merge rules apply |
+| `routine`, `sounds`, `soundCooldownMs` | ref or inline / role → cue / role → ms | implemented; see [Routine](#3-routine-idle) and [Species composition](#5-species-composition) |
+| `actions`, `reactions`, `stages` | object / ref or inline / stage → overrides | implemented; see [Bird composition](#bird-composition-config-driven-behavior) |
+| `spawnParams.group` (`formation`, `radius`, `spacing`, `groupSpacing`, `members`), `spawnParams.speciesDistance` | object | implemented; see [Spawning v2](#spawning-v2-groups-stages-spacing) |
+| `body`, `layout` (rule level), `near`, `avoid`, `space`, `packing` | — | planned; `body` would replace `birdType`; same merge rules apply |
 
 Required after merging: `locations`, `spawnPattern`, `birdType`, `groupCount`, `groupSize`, `textures`.
 
@@ -243,7 +244,7 @@ Structure is enforced by Newtonsoft during deserialization of the merged object:
 | Info | bird `rules.<id>` with `when` that matches no inherited rule (new rule); season/weather combinations with no eligible rule | `Info` log | ignored |
 | Runtime only | location name unknown to the game | `Warn`, location dropped from the rule | — |
 
-The same code runs in `ContentTests` over every shipped file and on `GameLaunched` for player-edited files. A `birds_dump <id>` console command prints every effective rule with the source file of each value.
+The same code runs in `ContentTests` over every shipped file and on `GameLaunched` for player-edited files. `birds_rules` and `birds_check` print and validate the effective rules.
 
 ### Examples
 
@@ -449,15 +450,16 @@ Error  herring_gull.json: $.rules.coast.groupSize: min 10 > max 2
 
 ## Registries
 
-Plain `IReadOnlyDictionary<TId, Func<..., T>>` built in `ModEntry`. No reflection, attributes, or static dictionaries.
+Plain `IReadOnlyDictionary<TId, Func<..., T>>` inside `BirdTypeRegistry` and `SpawnPatternRegistry`; `ModEntry` holds one instance of each (`CreateDefault()`). No reflection or attributes.
 
 ```csharp
-var birdTypes = new Dictionary<BirdTypeId, BirdFactory>
-{
-    [BirdTypeIds.Land] = (placement, ctx) => new LandBird(placement, ctx),
-    [BirdTypeIds.Bush] = (placement, ctx) => new BushBird(placement, ctx),
-};
+[new BirdTypeId("LandBird")] = (p, _, s) => new LandBird((int)p.Tile.X, (int)p.Tile.Y, p.BirdId, p.Texture, s),
 ```
+
+| Registry | Ids |
+|---|---|
+| `BirdTypeRegistry` | `LandBird`, `WaterLandBird`, `TreeTrunkBird`, `BushBird` (the last two need a `FeatureTile` and return no bird without one) |
+| `SpawnPatternRegistry` | `GroundSpawner`, `WaterSpawner`, `WaterOrGroundSpawner`, `SpawnableGroundSpawner`, `TreeTrunkSpawner`, `BushSpawner` |
 
 - Content validation checks every referenced id against the registry keys before gameplay starts.
 - Lookups use `TryGetValue`; an unknown id at runtime logs a warning and skips the bird.
@@ -501,11 +503,11 @@ classDiagram
 
 Implemented so far: land and water-land stopped routines prepare one cue up to 120 ticks ahead with an isolated schedule RNG, tick, revision, action and visual seed. Cues can fire immediately when a bird becomes idle, preserving the prior per-tick action chance; short-lead cues may occur before the next six-tick snapshot reaches a peer. Replicas advance flight and bush-run motion and animation locally, correcting drift against six-tick snapshots. Walking, hopping and collisions remain owner-driven and are not predicted. In-game multiplayer timing, lag and owner handoff still need verification.
 
-The migration is gradual: inheritance stays where it is simple and stable; composition replaces it only where combining behaviors would otherwise need more subclasses. The end state is [Bird composition](#bird-composition-config-driven-behavior), implemented in [REFACTOR.md → Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds).
+Inheritance stays where it is simple and stable; composition replaces it only where combining behaviors would otherwise need more subclasses. The target is [Bird composition](#bird-composition-config-driven-behavior), implemented in [REFACTOR.md → Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds).
 
 ## Bird composition (config-driven behavior)
 
-Planned design for [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds). Goal: a species' animation, idle routine, reactions, sounds, spawn grouping and life stages are JSON; C# provides a small, closed vocabulary of verbs and nouns.
+Implemented in [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds) steps 1–8 (the Status table below says what is still planned). Goal: a species' animation, idle routine, reactions, sounds, spawn grouping and life stages are JSON; C# provides a small, closed vocabulary of verbs and nouns.
 
 **Rule of thumb:** a new noun or verb (primitive, trigger, body, effect, target search, condition key) needs code; a new combination of existing ones is config. There is no expression language or scripting in JSON.
 
@@ -658,6 +660,7 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 - The observation registers on any visible response (alert, flee, relocate), not only flee.
 - `flyTo` uses a target search (`otherTree`, `otherBush`, `water`, `groupRole:<role>`), backed by `TileSelection`/`ILocationQuery`; on arrival the bird updates its `TerrainAnchor`. After `maxRelocations`, `then` applies.
 - Implemented shape (step 4): `{"threat": {"fleeRadius": 3, "runningMultiplier": 2, "alert": {"radius": 7, "clip": "stand", "sound": "alarm", "calmMs": 2000}, "relocate": {"target": "otherTree", "maxDistance": 12, "maxRelocations": 2}}}`. The flee response is the bird's `flee` action, so reactions only set radii and alternatives; after the relocations the bird flees (`then` is implicitly the flee action). Missing fields keep the bird type's default.
+- Current water-land alternatives may also set `flee.relocate` with `target` `water`, `ground`, or `any` and optional `chance` (default 1); a flight that finds no eligible tile continues offscreen. Herring gulls register discovery within eight visible tiles, swim away within six tiles on water, then fly within three tiles if the threat closes in. Flights may land on water or ground; after landing the bird resumes surface-appropriate idle behavior. Other bird types retain their own flee radii.
 
 #### 5. Species composition
 
@@ -694,7 +697,7 @@ Every composable field (`layout`, `routine`, each `reactions` entry, each action
   },
   "actions": { "drum": { "do": "stay", "clip": "drum", "sound": "drumroll" } },
   "routine": { "extends": "trunk_feeder", "pick": { "drum": 1 }, "cooldown": { "drum": 15000 } },
-  "sounds": { "drumroll": "BirdsEverywhere_black_woodpecker_drum" }
+  "sounds": { "drumroll": "Birding_black_woodpecker_drum" }
 }
 ```
 
@@ -702,11 +705,13 @@ Every composable field (`layout`, `routine`, each `reactions` entry, each action
 - Promote an inline definition to a shared file only when a second species needs it (WET first).
 - Inline definitions are local to their species; they cannot be referenced from elsewhere. An inline name that shadows a shared one is reported at `Info`.
 - Large species files may split definitions into files next to them (`assets/<bird>/layout.json`, `routine.json`), merged as if inline.
-- `birds_dump <bird> [<rule>]` prints the resolved composition with the source file of each value (same provenance as merge diagnostics).
+- Planned: a console command that prints the resolved composition with the source file of each value (same provenance as merge diagnostics).
 
 Shared definitions live in `assets/layouts/`, `assets/actions/`, `assets/routines/`, `assets/reactions/`, one id per file (`<id>.json`).
 
 ### Code shape
+
+Planned end state; today the four sealed `BirdCritter` subclasses ([Birds and behaviors](#birds-and-behaviors)) are the hardcoded compositions.
 
 ```mermaid
 classDiagram
@@ -800,15 +805,17 @@ Member fields (step 8, implemented):
 
 #### Placement controls
 
+Implemented: `group.formation` (`cluster`, `scattered`, `line`), `group.radius`, `groupSpacing`, `speciesDistance`, `spawnParams.shoreDistance`. Planned: `near`/`avoid`, `space`, `packing`, `perched`.
+
 | Field | Meaning |
 |---|---|
-| `group.formation` | `cluster`, `scattered`, `line`, `perched` (registered by id) |
+| `group.formation` | `cluster`, `scattered`, `line` implemented; `perched` planned |
 | `group.radius` | tiles around the group center |
-| `groupSpacing` | `[min, max]` tiles between groups of the same rule |
-| `near` / `avoid` | `[{ "kind": "tree", "within": 3 }, { "kind": "water", "within": 1 }, { "kind": "crop" }]`; kinds backed by `ILocationQuery` |
+| `groupSpacing` | tiles between groups of the same rule (single int today) |
+| `near` / `avoid` (planned) | `[{ "kind": "tree", "within": 3 }, { "kind": "water", "within": 1 }, { "kind": "crop" }]`; kinds backed by `ILocationQuery` |
 | `spawnParams.shoreDistance` | unchanged |
-| `space` | per-species body radius in tiles; C# fallback 0.5 (gull ≈ 1, heron ≈ 1.5) |
-| `packing` | factor < 1 lets clusters pack tighter than `space` |
+| `space` (planned) | per-species body radius in tiles; C# fallback 0.5 (gull ≈ 1, heron ≈ 1.5) |
+| `packing` (planned) | factor < 1 lets clusters pack tighter than `space` |
 | `speciesDistance` | gap to groups of other species; default `TileSelection.MinSpeciesDistance` (8), now overridable per rule |
 
 - Two birds A and B are valid neighbours when their distance is at least $(r_A + r_B) \cdot packing$.
@@ -830,16 +837,12 @@ Error format and severity follow [Validation](#validation).
 
 ### Schemas
 
-- One schema per file kind in `schemas/`: existing `bird`, `template`, `rule`, `regions`, `compat`, plus `layout`, `routine`, `reaction` and `action`. Known drift (fixed in step 8): `action.schema.json` lacks `follow`, `swimAway`, `target` and `speedFactor`, which `ActionLoader` accepts. Step 8 also adds a shared `dayClause` definition to the rule and routine schemas, with a `dependentSchemas` rule that forbids top-level fields next to `any`. `common.schema.json` holds shared `$defs`: `range`, `weightMap` (values may be `null`), `refOrInline`, `condition`, `soundRole`.
+- One schema per file kind in `schemas/`: existing `bird`, `template`, `rule`, `regions`, `compat`, plus `layout`, `routine`, `reaction` and `action`. `action.schema.json` covers `follow`, `swimAway`, `target` and `speedFactor`; the rule and routine schemas model `when.any` (mixing it with top-level fields is rejected by `ContentValidator`). `common.schema.json` holds shared `$defs`: `weightMap` (values may be `null`), `timeBound`, `timeRange`, `range`, `stepRange`, `intOrStepRange`.
 - Schemas describe partial files: no `required` on mergeable fields, and `null` allowed wherever merging allows removal.
 - Primitive-specific fields use `if`/`then` on the `do` discriminator instead of deep `oneOf`, so editor errors stay readable.
 - Editor mapping via `.vscode/settings.json` `json.schemas` globs. Assets get no `$schema` key, because strict deserialization (`MissingMemberHandling.Error`) would reject it.
 - JsonSchema.Net stays test-only; never `Newtonsoft.Json.Schema` (AGPL).
-- `SchemaTests`:
-  - `AssetFiles` becomes a folder → schema table;
-  - a guard test fails when any `assets/**/*.json` matches no schema;
-  - `SchemaEnums_MatchCode` becomes a per-registry table (bodies, primitives, triggers, effects, conditions, target searches, formations, `near` kinds, spawn patterns);
-  - an agreement table runs the same JSON through schema and `ContentValidator` and expects the same verdict.
+- `SchemaTests` check that shipped assets match their schemas, that schema enums match code, and that schema and loader agree on routine, action, reaction and layout JSON. Planned: a guard that fails when an `assets/**/*.json` matches no schema, and a per-registry enum table once bodies, triggers and effects are registered.
 - Duplication between schemas and the `*Json` records is accepted and guarded by the drift and agreement tests.
 
 ### Art workflow
@@ -850,7 +853,7 @@ Error format and severity follow [Validation](#validation).
 
 ### Preserving shipped birds
 
-The first extraction is pure: zero behavior change, PNGs unchanged. Target layouts, extracted 1:1 from the current classes:
+The extraction was pure: zero behavior change, PNGs unchanged. Layouts extracted 1:1 from the classes (guarded by `AnimationCharacterizationTests`):
 
 | Layout | Cells | Clips (cell, ms; events) |
 |---|---|---|
@@ -862,7 +865,7 @@ The first extraction is pure: zero behavior change, PNGs unchanged. Target layou
 | Shipped type | Composition after extraction |
 |---|---|
 | Land | routine chance 0.008, pick `{sleep:1, peck:1, hop:1, turnAndHop:1, walk:2}` (legacy list order); `sleep` endChance 0.003; `peck` `next {peck:1, stop:1}` rolled on `Rng`; walk 1 px/tick, `durationMs [500,1400,100]`; hop impulse 2 (`turnAndHop` flips first); flee radius 4, `flyOff` ±6 px, climb 2 + spawn jitter, sound role `alarm` = `SpringBirds` at 0.85; `flap` = `batFlap`, `peck` = `shiny4` (on screen only) |
-| WaterLand | routine chance 0.003, pick `{peck:1, rest:1, hop:1, walk:1}`; walk 2 px/tick, endChance 0.005; `hop` effect impulse 4; swims when stopped on water; flee radius 4, `flyOff` ±4 px, climb 2, `alarm` = `seagulls` at 0.25 |
+| WaterLand | routine chance 0.003, pick `{peck:1, rest:1, hop:1, walk:4}`; walk 2 px/tick, endChance 0.005; `hop` effect impulse 4; swims with slight water-only drift when stopped on water; default flee radius 4, `flyOff` ±4 px, climb 2, `alarm` = `seagulls` at 0.25; herring gull overrides threat reactions as described above |
 | TreeTrunk | owner-only peck loop, clip repeat rolled on `Rng` (legacy), then wait `[1000,2999]` ms on `Rng`; flee radius 6 or tree felled, `flyOff` ±6 px, climb 1; `flap` = `batFlap`, `peck` = `Cowboy_gunshot` |
 | Bush | flee radius = anchor distance − 1, only on screen; `runToBush` at 6 px/tick, then the bush's use action and despawn |
 
@@ -889,15 +892,15 @@ sequenceDiagram
     participant S as MultiplayerSync
     participant L as LocationSpawner
     G->>M: DayStarted (host)
-    M->>P: Plan(catalog, observations, date, weather, Random(seed))
-    P-->>M: DailySpawnPlan
+    M->>P: Plan(regions, catalog, seenBirds, season, weather, day, luck, level, Random(seed), habitatExists, place)
+    P-->>M: SpawnAssignments, collected into DailySpawnPlan
     M->>S: broadcast plan to farmhands
     Note over M,L: on Warped / location load (all peers)
-    M->>L: Populate(location, plan, registries)
-    L->>L: TryCreate birds, skip invalid placements with warning
+    M->>L: Populate(location, plan)
+    L->>L: spawn pattern places each bird, skip invalid placements with warning
 ```
 
-- The planner receives everything as parameters: catalog, observations, date, weather, and a `Random` seeded from game state at the boundary.
+- The planner receives everything as parameters: regions, catalog, seen birds, season, weather, day, luck, level, and a `Random` seeded from game state at the boundary.
 - Selection uses inclusive ranges and handles empty candidate lists by returning no placement.
 - Farmhands never plan; they receive the plan. Placements carry everything needed to recreate a bird, so farmhands do not need per-day mutable state in the catalog.
 
@@ -905,16 +908,17 @@ sequenceDiagram
 
 | Message | Sender → receiver | Validated by | Persisted by |
 |---|---|---|---|
-| `SpawnPlanMessage` | host → farmhands (DayStarted, PeerConnected) | host builds it | not persisted |
+| `SpawnPlanMessage` (plan JSON) | host → farmhands (DayStarted, PeerConnected) | host builds it | not persisted |
 | `ObservationRequest` (bird id, details) | farmhand → host | host: bird exists, not a duplicate | host only |
 | `ObservationAccepted` (log version, bird id, details) | host → all | — | host already saved |
+| `XpAwarded` (farm birding XP) | host → all | — | host already saved |
 | `ObservationLogRequest` | farmhand → host (on load, or after a gap) | host | not persisted |
-| `ObservationLogSnapshot` (full log) | host → peer (PeerConnected, on request) | farmhand: from host only | farmhand memory only |
+| `ObservationLogSnapshot` (full `SaveData`) | host → peer (PeerConnected, on request) | farmhand: from host only | farmhand memory only |
 | `LocationBirdsRequest` (location, requester, request id) | entering peer → peer in location, forwarded to owner | responder: is in that location | not persisted |
 | `LocationBirdsState` (location, visit id, sequence, birds JSON, request id) | location owner → peers in location | recipient: matching location, owner and newer sequence; first snapshot matches request id | not persisted |
 | `LocationBirdsHandoff` (location, next owner, visit id, sequence, birds JSON) | departing owner → remaining peers | recipient: current owner and visit, newer sequence | not persisted |
 
-- All messages are records with a `Version` field. Unknown or older versions are logged and dropped.
+- All messages are records implementing `IMessage` with a `Version` field (`IMessage.CurrentVersion`, currently 4); the record type name is the SMAPI message type. Other versions are logged and dropped.
 - Observation updates send deltas plus a monotonic log version. A stale delta is ignored and the peer re-requests the full log.
 - The host applies observations via the pure `ObservationLog.TryApply`, so simultaneous discoveries merge instead of overwriting each other. The first sighting wins; later requests for the same bird are dropped.
 - `SaveData.logVersion` counts accepted observations (saves from before it load as 0). Farmhands send an `ObservationRequest` and only change their log when the host's `ObservationAccepted` or snapshot arrives; a pending set prevents repeat requests.
@@ -924,8 +928,7 @@ sequenceDiagram
 
 ## Persistence
 
-- `SaveData` carries an explicit `Version`. `SaveStore` loads, migrates older versions step by step, and writes only the current version.
-- Only the host reads and writes `Helper.Data` save data.
+- `ModEntry` reads and writes `SaveData` under the key `"bird-save"` via `Helper.Data`; only the host does. There is no schema version: new fields are additive and load as defaults from older saves (`LogVersion` and `BirdingXp` as 0). `LogVersion` is the observation counter used for multiplayer sync, not a format version. A format-breaking change would need an explicit version and migration first.
 - `BirdState` serialization uses explicit records, not reflection over critter properties. Animation state is captured from `sprite.CurrentAnimation`.
 - Newtonsoft settings are passed per call (`JsonSerializer.Create(settings)`), never via `JsonConvert.DefaultSettings`.
 
@@ -946,9 +949,11 @@ Logging goes through `IMonitor`, at state transitions only, never per tick or pe
 
 No mocking library. Stardew types (`GameLocation`, `Farmer`, `Tree`) are concrete and largely non-virtual, so mocking frameworks cannot intercept them anyway. Instead:
 
-1. **Pure domain tests (arm64):** content merge and validation over every shipped asset, spawn planning with seeded `Random`, behavior decisions over `BirdContext`, observation log merging, message and save round-trips. This is most of the suite.
-2. **Seams with hand-written fakes:** small mod-owned interfaces where adapters need game state, e.g. `ILocationQuery` (tile passable/water/spawnable, terrain feature at tile) and `IMessageSender`. Fakes are a few lines each; revisit only if they start duplicating each other.
-3. **x64 integration tests:** anything that must touch real game types (`SDate`, `AnimatedSprite`, SMAPI JSON settings).
+1. **Pure tests (arm64):** content merge and validation over every shipped asset, schema agreement, condition and composition semantics, spawn planning with seeded `Random`, behavior decisions over `BirdContext`, observation log and progress. Most of the suite.
+2. **Seams with hand-written fakes:** small mod-owned interfaces where adapters need game state, chiefly `ILocationQuery` (tile passable/water/spawnable, terrain feature at tile). Fakes are a few lines each; revisit only if they start duplicating each other.
+3. **x64 integration tests:** anything that must touch real game types (`SDate`, `AnimatedSprite`, SMAPI JSON settings): `SaveDataTests`, `GameTypeRegressionTests`. Run with `dotnet test --arch x64` on Apple Silicon.
+
+Each rule is asserted in one layer only; the file-by-file map is in [AGENTS.md](../AGENTS.md#test-map).
 4. **In-game checks:** debug mode and console commands in `Diagnostics/`, the offline planner playground (see [REFACTOR.md → debug tooling](REFACTOR.md#prerequisite-debug-tooling)), and the manual checklist in [REFACTOR.md](REFACTOR.md#9-verify-in-game-behavior-after-each-phase).
 
 Tests assert observable outcomes (a bird flees when a farmer is near), not class names or private state. NUnit with `[TestCase]` / `TestCaseSource` tables.

@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://birdseverywhere.invalid/schemas/template.schema.json",
+    "$id": "https://birding.invalid/schemas/template.schema.json",
     "title": "Bird template",
     "type": "object",
     "additionalProperties": false,

@@ -1,4 +1,4 @@
-# Contributing to Birds Everywhere
+# Contributing to Birding
 
 Use [the manual test cases](docs/MANUAL_TESTS.md) for in-game checks. Automated tests and builds do not verify rendering, timing, or multiplayer behavior.
 
@@ -7,7 +7,7 @@ Use [the manual test cases](docs/MANUAL_TESTS.md) for in-game checks. Automated 
 1. Use Stardew Valley 1.6.15 with SMAPI 4.5.2 and this mod installed on every client. Keep a disposable save for repeat runs; do not use a personal farm for `birds_clear` or `birds_replan`.
 2. For a new farm, choose **Co-Op > Host > Host New Farm** and add **one starting cabin** for a second player (nearby layout is convenient). For a solo check, an existing save is faster. Press Escape on the opening splash screen to reach the title menu sooner. Neither SMAPI nor the game documents a launch argument that skips the intro or auto-loads a save; install the optional [Skip Intro](https://www.nexusmods.com/stardewvalley/mods/533) mod instead (see "Faster startup").
 3. Set **Windowed** mode so the game and SMAPI console remain visible. For two clients on one computer, also turn off **Pause When Game Window Is Inactive** in the game's Options; otherwise the background window can interrupt timing checks. Keep both clients at the same game/mod version.
-4. Build/deploy with `dotnet build BirdsEverywhere.sln` (requires a configured game path; see [AGENTS.md](AGENTS.md)). Start the game **through SMAPI**, not the vanilla executable. Check the SMAPI console for load errors before testing. For compile-only builds, use `dotnet build BirdsEverywhere/BirdsEverywhere.csproj -p:EnableModDeploy=false -p:EnableModZip=false`.
+4. Build/deploy with `dotnet build Birding.sln` (requires a configured game path; see [AGENTS.md](AGENTS.md)). Start the game **through SMAPI**, not the vanilla executable. Check the SMAPI console for load errors before testing. For compile-only builds, use `dotnet build Birding/Birding.csproj -p:EnableModDeploy=false -p:EnableModZip=false`.
 
 ### Faster startup
 

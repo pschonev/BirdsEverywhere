@@ -1,0 +1,10 @@
+﻿{
+  "Name": "Stardew Valley: Birding",
+  "Author": "pschonev",
+  "Version": "%ProjectVersion%",
+  "Description": "Adds many birds to the game and allows tracking observations.",
+  "UniqueID": "pschonev.Birding",
+  "EntryDll": "Birding.dll",
+  "MinimumApiVersion": "4.1.0",
+  "UpdateKeys": []
+}

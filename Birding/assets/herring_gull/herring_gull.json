@@ -1,0 +1,20 @@
+{
+  "id": "herring_gull",
+  "name": "Herring Gull",
+  "scName": "Larus argentatus",
+  "shorthand": "euhgul1",
+  "template": "all_year_garden",
+  "defaults": {
+    "locations": [
+      "@coast"
+    ],
+    "spawnPattern": "WaterOrGroundSpawner",
+    "birdType": "WaterLandBird",
+    "reactions": {
+      "threat": [
+        { "if": { "nearWater": true }, "flee": { "radius": 6, "do": "swimAway" } },
+        { "flee": { "radius": 3, "do": "flyOff", "relocate": { "target": "any", "chance": 0.7 } } }
+      ]
+    }
+  }
+}

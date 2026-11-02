@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://birdseverywhere.invalid/schemas/regions.schema.json",
+    "$id": "https://birding.invalid/schemas/regions.schema.json",
     "title": "Regions",
     "type": "object",
     "additionalProperties": {

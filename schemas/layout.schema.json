@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://birdseverywhere.invalid/schemas/layout.schema.json",
+    "$id": "https://birding.invalid/schemas/layout.schema.json",
     "title": "Sprite layout",
     "description": "Cell size and named clips. Cells count left to right, top to bottom, wrapping at texture width.",
     "type": "object",

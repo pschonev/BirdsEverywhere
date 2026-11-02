@@ -223,24 +223,24 @@ Observed: birds without `defaultSpawnData` get global defaults (Forest, 1–2 gr
 
 | Defect | Location | Phase |
 |---|---|---|
-| ~~Animation never serialized: constructor checks the uninitialized field `currentAnimation` instead of `sprite.CurrentAnimation`, and a local shadows the field~~ | [CurrentAnimatedSprite.cs](../BirdsEverywhere/CurrentAnimatedSprite.cs#L28) | 7 (early fix OK) |
-| ~~`WaterSpawner` declares `protected new TileSpawnCondition condition`, hiding the base field; base `condition` stays null → NRE~~ | [TileSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TileSpawner.cs#L37) | 7 (early fix OK) |
-| ~~Farmhands never set `currentSpawnData`; `stillValidSpawnPosition` reads it from the global catalog → crash on farmhand~~ (placements carry `SpawnPattern`) | [DailySpawnPlan.cs](../BirdsEverywhere/Spawning/DailySpawnPlan.cs) | 6 |
-| ~~`getRandomElementFromList` uses `Next(0, Count - 1)`: never picks the last element~~ | [Utils.cs](../BirdsEverywhere/Utils.cs#L43) | 6 (early fix OK) |
-| ~~`shuffleByWeights` draws a new random value inside the `Sort` comparator: biased order, and `List.Sort` may throw on the inconsistent comparer~~ (keys drawn once per item) | [Utils.cs](../BirdsEverywhere/Utils.cs#L12) | 6 (early fix OK) |
-| ~~Group count/size use exclusive `Next(min, max)`: never reach configured max~~ (now inclusive) | [TileSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TileSpawner.cs#L85), [TerrainFeatureSpawner.cs](../BirdsEverywhere/Spawning/Spawners/TerrainFeatureSpawner.cs#L37) | 6 (gameplay decision) |
-| ~~Tree birds stored by `terrainFeatures.Pairs.ElementAt(index)` (unstable dictionary order), unchecked `as Tree`~~ fixed: anchored by tile | [TreeTrunkBird.cs](../BirdsEverywhere/BirdTypes/TreeTrunkBird.cs) | 10 step 3c |
-| ~~Bush birds stored by `largeTerrainFeatures[index]`, unchecked `as Bush`~~ fixed: anchored by tile | [BushBird.cs](../BirdsEverywhere/BirdTypes/BushBird.cs) | 10 step 3c |
-| ~~Any peer broadcasts the whole `SaveData`; every receiver (incl. host) replaces its copy → last writer wins, lost discoveries~~ (host-authoritative `ObservationLog`) | [CustomBirdType.cs](../BirdsEverywhere/BirdTypes/CustomBirdType.cs#L97), [ModEntry.cs](../BirdsEverywhere/ModEntry.cs#L171) | 8 |
-| ~~`chooseOneSpawnData` result written into shared `BirdData.currentSpawnData` (runtime state on config)~~ (`SpawnPlanner` returns assignments) | [SpawnPlanner.cs](../BirdsEverywhere/Spawning/SpawnPlanner.cs) | 3/6 |
-| Template merge in `[JsonConstructor]` loads files via `ModEntry.modInstance`; `MergeDictionaries` shares list references with the template | [BirdData.cs](../BirdsEverywhere/Data/BirdData.cs#L46), [Utils.cs](../BirdsEverywhere/Utils.cs#L102) | 3 |
-| `timeOfDayRanges` never checked: `isTimeOfDayPossible` is unused, `possibleSpawnDataToday` ignores time | [SpawnData.cs](../BirdsEverywhere/Data/SpawnData.cs#L42), [LocationSpawner.cs](../BirdsEverywhere/Spawning/LocationSpawner.cs) | 3/6 |
-| `CopyProperties` treats `0`/`false` as unset, so a bird cannot override a template value with 0 or false | [Reflection.cs](../BirdsEverywhere/Data/Reflection.cs) | 3 |
-| ~~Process-wide `JsonConvert.DefaultSettings`; `OnJsonError` marks every error handled → silent bad data~~ (messages use `MessageJson` with explicit settings) | [MessageJson.cs](../BirdsEverywhere/MessageJson.cs) | 2 |
-| Debug output written to `assets/inspect_output/` on every save load | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs#L108) | 3 |
-| ~~`Player_Warped` logs `e.NewLocation.Name` before the null check~~ | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs) | 2 |
-| ~~Vanilla-bird removal logs every critter on every `TimeChanged`~~ | [ModEntry.cs](../BirdsEverywhere/ModEntry.cs) | 2 |
-| ~~`Game1.random` used throughout spawning → not reproducible or testable~~ (seeded `Random` passed in) | [Spawning/](../BirdsEverywhere/Spawning) | 2/6 |
+| ~~Animation never serialized: constructor checks the uninitialized field `currentAnimation` instead of `sprite.CurrentAnimation`, and a local shadows the field~~ | [CurrentAnimatedSprite.cs](../Birding/CurrentAnimatedSprite.cs#L28) | 7 (early fix OK) |
+| ~~`WaterSpawner` declares `protected new TileSpawnCondition condition`, hiding the base field; base `condition` stays null → NRE~~ | [TileSpawner.cs](../Birding/Spawning/Spawners/TileSpawner.cs#L37) | 7 (early fix OK) |
+| ~~Farmhands never set `currentSpawnData`; `stillValidSpawnPosition` reads it from the global catalog → crash on farmhand~~ (placements carry `SpawnPattern`) | [DailySpawnPlan.cs](../Birding/Spawning/DailySpawnPlan.cs) | 6 |
+| ~~`getRandomElementFromList` uses `Next(0, Count - 1)`: never picks the last element~~ | [Utils.cs](../Birding/Utils.cs#L43) | 6 (early fix OK) |
+| ~~`shuffleByWeights` draws a new random value inside the `Sort` comparator: biased order, and `List.Sort` may throw on the inconsistent comparer~~ (keys drawn once per item) | [Utils.cs](../Birding/Utils.cs#L12) | 6 (early fix OK) |
+| ~~Group count/size use exclusive `Next(min, max)`: never reach configured max~~ (now inclusive) | [TileSpawner.cs](../Birding/Spawning/Spawners/TileSpawner.cs#L85), [TerrainFeatureSpawner.cs](../Birding/Spawning/Spawners/TerrainFeatureSpawner.cs#L37) | 6 (gameplay decision) |
+| ~~Tree birds stored by `terrainFeatures.Pairs.ElementAt(index)` (unstable dictionary order), unchecked `as Tree`~~ fixed: anchored by tile | [TreeTrunkBird.cs](../Birding/BirdTypes/TreeTrunkBird.cs) | 10 step 3c |
+| ~~Bush birds stored by `largeTerrainFeatures[index]`, unchecked `as Bush`~~ fixed: anchored by tile | [BushBird.cs](../Birding/BirdTypes/BushBird.cs) | 10 step 3c |
+| ~~Any peer broadcasts the whole `SaveData`; every receiver (incl. host) replaces its copy → last writer wins, lost discoveries~~ (host-authoritative `ObservationLog`) | [CustomBirdType.cs](../Birding/BirdTypes/CustomBirdType.cs#L97), [ModEntry.cs](../Birding/ModEntry.cs#L171) | 8 |
+| ~~`chooseOneSpawnData` result written into shared `BirdData.currentSpawnData` (runtime state on config)~~ (`SpawnPlanner` returns assignments) | [SpawnPlanner.cs](../Birding/Spawning/SpawnPlanner.cs) | 3/6 |
+| Template merge in `[JsonConstructor]` loads files via `ModEntry.modInstance`; `MergeDictionaries` shares list references with the template | [BirdData.cs](../Birding/Data/BirdData.cs#L46), [Utils.cs](../Birding/Utils.cs#L102) | 3 |
+| `timeOfDayRanges` never checked: `isTimeOfDayPossible` is unused, `possibleSpawnDataToday` ignores time | [SpawnData.cs](../Birding/Data/SpawnData.cs#L42), [LocationSpawner.cs](../Birding/Spawning/LocationSpawner.cs) | 3/6 |
+| `CopyProperties` treats `0`/`false` as unset, so a bird cannot override a template value with 0 or false | [Reflection.cs](../Birding/Data/Reflection.cs) | 3 |
+| ~~Process-wide `JsonConvert.DefaultSettings`; `OnJsonError` marks every error handled → silent bad data~~ (messages use `MessageJson` with explicit settings) | [MessageJson.cs](../Birding/MessageJson.cs) | 2 |
+| Debug output written to `assets/inspect_output/` on every save load | [ModEntry.cs](../Birding/ModEntry.cs#L108) | 3 |
+| ~~`Player_Warped` logs `e.NewLocation.Name` before the null check~~ | [ModEntry.cs](../Birding/ModEntry.cs) | 2 |
+| ~~Vanilla-bird removal logs every critter on every `TimeChanged`~~ | [ModEntry.cs](../Birding/ModEntry.cs) | 2 |
+| ~~`Game1.random` used throughout spawning → not reproducible or testable~~ (seeded `Random` passed in) | [Spawning/](../Birding/Spawning) | 2/6 |
 
 **Exit:** every row fixed with a regression test (or a documented in-game check where a test is impossible).
 
@@ -291,9 +291,9 @@ Players in the same location must see the same birds doing the same things. A on
 
 **Code progress:** land and water-land stopped routines queue one visual cue at a time (up to 120 ticks ahead) using a separate RNG and serializable tick/revision/action/seed. An immediately eligible action may precede the next snapshot; this preserves the original per-tick idle chance but cannot be preplayed on the peer. Replicas advance flight and bush-run movement and animations locally, with snapshot drift correction. Walking and hopping are not predicted. Full x64 suite and Release compile pass; two-player SMAPI lag, timing and handoff checks remain mandatory.
 
-**Implemented (compile/test verified, not tested in game):** `birds_debug`, `birds_plan`, `birds_spawn`, `birds_replan`, `birds_clear`, `birds_reload`, `birds_rules`, `birds_check`, and `birds_live`; a debug-mode label (`name / state`) above each bird; plan logging/HUD on day start when debug is on; selector/target logic and an offline REPL with simulated plans and odds. Run the playground with `dotnet run --project BirdsEverywhere.Playground/BirdsEverywhere.Playground.csproj`. `birds_reload` reloads JSON but does not invalidate cached texture assets. Forced fallback to a free tile is currently limited to the player's location. Planner simulations assume every selected tile is feasible; they do not reproduce a real save's map-dependent RNG draws.
+**Implemented (compile/test verified, not tested in game):** `birds_debug`, `birds_plan`, `birds_spawn`, `birds_replan`, `birds_clear`, `birds_reload`, `birds_rules`, `birds_check`, and `birds_live`; a debug-mode label (`name / state`) above each bird; plan logging/HUD on day start when debug is on; selector/target logic and an offline REPL with simulated plans and odds. Run the playground with `dotnet run --project Birding.Playground/Birding.Playground.csproj`. `birds_reload` reloads JSON but does not invalidate cached texture assets. Forced fallback to a free tile is currently limited to the player's location. Planner simulations assume every selected tile is feasible; they do not reproduce a real save's map-dependent RNG draws.
 
-In the playground, type `help` for command syntax and examples. `dotnet run` builds the referenced mod, so its existing compiler/analyzer warnings can appear before the prompt. After the initial build, use `dotnet run --project BirdsEverywhere.Playground/BirdsEverywhere.Playground.csproj --no-build` for quiet repeat sessions; rebuild after source changes.
+In the playground, type `help` for command syntax and examples. `dotnet run` builds the referenced mod, so its existing compiler/analyzer warnings can appear before the prompt. After the initial build, use `dotnet run --project Birding.Playground/Birding.Playground.csproj --no-build` for quiet repeat sessions; rebuild after source changes.
 
 **Still pending:** richer overlays (rule, time window), candidate-tile and terrain/radius visualization, behavior stepping, true remote-location forced fallback, and separating planner RNG from placement RNG. Verify the commands and multiplayer rebroadcast in SMAPI before checking this prerequisite off.
 
@@ -328,7 +328,7 @@ In the playground, type `help` for command syntax and examples. `dotnet run` bui
 
 `-f` skips today's rule conditions (season, weather, day) and the habitat-list check, but the location must still exist. If the pattern finds no tile, the bird is placed on a free tile next to the player. Without `-f`, a pattern that finds no tile is reported as an error.
 
-**Playground** (`BirdsEverywhere.Playground`, net10.0 console app, never shipped; references the mod project like the test project)
+**Playground** (`Birding.Playground`, net10.0 console app, never shipped; references the mod project like the test project)
 
 - REPL over immutable state (season, day, weather, luck, seed, seen birds) that calls `SpawnPlanner.Plan` with a stub `habitatExists` (all true, or filtered by farm type and compat mods) and a `place` callback that always succeeds.
 - Commands: `state`, `set season|weather|luck|seed|farm <value>`, `plan`, `observe <birdId>`, `next` (advance day), `rules <birdId>` (eligible rules and weights now).
@@ -502,7 +502,7 @@ Design: [ARCHITECTURE.md → Condition clauses and time anchors](ARCHITECTURE.md
 
 **Tests:** OR matching and overlap counting; combined `TimesOn` (open-all-day clause wins); mixing error including an inherited `times`; seasonal `sing` rare entry with two clauses; anchor parsing, per-location resolution with a fake location and offset arithmetic (`sunrise+120` = 0800); required-role drop; role-texture fallback and unchanged RNG; unknown target kind; shorthand uniqueness; schema agreement cases for each new field.
 
-**Exit:** the tests above pass; existing goldens unchanged for rules without the new fields; a fixture species sings only in the configured windows. Verification stays separate: compile-only mod and playground builds, `dotnet test BirdsEverywhere.sln --arch x64`, a playground check of `any` output, then in-game and two-player checks recorded in [MANUAL_TESTS.md](MANUAL_TESTS.md) (never claimed from builds or tests). No shipped species has song audio yet, so shipped behavior does not change.
+**Exit:** the tests above pass; existing goldens unchanged for rules without the new fields; a fixture species sings only in the configured windows. Verification stays separate: compile-only mod and playground builds, `dotnet test Birding.sln --arch x64`, a playground check of `any` output, then in-game and two-player checks recorded in [MANUAL_TESTS.md](MANUAL_TESTS.md) (never claimed from builds or tests). No shipped species has song audio yet, so shipped behavior does not change.
 
 ---
 
@@ -532,7 +532,7 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 2. **Docs:** keep [ARCHITECTURE.md](ARCHITECTURE.md) current for merge rules, save format, and multiplayer ownership.
 3. **Lifecycle audit:** event subscriptions, cached references, and long-lived collections cleaned up on save change and location unload. `IDisposable` only where the code owns subscriptions or unmanaged resources.
 4. **Performance:** profile bird-heavy scenes first. If proximity checks dominate, centralize farmer-position lookup; a spatial grid only if the profile demands it.
-5. **Public API:** small, versioned `IBirdsEverywhereApi` via `Helper.ModRegistry` for registering bodies, primitives, spawn patterns, and validated definitions. Decide separately on Content Patcher support for data-only birds.
+5. **Public API:** small, versioned `IBirdingApi` via `Helper.ModRegistry` for registering bodies, primitives, spawn patterns, and validated definitions. Decide separately on Content Patcher support for data-only birds.
 
 **Observed bugs** (verify in game, then fix with Phase 10 or earlier with a regression test)
 

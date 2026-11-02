@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://birdseverywhere.invalid/schemas/compat.schema.json",
+    "$id": "https://birding.invalid/schemas/compat.schema.json",
     "title": "Regions compat file",
     "description": "Extends regions from regions.schema.json; only the base file may set ratio.",
     "type": "object",

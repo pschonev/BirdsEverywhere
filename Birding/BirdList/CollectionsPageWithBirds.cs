@@ -1,0 +1,114 @@
+using Birding.Domain;
+using StardewModdingAPI;
+using StardewValley;
+using StardewValley.Menus;
+
+namespace Birding.BirdList;
+
+internal class CollectionsPageWithBirds : CollectionsPage
+{
+    private readonly IReflectedField<string> _hoverText;
+    private readonly IReflectedField<int> _value;
+    private readonly IReflectedField<Item?> _hoverItem;
+    private readonly IReadOnlyDictionary<string, BirdDefinition> _catalog;
+    private readonly SaveData _saveData;
+    private readonly ITranslationHelper _translation;
+
+    public CollectionsPageWithBirds(CollectionsPage cp, IReflectionHelper reflection, ITranslationHelper translation, IReadOnlyDictionary<string, BirdDefinition> catalog, SaveData saveData)
+        : base(cp.xPositionOnScreen, cp.yPositionOnScreen, cp.width, cp.height)
+    {
+        _translation = translation;
+        _catalog = catalog;
+        _saveData = saveData;
+        _hoverText = reflection.GetField<string>(this, "hoverText");
+        _value = reflection.GetField<int>(this, "value");
+        _hoverItem = reflection.GetField<Item?>(this, "hoverItem");
+        backButton = cp.backButton;
+        forwardButton = cp.forwardButton;
+        sideTabs = cp.sideTabs;
+        currentTab = cp.currentTab;
+        currentPage = cp.currentPage;
+        secretNoteImage = cp.secretNoteImage;
+        collections = cp.collections;
+        secretNotesData = cp.secretNotesData;
+        secretNoteImageTexture = cp.secretNoteImageTexture;
+        letterviewerSubMenu = cp.letterviewerSubMenu;
+    }
+
+    public override void performHoverAction(int x, int y)
+    {
+        IReflectedField<string> hoverText = _hoverText;
+        IReflectedField<int> value = _value;
+        IReflectedField<Item?> hoverItem = _hoverItem;
+
+        hoverText.SetValue("");
+        value.SetValue(-1);
+        secretNoteImage = -1;
+
+        if (letterviewerSubMenu != null)
+        {
+            letterviewerSubMenu.performHoverAction(x, y);
+            return;
+        }
+        foreach (ClickableTextureComponent c2 in sideTabs.Values)
+        {
+            if (c2.containsPoint(x, y))
+            {
+                hoverText.SetValue(c2.hoverText);
+                return;
+            }
+        }
+        bool hoveredAny = false;
+        foreach (ClickableTextureComponent c in collections[currentTab][currentPage])
+        {
+            if (c.containsPoint(x, y))
+            {
+                c.scale = Math.Min(c.scale + 0.02f, c.baseScale + 0.1f);
+                string[] data_split = c.name.Split(' ');
+                if (currentTab == 5 || (data_split.Length > 1 && Convert.ToBoolean(data_split[1])) || (data_split.Length > 2 && Convert.ToBoolean(data_split[2])))
+                {
+                    if (currentTab == 7)
+                    {
+                        hoverText.SetValue(Game1.parseText(c.name.Substring(c.name.IndexOf(' ', c.name.IndexOf(' ') + 1) + 1), Game1.smallFont, 256));
+                    }
+                    else if (currentTab == 8)
+                    {
+                        // this is my bird tab
+                        hoverText.SetValue(GetBirdHoverText(c.name.Split(null)[0]));
+                    }
+                    else
+                    {
+                        hoverText.SetValue(createDescription(data_split[0]));
+                    }
+                }
+                else
+                {
+                    if (hoverText.GetValue() != "???")
+                    {
+                        hoverItem.SetValue(null);
+                    }
+                    hoverText.SetValue("???");
+                }
+                hoveredAny = true;
+            }
+            else
+            {
+                c.scale = Math.Max(c.scale - 0.02f, c.baseScale);
+            }
+        }
+        if (!hoveredAny)
+        {
+            hoverItem.SetValue(null);
+        }
+        forwardButton.tryHover(x, y, 0.5f);
+        backButton.tryHover(x, y, 0.5f);
+    }
+
+    private string GetBirdHoverText(string id)
+    {
+        BirdDefinition data = _catalog[id];
+        ObservationData obsData = _saveData.BirdObservations[id];
+        string firstSeen = _translation.Get("ui.first-seen", new { player = obsData.PlayerName, location = obsData.ObservationLocation, date = obsData.ObservationDate });
+        return $"{BirdText.Name(_translation, data)}\n{data.ScientificName}\n\n{BirdText.Description(_translation, data)}\n\n{firstSeen}";
+    }
+}

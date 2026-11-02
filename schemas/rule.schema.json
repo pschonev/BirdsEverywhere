@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://birdseverywhere.invalid/schemas/rule.schema.json",
+    "$id": "https://birding.invalid/schemas/rule.schema.json",
     "title": "Spawn rule or defaults",
     "description": "Every field is optional here: bird and template files are merged by TemplateMerger before ContentValidator checks that required fields are present.",
     "type": "object",

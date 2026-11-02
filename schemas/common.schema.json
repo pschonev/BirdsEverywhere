@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://birdseverywhere.invalid/schemas/common.schema.json",
+    "$id": "https://birding.invalid/schemas/common.schema.json",
     "title": "Shared definitions",
     "$defs": {
         "weightMap": {

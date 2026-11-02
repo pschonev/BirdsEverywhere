@@ -12,6 +12,8 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | S04 | Remove a tree or bush that has an anchored bird. | Bird despawns cleanly; no crash or orphaned bird remains. |
 | S05 | Visit areas with vanilla critters, then open the bird collection tab, hover entries and observe a bird. | Targeted vanilla birds are removed, unrelated critters remain; icons, hover text and seen state are correct. |
 | S06 | Save, quit, reload and inspect collection and `birds_xp`. | Observations and birding progress persist; no duplicate or lost sightings. |
+| S07 | Approach a visible herring gull from about eight tiles away, then move within six tiles on water and three tiles after it swims away. Repeat near a shore and on land. | Discovery registers before fleeing; on water it swims away first, then flies at close range, sometimes landing on free water and sometimes on walkable land. On land it can fly to water; after landing it swims or walks on the appropriate surface without sticking. |
+| S08 | Watch a gull at rest on water and on land for several in-game minutes, including near a shoreline. | It drifts slightly on water without entering land, and walks more often on land without walking through obstacles. |
 
 ## Debug tools (host unless noted)
 
@@ -54,6 +56,7 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | M08 | Have both players discover different species close together; then join a late third client if available. | Both discoveries persist; late joiner receives current plan, birds and observations. |
 | M09 | If a controllable delayed network is available, repeat M02 and M03 with added latency. | Motion continues locally, late reactions start without rewind, snapshots correct drift, no duplicate birds or permanent divergent state. Mark Blocked if delay cannot be applied reliably. |
 | M10 | Keep both players connected through sleep/day change; revisit a previously populated location. | New plan is shared, stale birds disappear and today's birds appear only once; consoles show no sync errors. |
+| M11 | With both players watching a gull, approach it from water and from land until it relocates; repeat after an owner handoff. | Flight and the final water/land state agree on both clients, with no duplicate observations or stranded replicas. |
 
 ## Result log
 

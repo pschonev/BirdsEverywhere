@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://birdseverywhere.invalid/schemas/action.schema.json",
+    "$id": "https://birding.invalid/schemas/action.schema.json",
     "title": "Action set",
     "description": "Action id to definition. A rule's \"actions\" overrides single fields of its bird type's set (null removes a field).",
     "type": "object",

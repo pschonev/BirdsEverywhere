@@ -1,6 +1,6 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://birdseverywhere.invalid/schemas/bird.schema.json",
+    "$id": "https://birding.invalid/schemas/bird.schema.json",
     "title": "Bird definition",
     "type": "object",
     "required": [

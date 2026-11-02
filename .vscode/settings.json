@@ -1,21 +1,21 @@
 {
     "json.schemas": [
-        { "fileMatch": ["BirdsEverywhere/assets/regions.json"], "url": "./schemas/regions.schema.json" },
-        { "fileMatch": ["BirdsEverywhere/assets/templates/*.json"], "url": "./schemas/template.schema.json" },
-        { "fileMatch": ["BirdsEverywhere/assets/compat/*.json"], "url": "./schemas/compat.schema.json" },
-        { "fileMatch": ["BirdsEverywhere/assets/layouts/*.json"], "url": "./schemas/layout.schema.json" },
-        { "fileMatch": ["BirdsEverywhere/assets/routines/*.json"], "url": "./schemas/routine.schema.json" },
-        { "fileMatch": ["BirdsEverywhere/assets/actions/*.json"], "url": "./schemas/action.schema.json" },
-        { "fileMatch": ["BirdsEverywhere/assets/reactions/*.json"], "url": "./schemas/reaction.schema.json" },
+        { "fileMatch": ["Birding/assets/regions.json"], "url": "./schemas/regions.schema.json" },
+        { "fileMatch": ["Birding/assets/templates/*.json"], "url": "./schemas/template.schema.json" },
+        { "fileMatch": ["Birding/assets/compat/*.json"], "url": "./schemas/compat.schema.json" },
+        { "fileMatch": ["Birding/assets/layouts/*.json"], "url": "./schemas/layout.schema.json" },
+        { "fileMatch": ["Birding/assets/routines/*.json"], "url": "./schemas/routine.schema.json" },
+        { "fileMatch": ["Birding/assets/actions/*.json"], "url": "./schemas/action.schema.json" },
+        { "fileMatch": ["Birding/assets/reactions/*.json"], "url": "./schemas/reaction.schema.json" },
         {
             "fileMatch": [
-                "BirdsEverywhere/assets/*/*.json",
-                "!BirdsEverywhere/assets/templates/*.json",
-                "!BirdsEverywhere/assets/compat/*.json",
-                "!BirdsEverywhere/assets/layouts/*.json",
-                "!BirdsEverywhere/assets/routines/*.json",
-                "!BirdsEverywhere/assets/actions/*.json",
-                "!BirdsEverywhere/assets/reactions/*.json"
+                "Birding/assets/*/*.json",
+                "!Birding/assets/templates/*.json",
+                "!Birding/assets/compat/*.json",
+                "!Birding/assets/layouts/*.json",
+                "!Birding/assets/routines/*.json",
+                "!Birding/assets/actions/*.json",
+                "!Birding/assets/reactions/*.json"
             ],
             "url": "./schemas/bird.schema.json"
         }

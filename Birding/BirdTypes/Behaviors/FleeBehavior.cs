@@ -1,0 +1,7 @@
+namespace Birding.BirdTypes.Behaviors;
+
+internal sealed class FleeBehavior : IBirdBehavior
+{
+    public BirdAction Decide(in BirdContext context) =>
+        context.ThreatNearby && context.State is not (BehaviorStatus.FlyingAway or BehaviorStatus.Running or BehaviorStatus.Relocating or BehaviorStatus.Diving or BehaviorStatus.SwimmingAway) ? BirdAction.Flee : BirdAction.None;
+}
