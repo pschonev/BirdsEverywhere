@@ -12,8 +12,25 @@
     "birdType": "WaterLandBird",
     "reactions": {
       "threat": [
-        { "if": { "nearWater": true }, "flee": { "radius": 6, "do": "swimAway" } },
-        { "flee": { "radius": 3, "do": "flyOff", "relocate": { "target": "any", "chance": 0.7 } } }
+        {
+          "if": {
+            "nearWater": true
+          },
+          "flee": {
+            "radius": 6,
+            "do": "swimAway"
+          }
+        },
+        {
+          "flee": {
+            "radius": 3,
+            "do": "flyOff",
+            "relocate": {
+              "target": "any",
+              "chance": 0.7
+            }
+          }
+        }
       ]
     }
   }
