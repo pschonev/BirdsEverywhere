@@ -1,12 +1,16 @@
 using Birding.Domain;
 using StardewModdingAPI;
 using StardewValley;
+using Microsoft.Xna.Framework.Graphics;
 using StardewValley.Menus;
 
 namespace Birding.BirdList;
 
 internal class CollectionsPageWithBirds : CollectionsPage
 {
+    private const int TooltipWidth = 320;
+
+    private (string Title, string Body)? _birdTooltip;
     private readonly IReflectedField<string> _hoverText;
     private readonly IReflectedField<int> _value;
     private readonly IReflectedField<Item?> _hoverItem;
@@ -44,6 +48,7 @@ internal class CollectionsPageWithBirds : CollectionsPage
         hoverText.SetValue("");
         value.SetValue(-1);
         secretNoteImage = -1;
+        _birdTooltip = null;
 
         if (letterviewerSubMenu != null)
         {
@@ -73,8 +78,7 @@ internal class CollectionsPageWithBirds : CollectionsPage
                     }
                     else if (currentTab == 8)
                     {
-                        // this is my bird tab
-                        hoverText.SetValue(GetBirdHoverText(c.name.Split(null)[0]));
+                        _birdTooltip = GetBirdTooltip(data_split[0]);
                     }
                     else
                     {
@@ -104,11 +108,23 @@ internal class CollectionsPageWithBirds : CollectionsPage
         backButton.tryHover(x, y, 0.5f);
     }
 
-    private string GetBirdHoverText(string id)
+    public override void draw(SpriteBatch b)
+    {
+        base.draw(b);
+        if (_birdTooltip is not var (title, body))
+        {
+            return;
+        }
+        drawHoverText(b, body, Game1.smallFont, boldTitleText: title);
+        drawMouse(b);
+    }
+
+    private (string Title, string Body) GetBirdTooltip(string id)
     {
         BirdDefinition data = _catalog[id];
         ObservationData obsData = _saveData.BirdObservations[id];
         string firstSeen = _translation.Get("ui.first-seen", new { player = obsData.PlayerName, location = obsData.ObservationLocation, date = obsData.ObservationDate });
-        return $"{BirdText.Name(_translation, data)}\n{data.ScientificName}\n\n{BirdText.Description(_translation, data)}\n\n{firstSeen}";
+        string description = Game1.parseText(BirdText.Description(_translation, data), Game1.smallFont, TooltipWidth);
+        return (BirdText.Name(_translation, data), $"{data.ScientificName}\n\n{description}\n\n{firstSeen}");
     }
 }
