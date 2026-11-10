@@ -537,6 +537,7 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 
 - `otherTree` candidates are limited to a cone (±60°) away from the threat.
 - black woodpecker adopts `tree_hopper`.
+- **Implemented (compile/test verified, not tested in game):** `EscapePlanner.InCone` filters `otherTree` candidates to ±60° around the direction from the threat through the bird (any tree qualifies if the threat stands on the bird's tile). `black_woodpecker.json` sets `reactions: tree_hopper`. Manual cases W01-W02.
 
 **D. Water preference**
 

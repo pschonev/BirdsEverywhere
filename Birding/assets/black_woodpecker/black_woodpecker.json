@@ -7,6 +7,7 @@
   "defaults": {
     "spawnPattern": "TreeTrunkSpawner",
     "birdType": "TreeTrunkBird",
+    "reactions": "tree_hopper",
     "groupCount": [
       1,
       1

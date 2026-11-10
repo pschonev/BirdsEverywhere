@@ -53,6 +53,13 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | C04 | Repeat C01, then shake the tree or fell it while the tit hides. | The tit bursts out and flies offscreen. |
 | C05 | With no mature tree nearby, approach a tit. | It lands on a distant ground spot or flies offscreen as before. |
 
+## Trunk hop (one client)
+
+| ID | Action | Expected result |
+|---|---|---|
+| W01 | Spawn a black woodpecker on a trunk with other mature trees around and approach from one side. | It flies to another trunk on the far side from you, not past you. |
+| W02 | Repeat with no tree on the far side. | It flees offscreen; it never hops toward you. |
+
 ## Multiplayer synchronization (two SMAPI clients)
 
 | ID | Action | Expected result |

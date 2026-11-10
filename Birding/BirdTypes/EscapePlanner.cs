@@ -12,6 +12,7 @@ internal static class EscapePlanner
 {
     private const float MinDistanceTiles = 3;
     private const int LandingRadiusTiles = 6;
+    private const float ConeCosine = 0.5f;
 
     /// <summary>A ground, water or canopy tile from the reaction's escape options, or null to flee off screen.</summary>
     public static EscapeChoice? Surface(ILocationQuery query, Vector2 from, Vector2 threat, ThreatReaction reaction, int relocations,
@@ -28,10 +29,10 @@ internal static class EscapePlanner
     public static Vector2? Landing(ILocationQuery query, Vector2 tree, int fleeRadius, Random random, IReadOnlyCollection<Vector2> occupied) =>
         Pick(Tiles(query, tree, LandingRadiusTiles, tile => TileRules.CanLand(query, tile)), tree, query.FarmerTiles, fleeRadius, LandingRadiusTiles, occupied, random);
 
-    /// <summary>A mature tree for an <c>otherTree</c> escape option, or null to flee off screen.</summary>
+    /// <summary>A mature tree inside the ±60° cone pointing away from the threat for an <c>otherTree</c> escape option, or null to flee off screen.</summary>
     public static EscapeChoice? Tree(ILocationQuery query, Vector2 from, Vector2 threat, ThreatReaction reaction, int relocations,
         IReadOnlyCollection<Vector2> occupied, Random random) =>
-        Choose(reaction, relocations, option => option.Target == "otherTree" ? query.MatureTrees() : Array.Empty<Vector2>(),
+        Choose(reaction, relocations, option => option.Target == "otherTree" ? query.MatureTrees().Where(tree => InCone(from, threat, tree)) : Array.Empty<Vector2>(),
             from, Threats(query, threat), occupied, random);
 
     /// <summary>Picks an option by weight among those with an eligible spot (off screen always qualifies), then a spot; null means flee. The weight roll is skipped when only one option qualifies.</summary>
@@ -67,6 +68,18 @@ internal static class EscapePlanner
     {
         List<Vector2> eligible = Eligible(candidates, from, threats, fleeRadius, maxDistance, occupied);
         return eligible.Count == 0 ? null : eligible[random.Next(eligible.Count)];
+    }
+
+    /// <summary>True when <paramref name="tile"/> lies within ±60° of the direction from <paramref name="threat"/> through <paramref name="from"/>; any tile qualifies when the two coincide.</summary>
+    public static bool InCone(Vector2 from, Vector2 threat, Vector2 tile)
+    {
+        Vector2 away = from - threat;
+        Vector2 offset = tile - from;
+        if (away == Vector2.Zero || offset == Vector2.Zero)
+        {
+            return true;
+        }
+        return Vector2.Dot(Vector2.Normalize(away), Vector2.Normalize(offset)) >= ConeCosine;
     }
 
     /// <summary>Height of the flight arc above the straight line, peaking halfway.</summary>

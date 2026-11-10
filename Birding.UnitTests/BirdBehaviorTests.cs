@@ -178,8 +178,16 @@ internal sealed class BirdBehaviorTests
     [TestCase("otherTree", 2, true)]
     [TestCase("ground", 0, true)]
     public void Escape_TreeNeedsOtherTreeTargetAndBudget(string target, int relocations, bool isNull) =>
-        Assert.That(EscapePlanner.Tree(new LandingLocation { Trees = _trees }, new(10, 10), new(9, 13), Escape(new EscapeOption(target, 1, 12)) with { MaxRelocations = 2 },
+        Assert.That(EscapePlanner.Tree(new LandingLocation { Trees = _trees }, new(10, 10), new(8, 10), Escape(new EscapeOption(target, 1, 12)) with { MaxRelocations = 2 },
             relocations, Array.Empty<Vector2>(), new FixedRandom(0, 0)) is null, Is.EqualTo(isNull));
+
+    [TestCase(8f, 10f, true)]
+    [TestCase(12f, 10f, false)]
+    [TestCase(10f, 14f, false)]
+    [TestCase(10f, 6f, true)]
+    public void Escape_OtherTreeStaysInConeAwayFromThreat(float threatX, float threatY, bool hasTree) =>
+        Assert.That(EscapePlanner.Tree(new LandingLocation { Trees = _trees }, new(10, 10), new(threatX, threatY), Escape(new EscapeOption("otherTree", 1, 12)) with { MaxRelocations = 2 },
+            relocations: 0, Array.Empty<Vector2>(), new FixedRandom(0, 0)) is not null, Is.EqualTo(hasTree));
 
     [Test]
     public void Escape_TreeOption_ReturnsTreeTileAndHideTime() =>
