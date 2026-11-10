@@ -11,6 +11,9 @@ public interface ILocationQuery
     bool IsWaterTile(Vector2 tile);
     bool IsSpawnableGroundTile(Vector2 tile);
     string? FishArea(Vector2 tile);
+    bool IsPassable(Vector2 tile);
+    IReadOnlyList<Vector2> FarmerTiles { get; }
+    IEnumerable<Vector2> MatureTrees();
 }
 
 public sealed class GameLocationQuery : ILocationQuery
@@ -49,6 +52,14 @@ public sealed class GameLocationQuery : ILocationQuery
 
     public string? FishArea(Vector2 tile) =>
         _location.TryGetFishAreaForTile(tile, out string id, out _) ? id : null;
+
+    public bool IsPassable(Vector2 tile) =>
+        _location.isTileOnMap(tile) && _location.isTilePassable(tile);
+
+    public IReadOnlyList<Vector2> FarmerTiles => _location.farmers.Select(farmer => farmer.Tile).ToList();
+
+    public IEnumerable<Vector2> MatureTrees() =>
+        _location.terrainFeatures.Pairs.Where(pair => Condition.IsEligibleTree(pair.Value)).Select(pair => pair.Key);
 
     private bool HasWater(Vector2 tile) =>
         _location.doesTileHaveProperty((int)tile.X, (int)tile.Y, "Water", "Back") != null;

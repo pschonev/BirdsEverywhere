@@ -667,7 +667,7 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 
 ##### Escape options (planned, [step 9](REFACTOR.md#step-9-natural-escape-and-coordination-planned))
 
-A bird should leave the location only as a last resort. `escape` is a weighted list of escape options and replaces `relocate` (step 9 A; the format, weighted pick and `ground`/`water`/`otherTree`/`offscreen` targets are implemented, `tree`, `hideFor`, the cone and the new eligibility rules are planned). One option is chosen by weight from the options that have an eligible spot, and the bird flies offscreen only if none have one.
+A bird should leave the location only as a last resort. `escape` is a weighted list of escape options and replaces `relocate` (step 9 A; the format, weighted pick and `ground`/`water`/`otherTree`/`offscreen` targets are implemented, the shared eligibility rules (`TileRules`, every-farmer distance, passability, open water) and the 30 s budget reset are implemented; `tree`, `hideFor` and the cone are planned). One option is chosen by weight from the options that have an eligible spot, and the bird flies offscreen only if none have one.
 
 ```json
 "threat": {

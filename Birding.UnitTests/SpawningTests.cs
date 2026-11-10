@@ -65,6 +65,9 @@ public class SpawningTests
         public bool IsWaterTile(Vector2 tile) => tile.X >= 20;
         public bool IsSpawnableGroundTile(Vector2 tile) => IsGroundTile(tile);
         public string? FishArea(Vector2 tile) => tile.Y < 15 ? "River" : "Lake";
+        public bool IsPassable(Vector2 tile) => true;
+        public IReadOnlyList<Vector2> FarmerTiles => Array.Empty<Vector2>();
+        public IEnumerable<Vector2> MatureTrees() => Array.Empty<Vector2>();
     }
 
     private sealed class NullMonitor : IMonitor
@@ -170,6 +173,9 @@ public class SpawningTests
         public bool IsWaterTile(Vector2 tile) => false;
         public bool IsSpawnableGroundTile(Vector2 tile) => true;
         public string? FishArea(Vector2 tile) => null;
+        public bool IsPassable(Vector2 tile) => true;
+        public IReadOnlyList<Vector2> FarmerTiles => Array.Empty<Vector2>();
+        public IEnumerable<Vector2> MatureTrees() => Array.Empty<Vector2>();
     }
 
     [Test]

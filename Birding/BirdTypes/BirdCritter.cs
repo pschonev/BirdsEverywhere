@@ -15,6 +15,7 @@ internal abstract class BirdCritter : Critter
     private const int ThreatCheckIntervalMs = 200;
     private const int DiscoveryRadiusTiles = 8;
     private const float RelocateArcHeight = 48f;
+    private const double RelocationCalmMs = 30000;
 
     private long _birdID;
     private Vector2 _replicaTarget;
@@ -394,6 +395,7 @@ internal abstract class BirdCritter : Critter
         ?? throw new InvalidOperationException($"{BirdTypeName} has no reactions.")).Threat;
 
     private int _alertCalmMs;
+    private double _lastThreatMs;
 
     /// <summary>At most every 200 ms: the threat to flee from, or whether one is inside the alert ring.</summary>
     protected (Character? Flee, bool Alerted) PollThreats(GameTime time, GameLocation location) =>
@@ -401,6 +403,21 @@ internal abstract class BirdCritter : Critter
 
     /// <summary>Farmers within the flee radius (running ones count closer) or any other character in it; matches <see cref="FindThreat"/> for default reactions.</summary>
     protected (Character? Flee, bool Alerted) ScanThreats(GameLocation location, ThreatReaction threat)
+    {
+        (Character? Flee, bool Alerted) result = FindThreats(location, threat);
+        double now = Game1.currentGameTime.TotalGameTime.TotalMilliseconds;
+        if (result.Flee != null || result.Alerted || Relocations == 0)
+        {
+            _lastThreatMs = now;
+        }
+        else if (now - _lastThreatMs >= RelocationCalmMs)
+        {
+            Relocations = 0;
+        }
+        return result;
+    }
+
+    private (Character? Flee, bool Alerted) FindThreats(GameLocation location, ThreatReaction threat)
     {
         int alertRadius = threat.Alert?.Radius ?? 0;
         bool alerted = false;

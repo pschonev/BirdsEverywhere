@@ -14,19 +14,20 @@ internal static class EscapePlanner
         IReadOnlyCollection<Vector2> occupied, Random random) =>
         Choose(reaction, relocations, option => option.Target switch
         {
-            "ground" => Tiles(query, from, option.MaxDistance, query.IsGroundTile),
-            "water" => Tiles(query, from, option.MaxDistance, query.IsWaterTile),
+            "ground" => Tiles(query, from, option.MaxDistance, tile => TileRules.CanLand(query, tile)),
+            "water" => Tiles(query, from, option.MaxDistance, tile => TileRules.IsOpenWater(query, tile)),
             _ => Array.Empty<Vector2>(),
-        }, from, threat, occupied, random);
+        }, from, Threats(query, threat), occupied, random);
 
-    /// <summary>One of <paramref name="trees"/> for an <c>otherTree</c> escape option, or null to flee off screen.</summary>
-    public static Vector2? Tree(IEnumerable<Vector2> trees, Vector2 from, Vector2 threat, ThreatReaction reaction, int relocations,
+    /// <summary>A mature tree for an <c>otherTree</c> escape option, or null to flee off screen.</summary>
+    public static Vector2? Tree(ILocationQuery query, Vector2 from, Vector2 threat, ThreatReaction reaction, int relocations,
         IReadOnlyCollection<Vector2> occupied, Random random) =>
-        Choose(reaction, relocations, option => option.Target == "otherTree" ? trees : Array.Empty<Vector2>(), from, threat, occupied, random);
+        Choose(reaction, relocations, option => option.Target == "otherTree" ? query.MatureTrees() : Array.Empty<Vector2>(),
+            from, Threats(query, threat), occupied, random);
 
     /// <summary>Picks an option by weight among those with an eligible spot (off screen always qualifies), then a spot; null means flee. The weight roll is skipped when only one option qualifies.</summary>
     public static Vector2? Choose(ThreatReaction reaction, int relocations, Func<EscapeOption, IEnumerable<Vector2>> candidates,
-        Vector2 from, Vector2 threat, IReadOnlyCollection<Vector2> occupied, Random random)
+        Vector2 from, IReadOnlyList<Vector2> threats, IReadOnlyCollection<Vector2> occupied, Random random)
     {
         if (relocations >= reaction.MaxRelocations || reaction.Escape.IsEmpty)
         {
@@ -37,7 +38,7 @@ internal static class EscapePlanner
         {
             List<Vector2> spots = option.Target == EscapeOption.Offscreen
                 ? new List<Vector2>()
-                : Eligible(candidates(option), from, threat, reaction.FleeRadius, option.MaxDistance, occupied);
+                : Eligible(candidates(option), from, threats, reaction.FleeRadius, option.MaxDistance, occupied);
             if (option.Target == EscapeOption.Offscreen || spots.Count > 0)
             {
                 open.Add((option, spots));
@@ -51,25 +52,35 @@ internal static class EscapePlanner
         return chosen.Target == EscapeOption.Offscreen ? null : chosenSpots[random.Next(chosenSpots.Count)];
     }
 
-    /// <summary>A random free candidate tile within reach of <paramref name="from"/> and outside the threat's flee radius; candidates are sorted first so the pick is seed-stable.</summary>
-    public static Vector2? Pick(IEnumerable<Vector2> candidates, Vector2 from, Vector2 threat, int fleeRadius, int maxDistance,
+    /// <summary>A random free candidate tile within reach of <paramref name="from"/> and outside every threat's flee radius; candidates are sorted first so the pick is seed-stable.</summary>
+    public static Vector2? Pick(IEnumerable<Vector2> candidates, Vector2 from, IReadOnlyList<Vector2> threats, int fleeRadius, int maxDistance,
         IReadOnlyCollection<Vector2> occupied, Random random)
     {
-        List<Vector2> eligible = Eligible(candidates, from, threat, fleeRadius, maxDistance, occupied);
+        List<Vector2> eligible = Eligible(candidates, from, threats, fleeRadius, maxDistance, occupied);
         return eligible.Count == 0 ? null : eligible[random.Next(eligible.Count)];
     }
 
     /// <summary>Height of the flight arc above the straight line, peaking halfway.</summary>
     public static float ArcOffset(float progress, float height) => -MathF.Sin(Math.Clamp(progress, 0f, 1f) * MathF.PI) * height;
 
-    private static List<Vector2> Eligible(IEnumerable<Vector2> candidates, Vector2 from, Vector2 threat, int fleeRadius, int maxDistance,
+    private static List<Vector2> Eligible(IEnumerable<Vector2> candidates, Vector2 from, IReadOnlyList<Vector2> threats, int fleeRadius, int maxDistance,
         IReadOnlyCollection<Vector2> occupied) =>
         candidates
             .Where(tile => tile != from && !occupied.Contains(tile))
             .Where(tile => Vector2.Distance(tile, from) is var reach && reach >= MinDistanceTiles && reach <= maxDistance)
-            .Where(tile => Vector2.Distance(tile, threat) > fleeRadius + 1)
+            .Where(tile => threats.All(threat => Vector2.Distance(tile, threat) > fleeRadius + 1))
             .OrderBy(tile => tile.X).ThenBy(tile => tile.Y)
             .ToList();
+
+    private static List<Vector2> Threats(ILocationQuery query, Vector2 threat)
+    {
+        List<Vector2> threats = new(query.FarmerTiles);
+        if (!threats.Contains(threat))
+        {
+            threats.Add(threat);
+        }
+        return threats;
+    }
 
     private static List<Vector2> Tiles(ILocationQuery query, Vector2 from, int reach, Func<Vector2, bool> matches)
     {

@@ -1,0 +1,16 @@
+using Microsoft.Xna.Framework;
+
+namespace Birding.Spawners;
+
+/// <summary>Terrain rules a bird can stand or swim on, shared by escape planning.</summary>
+public static class TileRules
+{
+    public const int OpenWaterShoreDistance = 2;
+
+    /// <summary>Ground a farmer could also walk on; piers, docks and bridges are ground.</summary>
+    public static bool CanLand(ILocationQuery location, Vector2 tile) => location.IsGroundTile(tile) && location.IsPassable(tile);
+
+    /// <summary>Water at least <see cref="OpenWaterShoreDistance"/> tiles from any ground.</summary>
+    public static bool IsOpenWater(ILocationQuery location, Vector2 tile) =>
+        location.IsWaterTile(tile) && ShoreDistance.From(location, tile, OpenWaterShoreDistance - 1) >= OpenWaterShoreDistance;
+}
