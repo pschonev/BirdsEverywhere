@@ -11,8 +11,8 @@ public static class ReactionLoader
     private static readonly HashSet<string> _keys = new(StringComparer.Ordinal) { "threat" };
     private static readonly HashSet<string> _threatKeys = new(StringComparer.Ordinal) { "fleeRadius", "runningMultiplier", "alert", "escape", "maxRelocations" };
     private static readonly HashSet<string> _alertKeys = new(StringComparer.Ordinal) { "radius", "clip", "sound", "calmMs" };
-    private static readonly HashSet<string> _escapeKeys = new(StringComparer.Ordinal) { "target", "weight", "maxDistance" };
-    private static readonly HashSet<string> _escapeTargets = new(StringComparer.Ordinal) { "ground", "water", "otherTree", EscapeOption.Offscreen };
+    private static readonly HashSet<string> _escapeKeys = new(StringComparer.Ordinal) { "target", "weight", "maxDistance", "hideForMs" };
+    private static readonly HashSet<string> _escapeTargets = new(StringComparer.Ordinal) { "ground", "water", "otherTree", EscapeOption.Tree, EscapeOption.Offscreen };
     private static readonly HashSet<string> _alternativeKeys = new(StringComparer.Ordinal) { "if", "flee" };
     private static readonly HashSet<string> _conditionKeys = new(StringComparer.Ordinal) { "groupHasRole", "nearWater", "season", "timeOfDay", "weather", "stage" };
     private static readonly HashSet<string> _fleeKeys = new(StringComparer.Ordinal) { "radius", "do", "sound", "target", "speedFactor", "escape", "maxRelocations" };
@@ -147,7 +147,12 @@ public static class ReactionLoader
             { Type: JTokenType.Float or JTokenType.Integer } value when value.Value<double>() > 0 => value.Value<double>(),
             _ => throw new FormatException($"{file}: {path}.weight must be a number above 0."),
         };
-        return new EscapeOption(target, weight, body["maxDistance"] is { } distance ? Int(distance, 2, 30, file, path + ".maxDistance") : 12);
+        if (body["hideForMs"] != null && target != EscapeOption.Tree)
+        {
+            throw new FormatException($"{file}: {path}.hideForMs only applies to target 'tree'.");
+        }
+        return new EscapeOption(target, weight, body["maxDistance"] is { } distance ? Int(distance, 2, 30, file, path + ".maxDistance") : 12,
+            body["hideForMs"] is { } hide ? Int(hide, 1000, 120000, file, path + ".hideForMs") : EscapeOption.DefaultHideForMs);
     }
 
     private static JObject Object(JToken token, string file, string path, HashSet<string> keys)

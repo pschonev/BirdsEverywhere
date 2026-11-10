@@ -42,10 +42,12 @@ public sealed record ThreatReaction(int FleeRadius, AlertReaction? Alert = null,
     public bool CanEscapeTo(string target) => Escape.Any(option => option.Target == target);
 }
 
-/// <summary>One weighted escape choice: a spot on <c>Target</c> within <c>MaxDistance</c> tiles, or off screen for <see cref="Offscreen"/>.</summary>
-public sealed record EscapeOption(string Target, double Weight, int MaxDistance)
+/// <summary>One weighted escape choice: a spot on <c>Target</c> within <c>MaxDistance</c> tiles, or off screen for <see cref="Offscreen"/>; <c>tree</c> hides the bird for <c>HideForMs</c>.</summary>
+public sealed record EscapeOption(string Target, double Weight, int MaxDistance, int HideForMs = EscapeOption.DefaultHideForMs)
 {
     public const string Offscreen = "offscreen";
+    public const string Tree = "tree";
+    public const int DefaultHideForMs = 10000;
 }
 
 /// <summary>A threat between the flee and alert radius freezes the bird on <c>Clip</c>; it resumes after <c>CalmMs</c> without a threat in the alert radius.</summary>

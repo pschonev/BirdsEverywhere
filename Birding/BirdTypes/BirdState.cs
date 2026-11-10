@@ -40,4 +40,5 @@ internal sealed record BirdState(
     string? FollowRole = null,
     float FollowSpeedFactor = 1f,
     Vector2 SwimDirection = default,
-    ActionDefinition? ActiveFlee = null);
+    ActionDefinition? ActiveFlee = null,
+    int HideTimer = 0);

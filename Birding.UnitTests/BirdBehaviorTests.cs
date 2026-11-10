@@ -122,12 +122,16 @@ internal sealed class BirdBehaviorTests
         public IEnumerable<Vector2> MatureTrees() => Trees;
     }
 
+    private static Vector2? SurfaceTile(ILocationQuery query, Vector2 from, Vector2 threat, ThreatReaction reaction, int relocations,
+        IReadOnlyCollection<Vector2> occupied, Random random) =>
+        EscapePlanner.Surface(query, from, threat, reaction, relocations, occupied, random)?.Tile;
+
     private static ThreatReaction Escape(params EscapeOption[] options) => new(1, Escape: options.ToImmutableArray());
 
     [TestCase("ground", 5f)]
     [TestCase("water", 8f)]
     public void Escape_ChoosesRequestedLandingSurface(string surface, float expectedY) =>
-        Assert.That(EscapePlanner.Surface(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5),
+        Assert.That(SurfaceTile(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5),
             Escape(new EscapeOption(surface, 1, 8)), relocations: 0, Array.Empty<Vector2>(), new FixedRandom(0)),
             Is.EqualTo(new Vector2(10, expectedY)));
 
@@ -135,38 +139,38 @@ internal sealed class BirdBehaviorTests
     [TestCase(0.5, 8f)]
     [TestCase(0.9, null)]
     public void Escape_PicksOptionByWeight(double roll, float? expectedY) =>
-        Assert.That(EscapePlanner.Surface(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5),
+        Assert.That(SurfaceTile(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5),
             Escape(new EscapeOption("ground", 0.3, 8), new EscapeOption("water", 0.4, 8), new EscapeOption(EscapeOption.Offscreen, 0.3, 8)),
             relocations: 0, Array.Empty<Vector2>(), new FixedRandom(roll, 0)),
             Is.EqualTo(expectedY is { } y ? new Vector2(10, y) : null));
 
     [Test]
     public void Escape_SkipsOptionsWithoutSpot() =>
-        Assert.That(EscapePlanner.Surface(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5),
+        Assert.That(SurfaceTile(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5),
             Escape(new EscapeOption("ground", 100, 2), new EscapeOption("water", 1, 8)), relocations: 0, Array.Empty<Vector2>(), new FixedRandom(0)),
             Is.EqualTo(new Vector2(10, 8)));
 
     [Test]
     public void Escape_SurfaceBudgetUsedUp_ReturnsNull() =>
-        Assert.That(EscapePlanner.Surface(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5),
+        Assert.That(SurfaceTile(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5),
             Escape(new EscapeOption("ground", 1, 8)), relocations: 1, Array.Empty<Vector2>(), new FixedRandom(0)),
             Is.Null);
 
     [Test]
     public void Escape_BlockedGround_IsNotALandingSpot() =>
-        Assert.That(EscapePlanner.Surface(new LandingLocation { BlockedTile = new Vector2(10, 5) }, new Vector2(5, 5), new Vector2(2, 5),
+        Assert.That(SurfaceTile(new LandingLocation { BlockedTile = new Vector2(10, 5) }, new Vector2(5, 5), new Vector2(2, 5),
             Escape(new EscapeOption("ground", 1, 8)), relocations: 0, Array.Empty<Vector2>(), new FixedRandom(0)),
             Is.Null);
 
     [Test]
     public void Escape_ShallowWater_IsNotOpenWater() =>
-        Assert.That(EscapePlanner.Surface(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5),
+        Assert.That(SurfaceTile(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5),
             Escape(new EscapeOption("water", 1, 6)), relocations: 0, Array.Empty<Vector2>(), new FixedRandom(0)),
             Is.EqualTo(new Vector2(10, 8)));
 
     [Test]
     public void Escape_AvoidsEveryFarmer() =>
-        Assert.That(EscapePlanner.Surface(new LandingLocation { FarmerTiles = new[] { new Vector2(2, 5), new Vector2(10, 8) } },
+        Assert.That(SurfaceTile(new LandingLocation { FarmerTiles = new[] { new Vector2(2, 5), new Vector2(10, 8) } },
             new Vector2(5, 5), new Vector2(2, 5), Escape(new EscapeOption("water", 1, 8)), relocations: 0, Array.Empty<Vector2>(), new FixedRandom(0)),
             Is.Null);
 
@@ -176,6 +180,24 @@ internal sealed class BirdBehaviorTests
     public void Escape_TreeNeedsOtherTreeTargetAndBudget(string target, int relocations, bool isNull) =>
         Assert.That(EscapePlanner.Tree(new LandingLocation { Trees = _trees }, new(10, 10), new(9, 13), Escape(new EscapeOption(target, 1, 12)) with { MaxRelocations = 2 },
             relocations, Array.Empty<Vector2>(), new FixedRandom(0, 0)) is null, Is.EqualTo(isNull));
+
+    [Test]
+    public void Escape_TreeOption_ReturnsTreeTileAndHideTime() =>
+        Assert.That(EscapePlanner.Surface(new LandingLocation { Trees = _trees }, new(10, 10), new(9, 13),
+                Escape(new EscapeOption(EscapeOption.Tree, 1, 12, 4000)), relocations: 0, Array.Empty<Vector2>(), new FixedRandom(0, 0)),
+            Is.EqualTo(new EscapeChoice(new EscapeOption(EscapeOption.Tree, 1, 12, 4000), new Vector2(14, 10))));
+
+    [Test]
+    public void Escape_Landing_PicksFreeGroundNearTreeAwayFromFarmers()
+    {
+        LandingLocation query = new();
+        Assert.Multiple(() =>
+        {
+            Assert.That(EscapePlanner.Landing(query, new(10, 9), 1, new FixedRandom(0, 0), Array.Empty<Vector2>()), Is.EqualTo(new Vector2(10, 5)));
+            Assert.That(EscapePlanner.Landing(query, new(10, 9), 1, new FixedRandom(0, 0), new[] { new Vector2(10, 5) }), Is.Null);
+            Assert.That(EscapePlanner.Landing(new LandingLocation { FarmerTiles = new[] { new Vector2(10, 5) } }, new(10, 9), 1, new FixedRandom(0, 0), Array.Empty<Vector2>()), Is.Null);
+        });
+    }
 
     [TestCase(0f, 0f)]
     [TestCase(0.5f, -48f)]

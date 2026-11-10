@@ -189,6 +189,8 @@ public class SchemaTests
     [TestCase(@"{""threat"":{""flee"":3}}", false)]
     [TestCase(@"{""threat"":{""escape"":[{""target"":""otherTree"",""maxDistance"":10}],""maxRelocations"":2}}", true)]
     [TestCase(@"{""threat"":{""escape"":[{""target"":""ground"",""weight"":0.7},{""target"":""offscreen"",""weight"":0.3}]}}", true)]
+    [TestCase(@"{""threat"":{""escape"":[{""target"":""tree"",""maxDistance"":8,""hideForMs"":10000}]}}", true)]
+    [TestCase(@"{""threat"":{""escape"":[{""target"":""tree"",""hideForMs"":10}]}}", false)]
     [TestCase(@"{""threat"":{""escape"":[{""target"":""water"",""weight"":0}]}}", false)]
     [TestCase(@"{""threat"":{""escape"":[{""maxDistance"":10}]}}", false)]
     [TestCase(@"{""threat"":{""escape"":[{""target"":""any""}]}}", false)]

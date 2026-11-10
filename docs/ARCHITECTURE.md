@@ -667,13 +667,13 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 
 ##### Escape options (planned, [step 9](REFACTOR.md#step-9-natural-escape-and-coordination-planned))
 
-A bird should leave the location only as a last resort. `escape` is a weighted list of escape options and replaces `relocate` (step 9 A; the format, weighted pick and `ground`/`water`/`otherTree`/`offscreen` targets are implemented, the shared eligibility rules (`TileRules`, every-farmer distance, passability, open water) and the 30 s budget reset are implemented; `tree`, `hideFor` and the cone are planned). One option is chosen by weight from the options that have an eligible spot, and the bird flies offscreen only if none have one.
+A bird should leave the location only as a last resort. `escape` is a weighted list of escape options and replaces `relocate` (step 9 A; the format, weighted pick and `ground`/`water`/`otherTree`/`offscreen` targets are implemented, the shared eligibility rules (`TileRules`, every-farmer distance, passability, open water) and the 30 s budget reset are implemented; `tree` and `hideForMs` are implemented; the cone is planned). One option is chosen by weight from the options that have an eligible spot, and the bird flies offscreen only if none have one.
 
 ```json
 "threat": {
   "fleeRadius": 3,
   "escape": [
-    { "target": "tree",   "weight": 3, "maxDistance": 8, "hideFor": 10000 },
+    { "target": "tree",   "weight": 3, "maxDistance": 8, "hideForMs": 10000 },
     { "target": "ground", "weight": 1, "maxDistance": 12 }
   ],
   "maxRelocations": 2
@@ -698,9 +698,9 @@ A bird should leave the location only as a last resort. `escape` is a weighted l
 - Implemented (compile/test verified, not tested in game): `escape` is the only format. The legacy `relocate` block and the `any` target are removed (the mod is unreleased) and shipped JSON is migrated; a `relocate` key is a load error naming the file. An explicit `{ "target": "offscreen", "weight": w }` option replaces the old `chance < 1`.
 
 **Canopy hide (`tree`).** The bird flies into the crown of a fully grown tree (`Tree` terrain feature, growth stage ≥ 5) and turns invisible: it gets status `Hiding`, rustles leaves on arrival, and its anchor is set to the tree tile. No canopy drawing is needed, unlike the visible canopy body in the backlog.
-- It comes back down to an eligible `ground` spot within a few tiles of the tree once no farmer has been within `fleeRadius` of the tree for `hideFor` ms (default 10000).
-- Shaking the tree (`treeShaken`) or felling it flushes the bird: it bursts out of the crown and flees offscreen. Felling reuses the trunk body's existing felled-tree check.
-- Multiplayer: `Hiding`, the hide timer and the anchor go into `BirdState`. Replicas draw nothing while the bird is hidden and replay the burst from the snapshot.
+- It comes back down to an eligible `ground` spot within a few tiles of the tree once no farmer has been within `fleeRadius` of the tree for `hideForMs` ms (default 10000, range 1000-120000).
+- Shaking or felling the tree flushes the bird: it flees offscreen. Implemented by polling the anchor tree each tick (stump, falling or shaking means gone) rather than a `treeShaken` event.
+- Multiplayer: `Hiding`, the hide timer and the anchor go into `BirdState`. Replicas draw nothing while the bird is hidden.
 - Observation: a hidden bird can't be observed. A bird that has already registered keeps its observation.
 
 #### 5. Species composition

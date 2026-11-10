@@ -1,7 +1,10 @@
 using Birding.BirdTypes.Behaviors;
 using Birding.Domain;
+using Birding.Spawners;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
+using StardewValley.TerrainFeatures;
 
 namespace Birding.BirdTypes;
 
@@ -12,15 +15,27 @@ internal sealed class LandBird : BirdCritter
     public override string BirdTypeName { get; } = "LandBird";
     public float FlightOffset { get; set; }
     public int WalkTimer { get; set; }
+    public int HideTimer { get; set; }
+    public Vector2? HideTree { get; set; }
 
     public LandBird() { }
 
-    internal override BirdState CaptureExtras(BirdState state) => state with { FlightOffset = FlightOffset, WalkTimer = WalkTimer };
+    internal override BirdState CaptureExtras(BirdState state) => state with { FlightOffset = FlightOffset, WalkTimer = WalkTimer, HideTimer = HideTimer, AnchorTile = HideTree };
 
     internal override void RestoreExtras(BirdState state)
     {
         FlightOffset = state.FlightOffset;
         WalkTimer = state.WalkTimer;
+        HideTimer = state.HideTimer;
+        HideTree = state.AnchorTile;
+    }
+
+    public override void draw(SpriteBatch b)
+    {
+        if (State != BehaviorStatus.Hiding)
+        {
+            base.draw(b);
+        }
     }
 
     public LandBird(int tileX, int tileY, string birdName, string texture, BirdServices services, BehaviorStatus state = BehaviorStatus.Pecking)
@@ -55,6 +70,12 @@ internal sealed class LandBird : BirdCritter
         if (State == BehaviorStatus.Relocating)
         {
             Fly(flee.Speed!.Value);
+            return base.update(time, environment);
+        }
+
+        if (State == BehaviorStatus.Hiding)
+        {
+            Hide(time, environment);
             return base.update(time, environment);
         }
 
@@ -109,13 +130,15 @@ internal sealed class LandBird : BirdCritter
         switch (action)
         {
             case BirdAction.Flee:
-                if (RelocationTarget(environment, threat!) is { } tile)
+                if (RelocationTarget(environment, threat!) is { } choice)
                 {
-                    StartRelocate(tile, environment);
+                    HideTree = choice.Option.Target == EscapeOption.Tree ? choice.Tile : null;
+                    HideTimer = choice.Option.HideForMs;
+                    StartRelocate(choice.Tile, environment, counted: true);
                 }
                 else
                 {
-                    StartFlee(threat!, environment);
+                    StartFlee(threat!.Position.X <= position.X, environment);
                 }
                 break;
             case BirdAction.Alert:
@@ -169,24 +192,24 @@ internal sealed class LandBird : BirdCritter
         }
     }
 
-    private void StartFlee(Character threat, GameLocation environment)
+    private void StartFlee(bool flyRight, GameLocation environment)
     {
         PlayActionSound(Action("flee"));
         State = BehaviorStatus.FlyingAway;
         AddBirdObservation(BirdName, environment.Name);
-        flip = threat.Position.X <= position.X;
+        flip = flyRight;
         StartFlyAnimation();
     }
 
     private static Vector2 TilePosition(Vector2 tile) => tile * 64f + new Vector2(32f, 32f);
 
-    private Vector2? RelocationTarget(GameLocation environment, Character threat) =>
-        EscapePlanner.Surface(new Birding.Spawners.GameLocationQuery(environment), OwnTile, threat.Tile, Threat, Relocations, OccupiedTiles(environment), Rng);
+    private EscapeChoice? RelocationTarget(GameLocation environment, Character threat) =>
+        EscapePlanner.Surface(new GameLocationQuery(environment), OwnTile, threat.Tile, Threat, Relocations, OccupiedTiles(environment), Rng);
 
-    private void StartRelocate(Vector2 tile, GameLocation environment)
+    private void StartRelocate(Vector2 tile, GameLocation environment, bool counted)
     {
         PlayActionSound(Action("flee"));
-        BeginRelocation(tile, TilePosition(tile), environment);
+        BeginRelocation(tile, TilePosition(tile), environment, counted);
         State = BehaviorStatus.Relocating;
         StartFlyAnimation();
     }
@@ -203,11 +226,47 @@ internal sealed class LandBird : BirdCritter
             return;
         }
         startingPosition = position;
-        State = BehaviorStatus.Stopped;
         sprite.loop = false;
         sprite.CurrentAnimation = null;
+        if (HideTree != null)
+        {
+            State = BehaviorStatus.Hiding;
+            CurrentLocation?.localSound("leafrustle", OwnTile);
+            return;
+        }
+        State = BehaviorStatus.Stopped;
         ShowPose("stand");
     }
+
+    private void Hide(GameTime time, GameLocation environment)
+    {
+        Vector2 tree = HideTree!.Value;
+        if (!TreeIntact(environment, tree))
+        {
+            HideTree = null;
+            StartFlee(Rng.NextDouble() < 0.5, environment);
+            return;
+        }
+        HideTimer -= time.ElapsedGameTime.Milliseconds;
+        float watchRadius = Threat.FleeRadius;
+        if (HideTimer > 0 || environment.farmers.Any(farmer => Vector2.Distance(farmer.Tile, tree) <= watchRadius))
+        {
+            return;
+        }
+        HideTree = null;
+        if (EscapePlanner.Landing(new GameLocationQuery(environment), tree, Threat.FleeRadius, Rng, OccupiedTiles(environment)) is { } ground)
+        {
+            StartRelocate(ground, environment, counted: false);
+        }
+        else
+        {
+            StartFlee(Rng.NextDouble() < 0.5, environment);
+        }
+    }
+
+    private static bool TreeIntact(GameLocation environment, Vector2 tile) =>
+        environment.terrainFeatures.TryGetValue(tile, out TerrainFeature? feature)
+        && feature is Tree { stump.Value: false, falling.Value: false, maxShake: 0f };
 
     internal void StartFlyAnimation() => PlayClip(Action("flee").Clip!, VisualRng);
 

@@ -15,7 +15,7 @@ public static class BirdTypeProfiles
             Map(("alarm", "SpringBirds"), ("flap", "batFlap"), ("peck", "shiny4")),
             Threat(4),
             CanAlert: true,
-            new[] { "ground" },
+            new[] { "ground", "tree" },
             new[] { "stay" }),
         ["WaterLandBird"] = new("waterland_32",
             new[] { "stand" },

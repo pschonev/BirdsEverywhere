@@ -397,7 +397,7 @@ internal sealed class WaterLandBird : BirdCritter
 
     private Vector2? RelocationTarget(GameLocation environment, Vector2 threatPosition) =>
         EscapePlanner.Surface(new Birding.Spawners.GameLocationQuery(environment), OwnTile, threatPosition / 64f, _selectedThreat?.Threat ?? Threat,
-            Relocations, OccupiedTiles(environment), Rng);
+            Relocations, OccupiedTiles(environment), Rng)?.Tile;
 
     private void StartRelocate(Vector2 tile, ActionDefinition flee, GameLocation environment)
     {

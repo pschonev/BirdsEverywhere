@@ -1,0 +1,18 @@
+{
+    "threat": {
+        "escape": [
+            {
+                "target": "tree",
+                "weight": 3,
+                "maxDistance": 8,
+                "hideForMs": 10000
+            },
+            {
+                "target": "ground",
+                "weight": 1,
+                "maxDistance": 12
+            }
+        ],
+        "maxRelocations": 2
+    }
+}

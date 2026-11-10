@@ -43,6 +43,16 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | F01 | Spawn a water group with one `parent` and 6 `follow`ing juveniles, then walk the parent around the pond. | Juveniles trail the parent spread around it without overlapping each other or the parent; none stack on one spot. |
 | F02 | Let the parent turn and change direction repeatedly, then watch the juveniles. | Juveniles keep their relative places and do not jitter; slots on land are replaced by the parent's position. |
 
+## Canopy hide (one client)
+
+| ID | Action | Expected result |
+|---|---|---|
+| C01 | Stand near a mature tree, spawn a great tit 5-8 tiles away and walk toward it. | The tit flies into the tree and vanishes with a leaf rustle (or lands on a farther ground spot); it does not leave the screen while a tree or landing spot is available. |
+| C02 | Stay near the tree after C01. | The tit stays hidden while you are within its flee radius of the tree. |
+| C03 | Walk away from the tree for about 10 s. | The tit drops to the ground near the tree and resumes normal behavior. |
+| C04 | Repeat C01, then shake the tree or fell it while the tit hides. | The tit bursts out and flies offscreen. |
+| C05 | With no mature tree nearby, approach a tit. | It lands on a distant ground spot or flies offscreen as before. |
+
 ## Multiplayer synchronization (two SMAPI clients)
 
 | ID | Action | Expected result |

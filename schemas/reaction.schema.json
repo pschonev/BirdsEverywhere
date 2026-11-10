@@ -175,6 +175,7 @@
                             "ground",
                             "water",
                             "otherTree",
+                            "tree",
                             "offscreen"
                         ]
                     },
@@ -188,6 +189,12 @@
                         "type": "integer",
                         "minimum": 2,
                         "maximum": 30
+                    },
+                    "hideForMs": {
+                        "description": "Only for target tree: how long the bird stays hidden in the canopy. Default 10000.",
+                        "type": "integer",
+                        "minimum": 1000,
+                        "maximum": 120000
                     }
                 }
             }

@@ -3,5 +3,8 @@
   "name": "Coal Tit",
   "scName": "Periparus ater",
   "shorthand": "coatit2",
-  "template": "garden_flock"
+  "template": "garden_flock",
+  "defaults": {
+    "reactions": "tree_hider"
+  }
 }

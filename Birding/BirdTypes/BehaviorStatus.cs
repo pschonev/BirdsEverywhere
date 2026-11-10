@@ -14,4 +14,5 @@ public enum BehaviorStatus
     Diving,
     Following,
     SwimmingAway,
+    Hiding,
 }

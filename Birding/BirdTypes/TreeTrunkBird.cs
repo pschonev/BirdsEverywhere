@@ -135,7 +135,7 @@ internal sealed class TreeTrunkBird : BirdCritter
         }
         HashSet<Vector2> occupied = environment.critters?.OfType<TreeTrunkBird>().Where(bird => bird != this)
             .SelectMany(bird => bird.RelocateTarget is { } target ? new[] { bird.AnchorTile, target } : new[] { bird.AnchorTile }).ToHashSet() ?? new();
-        return EscapePlanner.Tree(new Spawners.GameLocationQuery(environment), AnchorTile, threat.Tile, Threat, Relocations, occupied, Rng);
+        return EscapePlanner.Tree(new Spawners.GameLocationQuery(environment), AnchorTile, threat.Tile, Threat, Relocations, occupied, Rng)?.Tile;
     }
 
     private void StartRelocate(Vector2 tree, GameLocation environment)

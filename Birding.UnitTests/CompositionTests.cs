@@ -364,6 +364,8 @@ public class CompositionTests
     }
 
     [TestCase("LandBird", "GroundSpawner", "\"tree_hopper\"", "cannot escape to 'otherTree'")]
+    [TestCase("TreeTrunkBird", "TreeTrunkSpawner", "{\"threat\":{\"escape\":[{\"target\":\"tree\"}]}}", "cannot escape to 'tree'")]
+    [TestCase("LandBird", "GroundSpawner", "{\"threat\":{\"escape\":[{\"target\":\"ground\",\"hideForMs\":5000}]}}", "hideForMs only applies to target 'tree'")]
     [TestCase("LandBird", "GroundSpawner", "{\"threat\":{\"relocate\":{\"target\":\"ground\"}}}", "relocate was replaced by escape")]
     [TestCase("TreeTrunkBird", "TreeTrunkSpawner", "{\"threat\":{\"alert\":{\"radius\":8,\"clip\":\"peck\"}}}", "cannot alert")]
     [TestCase("BushBird", "BushSpawner", "{\"threat\":{\"fleeRadius\":3}}", "takes no reactions")]

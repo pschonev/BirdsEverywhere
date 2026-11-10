@@ -3,5 +3,8 @@
   "name": "Blue Tit",
   "scName": "Cyanistes caeruleus",
   "shorthand": "blutit",
-  "template": "garden_flock"
+  "template": "garden_flock",
+  "defaults": {
+    "reactions": "tree_hider"
+  }
 }

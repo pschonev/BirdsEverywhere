@@ -4,29 +4,38 @@ using Birding.Spawners;
 
 namespace Birding.BirdTypes;
 
+/// <summary>The escape option picked for a threatened bird and its chosen tile.</summary>
+internal readonly record struct EscapeChoice(EscapeOption Option, Vector2 Tile);
+
 /// <summary>Pure escape decisions: where a threatened bird relocates to, or null to flee off screen.</summary>
 internal static class EscapePlanner
 {
     private const float MinDistanceTiles = 3;
+    private const int LandingRadiusTiles = 6;
 
-    /// <summary>A ground or water tile from the reaction's escape options, or null to flee off screen.</summary>
-    public static Vector2? Surface(ILocationQuery query, Vector2 from, Vector2 threat, ThreatReaction reaction, int relocations,
+    /// <summary>A ground, water or canopy tile from the reaction's escape options, or null to flee off screen.</summary>
+    public static EscapeChoice? Surface(ILocationQuery query, Vector2 from, Vector2 threat, ThreatReaction reaction, int relocations,
         IReadOnlyCollection<Vector2> occupied, Random random) =>
         Choose(reaction, relocations, option => option.Target switch
         {
             "ground" => Tiles(query, from, option.MaxDistance, tile => TileRules.CanLand(query, tile)),
             "water" => Tiles(query, from, option.MaxDistance, tile => TileRules.IsOpenWater(query, tile)),
+            EscapeOption.Tree => query.MatureTrees(),
             _ => Array.Empty<Vector2>(),
         }, from, Threats(query, threat), occupied, random);
 
+    /// <summary>A free landable tile near <paramref name="tree"/> and clear of every farmer, or null to flee off screen.</summary>
+    public static Vector2? Landing(ILocationQuery query, Vector2 tree, int fleeRadius, Random random, IReadOnlyCollection<Vector2> occupied) =>
+        Pick(Tiles(query, tree, LandingRadiusTiles, tile => TileRules.CanLand(query, tile)), tree, query.FarmerTiles, fleeRadius, LandingRadiusTiles, occupied, random);
+
     /// <summary>A mature tree for an <c>otherTree</c> escape option, or null to flee off screen.</summary>
-    public static Vector2? Tree(ILocationQuery query, Vector2 from, Vector2 threat, ThreatReaction reaction, int relocations,
+    public static EscapeChoice? Tree(ILocationQuery query, Vector2 from, Vector2 threat, ThreatReaction reaction, int relocations,
         IReadOnlyCollection<Vector2> occupied, Random random) =>
         Choose(reaction, relocations, option => option.Target == "otherTree" ? query.MatureTrees() : Array.Empty<Vector2>(),
             from, Threats(query, threat), occupied, random);
 
     /// <summary>Picks an option by weight among those with an eligible spot (off screen always qualifies), then a spot; null means flee. The weight roll is skipped when only one option qualifies.</summary>
-    public static Vector2? Choose(ThreatReaction reaction, int relocations, Func<EscapeOption, IEnumerable<Vector2>> candidates,
+    public static EscapeChoice? Choose(ThreatReaction reaction, int relocations, Func<EscapeOption, IEnumerable<Vector2>> candidates,
         Vector2 from, IReadOnlyList<Vector2> threats, IReadOnlyCollection<Vector2> occupied, Random random)
     {
         if (relocations >= reaction.MaxRelocations || reaction.Escape.IsEmpty)
@@ -49,7 +58,7 @@ internal static class EscapePlanner
             return null;
         }
         (EscapeOption chosen, List<Vector2> chosenSpots) = open.Count == 1 ? open[0] : Weighted(open, random);
-        return chosen.Target == EscapeOption.Offscreen ? null : chosenSpots[random.Next(chosenSpots.Count)];
+        return chosen.Target == EscapeOption.Offscreen ? null : new EscapeChoice(chosen, chosenSpots[random.Next(chosenSpots.Count)]);
     }
 
     /// <summary>A random free candidate tile within reach of <paramref name="from"/> and outside every threat's flee radius; candidates are sorted first so the pick is seed-stable.</summary>

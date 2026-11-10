@@ -496,10 +496,13 @@ internal abstract class BirdCritter : Critter
     protected Vector2 OwnTile => new((int)(position.X / 64f), (int)(position.Y / 64f));
 
     /// <summary>Starts the relocation flight to <paramref name="target"/> (world position) after the caller has played sounds and set state.</summary>
-    protected void BeginRelocation(Vector2 tile, Vector2 target, GameLocation environment)
+    protected void BeginRelocation(Vector2 tile, Vector2 target, GameLocation environment, bool counted = true)
     {
         AddBirdObservation(BirdName, environment.Name);
-        Relocations++;
+        if (counted)
+        {
+            Relocations++;
+        }
         RelocateTarget = tile;
         RelocateFrom = position;
         flip = target.X > position.X;

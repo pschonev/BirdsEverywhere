@@ -376,7 +376,7 @@ public class GameTypeRegressionTests
             RelocateTarget = new Vector2(15, 30),
             sprite = new AnimatedSprite()
         };
-        LandBird land = new() { BirdID = 8, FlightOffset = 0.25f, WalkTimer = 700, flip = true, sprite = new AnimatedSprite() };
+        LandBird land = new() { BirdID = 8, FlightOffset = 0.25f, WalkTimer = 700, HideTimer = 4000, HideTree = new Vector2(3, 4), State = BehaviorStatus.Hiding, flip = true, sprite = new AnimatedSprite() };
 
         List<BirdState> states = Newtonsoft.Json.JsonConvert.DeserializeObject<List<BirdState>>(BirdSnapshots.Serialize(new BirdCritter[] { trunk, land }))!;
 
@@ -389,6 +389,9 @@ public class GameTypeRegressionTests
             Assert.That(states[0].RelocateTarget, Is.EqualTo(new Vector2(15, 30)));
             Assert.That(states[1].FlightOffset, Is.EqualTo(0.25f));
             Assert.That(states[1].WalkTimer, Is.EqualTo(700));
+            Assert.That(states[1].HideTimer, Is.EqualTo(4000));
+            Assert.That(states[1].AnchorTile, Is.EqualTo(new Vector2(3, 4)));
+            Assert.That(states[1].State, Is.EqualTo(BehaviorStatus.Hiding));
             Assert.That(states[1].Flip, Is.True);
         });
     }

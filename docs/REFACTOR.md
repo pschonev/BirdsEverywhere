@@ -531,6 +531,7 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 - `treeShaken` trigger, plus a felled-tree check on the hide anchor. Both flush the bird offscreen.
 - `BirdState` carries `Hiding`, the timer and the anchor. Replicas don't draw a hidden bird.
 - great tit (`garden_flock` or a shared `tree_hider` reaction): `tree` weight 3, `ground` weight 1.
+- **Implemented (compile/test verified, not tested in game):** `tree` target with `hideForMs` (1000-120000, default 10000, `tree` only), `EscapeChoice`, `EscapePlanner.Landing`, `Hiding` and `HideTimer` in `LandBird`/`BirdState` (anchor = tree), shared `reactions/tree_hider.json` on the three tits. A hide costs one relocation; the return to ground is uncounted. A tree that is shaken, felled or a stump makes the bird flee offscreen (checked by polling the tree each tick, not by a `treeShaken` event). Manual cases C01-C05.
 
 **C. Directional trunk relocation**
 

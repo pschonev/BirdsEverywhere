@@ -3,5 +3,8 @@
   "name": "Great Tit",
   "scName": "Parus major",
   "shorthand": "gretit1",
-  "template": "garden_flock"
+  "template": "garden_flock",
+  "defaults": {
+    "reactions": "tree_hider"
+  }
 }
