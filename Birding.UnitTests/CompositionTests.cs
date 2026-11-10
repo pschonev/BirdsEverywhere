@@ -278,8 +278,13 @@ public class CompositionTests
             Assert.That(swim.Flee?.Do, Is.EqualTo("swimAway"));
             Assert.That(swim.Threat.FleeRadius, Is.EqualTo(6));
             Assert.That(flight.Threat.FleeRadius, Is.EqualTo(3));
-            Assert.That(flight.Threat.Relocate, Is.EqualTo(new RelocateReaction("any", 12, 1, 0.7)));
+            Assert.That(flight.Threat.Escape, Is.EqualTo(new[]
+            {
+                new EscapeOption("water", 0.4, 12), new EscapeOption("ground", 0.3, 12), new EscapeOption(EscapeOption.Offscreen, 0.3, 12),
+            }));
+            Assert.That(flight.Threat.MaxRelocations, Is.EqualTo(1));
             Assert.That(reactions.Select(water with { NearWater = false }), Is.EqualTo(flight));
+            Assert.That(ContentTests.LoadBird("herring_gull").Rules.First().Composition!.Actions["swim"].Speed, Is.EqualTo(0.26f));
         });
     }
 
@@ -352,11 +357,14 @@ public class CompositionTests
         Assert.Multiple(() =>
         {
             Assert.That(issues.Where(issue => issue.Severity == IssueSeverity.Error), Is.Empty);
-            Assert.That(bird!.Rules.Single().Composition!.Reactions, Is.EqualTo(new Reactions(new ThreatReaction(6, null, 1, new RelocateReaction("otherTree", 12, 2)))));
+            ThreatReaction threat = bird!.Rules.Single().Composition!.Reactions!.Threat;
+            Assert.That(threat with { Escape = default }, Is.EqualTo(new ThreatReaction(6, null, 1, MaxRelocations: 2)));
+            Assert.That(threat.Escape, Is.EqualTo(new[] { new EscapeOption("otherTree", 1, 12) }));
         });
     }
 
-    [TestCase("LandBird", "GroundSpawner", "\"tree_hopper\"", "cannot relocate")]
+    [TestCase("LandBird", "GroundSpawner", "\"tree_hopper\"", "cannot escape to 'otherTree'")]
+    [TestCase("LandBird", "GroundSpawner", "{\"threat\":{\"relocate\":{\"target\":\"ground\"}}}", "relocate was replaced by escape")]
     [TestCase("TreeTrunkBird", "TreeTrunkSpawner", "{\"threat\":{\"alert\":{\"radius\":8,\"clip\":\"peck\"}}}", "cannot alert")]
     [TestCase("BushBird", "BushSpawner", "{\"threat\":{\"fleeRadius\":3}}", "takes no reactions")]
     [TestCase("LandBird", "GroundSpawner", "\"skittish\"", "Unknown reactions 'skittish'")]

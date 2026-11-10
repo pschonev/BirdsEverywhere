@@ -1,9 +1,11 @@
 {
     "threat": {
-        "relocate": {
-            "target": "otherTree",
-            "maxDistance": 12,
-            "maxRelocations": 2
-        }
+        "escape": [
+            {
+                "target": "otherTree",
+                "maxDistance": 12
+            }
+        ],
+        "maxRelocations": 2
     }
 }

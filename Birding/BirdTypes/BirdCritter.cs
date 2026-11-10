@@ -14,6 +14,7 @@ internal abstract class BirdCritter : Critter
 {
     private const int ThreatCheckIntervalMs = 200;
     private const int DiscoveryRadiusTiles = 8;
+    private const float RelocateArcHeight = 48f;
 
     private long _birdID;
     private Vector2 _replicaTarget;
@@ -33,6 +34,11 @@ internal abstract class BirdCritter : Critter
     public int? GroupId { get; set; }
     public string? Role { get; set; }
     public string? Stage { get; set; }
+    public int Relocations { get; set; }
+    public Vector2? RelocateTarget { get; set; }
+
+    /// <summary>Where the current relocation flight started; restored birds restart the arc from their position.</summary>
+    internal Vector2 RelocateFrom { get; set; }
 
     public long BirdID
     {
@@ -199,6 +205,8 @@ internal abstract class BirdCritter : Critter
         }
         if (IsReplica)
         {
+            Relocations = source.Relocations;
+            RelocateTarget = source.RelocateTarget;
             ApplyReplicaExtras(source);
             if (startsFleeing && Services != null)
             {
@@ -448,6 +456,58 @@ internal abstract class BirdCritter : Critter
         {
             ShowPose(Threat.Alert?.Clip ?? "stand");
         }
+    }
+
+    /// <summary>Tiles of the other birds in the location; relocations never land on them.</summary>
+    protected HashSet<Vector2> OccupiedTiles(GameLocation location)
+    {
+        HashSet<Vector2> occupied = new();
+        if (location.critters == null)
+        {
+            return occupied;
+        }
+        foreach (Critter critter in location.critters)
+        {
+            if (critter is BirdCritter bird && bird != this)
+            {
+                occupied.Add(new Vector2((int)(bird.position.X / 64f), (int)(bird.position.Y / 64f)));
+            }
+        }
+        return occupied;
+    }
+
+    protected Vector2 OwnTile => new((int)(position.X / 64f), (int)(position.Y / 64f));
+
+    /// <summary>Starts the relocation flight to <paramref name="target"/> (world position) after the caller has played sounds and set state.</summary>
+    protected void BeginRelocation(Vector2 tile, Vector2 target, GameLocation environment)
+    {
+        AddBirdObservation(BirdName, environment.Name);
+        Relocations++;
+        RelocateTarget = tile;
+        RelocateFrom = position;
+        flip = target.X > position.X;
+    }
+
+    /// <summary>The velocity towards <paramref name="target"/>, capped at <paramref name="speed"/>.</summary>
+    protected Vector2 Step(Vector2 target, float speed)
+    {
+        Vector2 delta = target - position;
+        return delta.Length() <= speed ? delta : Vector2.Normalize(delta) * speed;
+    }
+
+    /// <summary>Moves one step along the relocation arc; true on arrival, with the arc and target cleared.</summary>
+    protected bool AdvanceRelocation(Vector2 target, float speed)
+    {
+        position += Step(target, speed);
+        float total = Vector2.Distance(RelocateFrom, target);
+        yOffset = total <= 0f ? 0f : EscapePlanner.ArcOffset(1f - Vector2.Distance(position, target) / total, RelocateArcHeight);
+        if (position != target)
+        {
+            return false;
+        }
+        yOffset = 0f;
+        RelocateTarget = null;
+        return true;
     }
 
     protected Character? FindThreat(GameLocation location, int radiusTiles)

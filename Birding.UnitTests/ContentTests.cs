@@ -33,6 +33,15 @@ public class ContentTests
     }
 
     [TestCaseSource(nameof(BirdIds))]
+    public void Bird_DefaultWeatherIsAny(string id)
+    {
+        BirdDefinition bird = LoadBird(id);
+        foreach (Season season in Enum.GetValues<Season>())
+            foreach (Weather weather in Enum.GetValues<Weather>())
+                Assert.That(bird.Rules.Any(rule => rule.When.MatchesDay(season, weather, 1)), Is.EqualTo(bird.Rules.Any(rule => rule.When.MatchesDay(season, Weather.Sun, 1))), $"{season} {weather}");
+    }
+
+    [TestCaseSource(nameof(BirdIds))]
     public void Bird_TexturesExist(string id)
     {
         BirdDefinition bird = LoadBird(id);
@@ -118,13 +127,13 @@ public class ContentTests
         Assert.That(issues, Has.Some.Matches<ValidationIssue>(issue => issue!.Severity == IssueSeverity.Error && issue.Message.Contains(message)));
     }
 
-    [TestCase("black_woodpecker", "TreeTrunkSpawner", "TreeTrunkBird", "Forest,Farm,Backwoods", 1, 4, 1, 7)]
-    [TestCase("blue_tit", "SpawnableGroundSpawner", "LandBird", "Forest,Farm,Backwoods", 1, 3, 1, 7)]
-    [TestCase("coal_tit", "SpawnableGroundSpawner", "LandBird", "Forest,Farm,Backwoods", 1, 3, 1, 7)]
-    [TestCase("great_tit", "SpawnableGroundSpawner", "LandBird", "Forest,Farm,Backwoods", 1, 3, 1, 7)]
-    [TestCase("grey_partridge", "BushSpawner", "BushBird", "Forest,Farm,Backwoods", 1, 3, 1, 7)]
-    [TestCase("herring_gull", "WaterOrGroundSpawner", "WaterLandBird", "Beach", 1, 3, 1, 7)]
-    public void Bird_MergedSpawnData(string id, string pattern, string birdType, string locations, int minGroupCount, int maxGroupCount, int minGroupSize, int maxGroupSize)
+    [TestCase("black_woodpecker", "TreeTrunkSpawner", "TreeTrunkBird", "Forest,Farm,Backwoods", 1, 1, 1, 7, 1, 7)]
+    [TestCase("blue_tit", "SpawnableGroundSpawner", "LandBird", "Forest,Farm,Backwoods", 1, 2, 1, 3, 2, 5)]
+    [TestCase("coal_tit", "SpawnableGroundSpawner", "LandBird", "Forest,Farm,Backwoods", 1, 2, 1, 3, 2, 5)]
+    [TestCase("great_tit", "SpawnableGroundSpawner", "LandBird", "Forest,Farm,Backwoods", 1, 2, 1, 3, 2, 5)]
+    [TestCase("grey_partridge", "BushSpawner", "BushBird", "Forest,Farm,Backwoods", 1, 1, 1, 1, 1, 1)]
+    [TestCase("herring_gull", "WaterOrGroundSpawner", "WaterLandBird", "Beach", 1, 2, 1, 3, 2, 4)]
+    public void Bird_MergedSpawnData(string id, string pattern, string birdType, string locations, int minGroupCount, int maxGroupCount, int minGroupSize, int maxGroupSize, int winterMinGroupSize, int winterMaxGroupSize)
     {
         BirdDefinition bird = LoadBird(id);
         Assert.That(bird.Rules.Select(rule => rule.Id), Is.EquivalentTo(new[] { "spring", "summer", "fall", "winter" }));
@@ -133,7 +142,8 @@ public class ContentTests
             Assert.That(rule.SpawnPattern.Value, Is.EqualTo(pattern));
             Assert.That(rule.BirdType.Value, Is.EqualTo(birdType));
             Assert.That(rule.Locations, Is.EqualTo(locations.Split(',')));
-            Assert.That((rule.GroupCount.Min, rule.GroupCount.Max, rule.GroupSize.Min, rule.GroupSize.Max), Is.EqualTo((minGroupCount, maxGroupCount, minGroupSize, maxGroupSize)));
+            (int min, int max) = rule.Id == "winter" ? (winterMinGroupSize, winterMaxGroupSize) : (minGroupSize, maxGroupSize);
+            Assert.That((rule.GroupCount.Min, rule.GroupCount.Max, rule.GroupSize.Min, rule.GroupSize.Max), Is.EqualTo((minGroupCount, maxGroupCount, min, max)));
         }
     }
 }

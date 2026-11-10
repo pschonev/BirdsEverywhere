@@ -5,5 +5,7 @@
     "bird.great_tit.description": "The biggest tit.",
     "bird.grey_partridge.description": "Kinda like a chicken.",
     "bird.herring_gull.description": "Common gull.",
-    "ui.first-seen": "First seen by {{player}}\n{{location}} on {{date}}"
+    "ui.first-seen.player": "First seen by {{player}}",
+    "ui.first-seen.location": "{{location}}",
+    "ui.first-seen.date": "{{date}}"
 }

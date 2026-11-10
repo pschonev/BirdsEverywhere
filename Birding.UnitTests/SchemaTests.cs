@@ -187,14 +187,19 @@ public class SchemaTests
     [TestCase(@"{""threat"":{""alert"":{""clip"":""stand""}}}", false)]
     [TestCase(@"{""threat"":{""alert"":{""radius"":7,""clip"":""stand"",""calmMs"":-1}}}", false)]
     [TestCase(@"{""threat"":{""flee"":3}}", false)]
-    [TestCase(@"{""threat"":{""relocate"":{""target"":""otherTree"",""maxDistance"":10,""maxRelocations"":2}}}", true)]
-    [TestCase(@"{""threat"":{""relocate"":{""target"":""ground"",""chance"":0.7}}}", true)]
-    [TestCase(@"{""threat"":{""relocate"":{""target"":""water"",""chance"":-0.1}}}", false)]
-    [TestCase(@"{""threat"":{""relocate"":{""maxDistance"":10}}}", false)]
-    [TestCase(@"{""threat"":{""relocate"":{""target"":""otherTree"",""maxRelocations"":0}}}", false)]
+    [TestCase(@"{""threat"":{""escape"":[{""target"":""otherTree"",""maxDistance"":10}],""maxRelocations"":2}}", true)]
+    [TestCase(@"{""threat"":{""escape"":[{""target"":""ground"",""weight"":0.7},{""target"":""offscreen"",""weight"":0.3}]}}", true)]
+    [TestCase(@"{""threat"":{""escape"":[{""target"":""water"",""weight"":0}]}}", false)]
+    [TestCase(@"{""threat"":{""escape"":[{""maxDistance"":10}]}}", false)]
+    [TestCase(@"{""threat"":{""escape"":[{""target"":""any""}]}}", false)]
+    [TestCase(@"{""threat"":{""escape"":[]}}", false)]
+    [TestCase(@"{""threat"":{""maxRelocations"":0}}", false)]
+    [TestCase(@"{""threat"":{""relocate"":{""target"":""ground""}}}", false)]
     [TestCase(@"{""threat"":[{""if"":{""groupHasRole"":""parent"",""nearWater"":true,""season"":""spring"",""timeOfDay"":[600,1200],""weather"":""sun"",""stage"":""young""},""flee"":{""radius"":3,""do"":""swimAway""}},{""flee"":{""do"":""flyOff""}}]}", true)]
-    [TestCase(@"{""threat"":[{""flee"":{""radius"":3,""do"":""flyOff"",""relocate"":{""target"":""any"",""chance"":0.7}}}]}", true)]
-    [TestCase(@"{""threat"":[{""flee"":{""do"":""flyOff"",""relocate"":{""target"":""any"",""chance"":1.1}}}]}", false)]
+    [TestCase(@"{""threat"":[{""if"":{""weather"":[""clear"",""snow""]},""flee"":{""do"":""flyOff""}}]}", true)]
+    [TestCase(@"{""threat"":[{""if"":{""weather"":""hail""},""flee"":{""do"":""flyOff""}}]}", false)]
+    [TestCase(@"{""threat"":[{""flee"":{""radius"":3,""do"":""flyOff"",""escape"":[{""target"":""water"",""weight"":0.4},{""target"":""offscreen""}],""maxRelocations"":2}}]}", true)]
+    [TestCase(@"{""threat"":[{""flee"":{""do"":""flyOff"",""escape"":[{""target"":""water"",""chance"":0.7}]}}]}", false)]
     [TestCase(@"{""threat"":[{""flee"":{""do"":""dive""}}]}", false)]
     [TestCase(@"{""threat"":[{""flee"":{""do"":""swimAway"",""target"":""groupRole:parent""}}]}", false)]
     [TestCase(@"{""playerEnters"":{}}", false)]
@@ -251,7 +256,7 @@ public class SchemaTests
             Assert.That(RuleEnum("properties", "when", "properties", "seasons", "items").Select(s => s.ToLowerInvariant()).Distinct(),
                 Is.EquivalentTo(Enum.GetNames<Season>().Select(s => s.ToLowerInvariant())));
             Assert.That(RuleEnum("properties", "when", "properties", "weather", "items").Select(s => s.ToLowerInvariant()).Distinct(),
-                Is.EquivalentTo(Enum.GetNames<Weather>().Select(s => s.ToLowerInvariant())));
+                Is.EquivalentTo(WeatherNames.Known));
         });
 
         JsonNode rule = JsonNode.Parse(File.ReadAllText(Path.Combine(_schemasDir, "rule.schema.json")))!;

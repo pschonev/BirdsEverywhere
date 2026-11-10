@@ -79,9 +79,35 @@ public static class ConditionParser
         }
         return new ConditionClause(
             Names<Season>(body["seasons"], path + ".seasons", error),
-            Names<Weather>(body["weather"], path + ".weather", error),
+            Weathers(body["weather"], path + ".weather", error),
             Ranges(body["days"], 1, 28, path + ".days", error),
             Times(body["times"], path + ".times", error));
+    }
+
+    private static ImmutableArray<Weather> Weathers(JToken? token, string path, Action<string, string> error)
+    {
+        if (token is null or { Type: JTokenType.Null })
+        {
+            return ImmutableArray<Weather>.Empty;
+        }
+        if (token is not JArray names)
+        {
+            error(path, $"must be a list of {string.Join(", ", WeatherNames.Known)}.");
+            return ImmutableArray<Weather>.Empty;
+        }
+        HashSet<Weather> result = new();
+        foreach (JToken name in names)
+        {
+            if (name.Type == JTokenType.String && WeatherNames.TryExpand(name.Value<string>()!, out IReadOnlyList<Weather> expanded))
+            {
+                result.UnionWith(expanded);
+            }
+            else
+            {
+                error(path, $"unknown weather '{name}'. Use {string.Join(", ", WeatherNames.Known)}.");
+            }
+        }
+        return result.Count == Enum.GetValues<Weather>().Length ? ImmutableArray<Weather>.Empty : result.OrderBy(weather => weather).ToImmutableArray();
     }
 
     private static ImmutableArray<T> Names<T>(JToken? token, string path, Action<string, string> error) where T : struct, Enum

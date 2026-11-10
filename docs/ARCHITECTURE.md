@@ -78,7 +78,7 @@ Birding/                      mod project (net6.0)
   BirdTypes/
     BirdCritter.cs            the one mod-owned abstract layer under Critter
     LandBird, WaterLandBird, TreeTrunkBird, BushBird (sealed)
-    BirdServices.cs, BirdState.cs, BirdSnapshots.cs, ClipPlayer.cs, IdleCue.cs, Relocation.cs
+    BirdServices.cs, BirdState.cs, BirdSnapshots.cs, ClipPlayer.cs, IdleCue.cs, EscapePlanner.cs
     TerrainAnchor.cs          location name + tile
     Behaviors/                IBirdBehavior, BirdContext, BirdActionIds, flee/alert/calm/wake/stop-walking
   Registries/                 BirdTypeRegistry, SpawnPatternRegistry
@@ -147,7 +147,7 @@ A rule is one situation in which the bird can appear. `defaults` has the same fi
 | Field | Type | Meaning |
 |---|---|---|
 | `when.seasons` | `["spring" \| "summer" \| "fall" \| "winter"]` | missing = any |
-| `when.weather` | `["sun" \| "rain" \| "storm" \| "snow" \| "wind" \| "greenRain"]` | today's weather at day start; festival and wedding days count as `sun`; missing = any |
+| `when.weather` | `["any" \| "clear" \| "precipitation" \| "sun" \| "wind" \| "rain" \| "storm" \| "snow" \| "greenRain"]` | today's weather at day start; groups expand to leaves at load: `clear` = sun, wind; `precipitation` = rain, storm, greenRain, snow; `rain` is plain rain only; `any` = all. Festival and wedding days count as `sun`; missing = any (no default restriction; storms are playable, so birds spawn in them unless a rule excludes `storm`). Same names work in reaction `if.weather` (one name or a list) |
 | `when.days` | `[[min, max], ...]` | day of month, 1–28, inclusive; missing = any |
 | `when.times` | `[[min, max], ...]` | game time `HHMM`, 600–2600, inclusive; gates spawning only; missing = any. Bounds may be [anchors](#condition-clauses-and-time-anchors-step-8) such as `"dusk-60"` |
 | `when.any` | `[ { seasons?, weather?, days?, times? }, ... ]` | alternatives, OR'ed (step 8); each clause ANDs its own fields; replaces the top-level fields, which may not be combined with `any` |
@@ -187,6 +187,9 @@ Consequences:
 - Lists replace, so adding one location means restating the list; use `@groups` to keep that short.
 - To drop all inherited situations, inherit a template without rules; there is no replace-all syntax.
 - Rule ids are part of a template's contract. Renaming one breaks bird overrides, which validation reports.
+
+**Single inheritance, composition by slot.** A bird or template has at most one `template`, so its values come from one chain and every value has exactly one source at each level. Multiple templates are deliberately not supported: two parents setting the same key or rule id would need precedence rules, a shared ancestor would apply twice, and provenance would turn from a chain into a graph. Behavior is mixed instead through the named composition slots ([Ref or inline](#ref-or-inline)): each slot holds one reference or one inline object with one `extends`, so two presets can never set the same field. Lists of presets that merge into one object (e.g. `"reactions": ["wary", "canopy_hider"]`) are not allowed for the same reason.
+- Reconsider only when several templates repeat the same block of rules. The fix would then be a reusable rule set in its own slot, and validation would fail when two sets define the same rule id.
 
 ### Rule selection
 
@@ -524,9 +527,9 @@ Implemented in [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds) step
 | Routine `cooldown` | planned | rejected as an unknown field |
 | Forage primitives | `dive` and the `splash` clip event implemented (step 5); worm pull and fish strike are `stay` clips in `assets/actions/forage.json` | `WaterLandBird` dive cycle, `BirdTypeProfile.CustomPrimitives`, action `extends` |
 | Group placement | implemented (step 6): `spawnParams.group` (`cluster`, `scattered`, `line`), `speciesDistance` | `TileSelection.Grouped`; `perched`, `near`/`avoid`, `space`, `packing` deferred |
-| Reactions | `threat` implemented (step 4): `fleeRadius`, `runningMultiplier`, `alert`, `relocate` (trunk `otherTree`) | `assets/reactions/*.json`, rule field `reactions`, `Content/ReactionLoader`, `BirdCritter.ScanThreats`/`StartAlert`, `AlertBehavior`/`CalmBehavior`, `TreeTrunkBird` relocation; other triggers planned |
+| Reactions | `threat` implemented (step 4): `fleeRadius`, `runningMultiplier`, `alert`, `escape` + `maxRelocations` (trunk `otherTree`) | `assets/reactions/*.json`, rule field `reactions`, `Content/ReactionLoader`, `BirdCritter.ScanThreats`/`StartAlert`, `AlertBehavior`/`CalmBehavior`, `TreeTrunkBird` relocation; other triggers planned |
 | Bodies, single sealed `Bird` | partly (step 3c): tile `TerrainAnchor`, `BirdState` snapshots (`BirdTypes/BirdSnapshots`); merge deferred to the first new body | today: four sealed `BirdCritter` classes |
-| Groups, stages, spacing | spacing and formations implemented (step 6); families and stages planned (step 7) | today: `groupCount` × `groupSize`, laid out by `spawnParams.group` |
+| Groups, stages, spacing | spacing and formations implemented (step 6); families and stages planned (step 7); cohesion planned (step 9) | today: `groupCount` × `groupSize`, laid out by `spawnParams.group` |
 
 Until bodies move to JSON, each bird class is a hardcoded composition: `BirdTypeProfiles.ByBirdType` maps it to a layout, its required clips, the event names it understands, the routine actions it can perform, its default routine and its default sound cues; the class decides which clip to play and when.
 
@@ -657,10 +660,48 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 - Two-radius threat response: inside `alert.radius` the bird freezes (head-up clip), inside `flee.radius` it responds, and it resumes idling a short while after the threat leaves the outer radius.
 - A running farmer counts as closer (optional `runningMultiplier` in JSON; C# fallback in code).
 - `BirdContext` carries the threat distance instead of a bool. Decision order: `Flee(inner) → Alert(outer) → Wake → IdleRoutine`.
-- The observation registers on any visible response (alert, flee, relocate), not only flee.
+- The observation registers on any visible response (alert, flee, escape), not only flee.
 - `flyTo` uses a target search (`otherTree`, `otherBush`, `water`, `groupRole:<role>`), backed by `TileSelection`/`ILocationQuery`; on arrival the bird updates its `TerrainAnchor`. After `maxRelocations`, `then` applies.
-- Implemented shape (step 4): `{"threat": {"fleeRadius": 3, "runningMultiplier": 2, "alert": {"radius": 7, "clip": "stand", "sound": "alarm", "calmMs": 2000}, "relocate": {"target": "otherTree", "maxDistance": 12, "maxRelocations": 2}}}`. The flee response is the bird's `flee` action, so reactions only set radii and alternatives; after the relocations the bird flees (`then` is implicitly the flee action). Missing fields keep the bird type's default.
-- Current water-land alternatives may also set `flee.relocate` with `target` `water`, `ground`, or `any` and optional `chance` (default 1); a flight that finds no eligible tile continues offscreen. Herring gulls register discovery within eight visible tiles, swim away within six tiles on water, then fly within three tiles if the threat closes in. Flights may land on water or ground; after landing the bird resumes surface-appropriate idle behavior. Other bird types retain their own flee radii.
+- Implemented shape (step 4): `{"threat": {"fleeRadius": 3, "runningMultiplier": 2, "alert": {"radius": 7, "clip": "stand", "sound": "alarm", "calmMs": 2000}, "escape": [{"target": "otherTree", "maxDistance": 12}], "maxRelocations": 2}}`. Planned (step 9 H): optional `alert.fleeAfterMs` makes the bird flee once a threat has stayed inside the alert ring that long. The timer resets when the ring is empty. Absent means never, so gulls keep swimming away indefinitely while the farmer stays outside `fleeRadius`. The flee response is the bird's `flee` action, so reactions only set radii and alternatives; after the relocations the bird flees (`then` is implicitly the flee action). Missing fields keep the bird type's default.
+- Water-land alternatives may also set `flee.escape` and `flee.maxRelocations`. The herring gull weights `water` 0.4, `ground` 0.3 and `offscreen` 0.3; options without an eligible tile are skipped, and with none left the flight continues offscreen. Herring gulls register discovery within eight visible tiles, swim away within six tiles on water, then fly within three tiles if the threat closes in. Flights may land on water or ground; after landing the bird resumes surface-appropriate idle behavior. Other bird types retain their own flee radii.
+
+##### Escape options (planned, [step 9](REFACTOR.md#step-9-natural-escape-and-coordination-planned))
+
+A bird should leave the location only as a last resort. `escape` is a weighted list of escape options and replaces `relocate` (step 9 A; the format, weighted pick and `ground`/`water`/`otherTree`/`offscreen` targets are implemented, `tree`, `hideFor`, the cone and the new eligibility rules are planned). One option is chosen by weight from the options that have an eligible spot, and the bird flies offscreen only if none have one.
+
+```json
+"threat": {
+  "fleeRadius": 3,
+  "escape": [
+    { "target": "tree",   "weight": 3, "maxDistance": 8, "hideFor": 10000 },
+    { "target": "ground", "weight": 1, "maxDistance": 12 }
+  ],
+  "maxRelocations": 2
+}
+```
+
+- Targets (closed list, each a search over `ILocationQuery`):
+  - `ground` and `water` (existing).
+  - `tree`: hides in a canopy.
+  - `otherTree`: trunk birds; directional, see below.
+- Eligibility, shared by all targets:
+  - the spot is free (no bird, existing occupancy rule);
+  - it lies at least `fleeRadius + 1` tiles from **every** farmer in the location, not only the triggering one;
+  - it is within `maxDistance` and at least 3 tiles from the bird;
+  - a ground spot must be passable for a farmer (not a building, cliff or blocked object tile), so the bird doesn't land somewhere unreachable or inside scenery;
+  - a water spot must be open water: a water tile with no land within 1 tile (`shoreDistance ≥ 2`, the same rule spawning uses). Pier, dock and bridge tiles count as land.
+- `otherTree` is directional: a candidate tree must lie inside a cone (about ±60°) pointing away from the threat, so a woodpecker moves on to a trunk ahead of its flight instead of back past the player.
+- Water birds weight `water` above `ground` (herring gull: water when starting from water), so they land and keep swimming. Escapes work from either surface: a water-land bird standing on land can fly to other ground or back to water.
+- Swimming, drifting and `swimAway` stay in open water. If the next `swimAway` step would leave open water, the bird escalates to its escape list (fly to other water or ground, then offscreen) instead of falling back to `Swimming`, so it never loops against the shore.
+- The pick is deterministic per bird. Candidates are sorted and options and tiles are rolled on the owner's RNG, as `EscapePlanner.Choose` does (one weight roll only when several options are open, then one tile roll).
+- `maxRelocations` caps all escapes within one threat episode. The counter resets once no farmer has been within the bird's alert or flee radius for a calm period (code constant, about 30 s), so a bird that escaped once can escape again later. After the cap, or when no option has an eligible spot, the bird runs its flee action (offscreen).
+- Implemented (compile/test verified, not tested in game): `escape` is the only format. The legacy `relocate` block and the `any` target are removed (the mod is unreleased) and shipped JSON is migrated; a `relocate` key is a load error naming the file. An explicit `{ "target": "offscreen", "weight": w }` option replaces the old `chance < 1`.
+
+**Canopy hide (`tree`).** The bird flies into the crown of a fully grown tree (`Tree` terrain feature, growth stage ≥ 5) and turns invisible: it gets status `Hiding`, rustles leaves on arrival, and its anchor is set to the tree tile. No canopy drawing is needed, unlike the visible canopy body in the backlog.
+- It comes back down to an eligible `ground` spot within a few tiles of the tree once no farmer has been within `fleeRadius` of the tree for `hideFor` ms (default 10000).
+- Shaking the tree (`treeShaken`) or felling it flushes the bird: it bursts out of the crown and flees offscreen. Felling reuses the trunk body's existing felled-tree check.
+- Multiplayer: `Hiding`, the hide timer and the anchor go into `BirdState`. Replicas draw nothing while the bird is hidden and replay the burst from the snapshot.
+- Observation: a hidden bird can't be observed. A bird that has already registered keeps its observation.
 
 #### 5. Species composition
 
@@ -702,6 +743,7 @@ Every composable field (`layout`, `routine`, each `reactions` entry, each action
 ```
 
 - The floor of customization is code: primitives, triggers, effects, bodies, target searches, condition keys.
+- One slot per concern (layout, routine, each reaction kind, each action, later escape and cohesion), one source per slot. A new behavior concern gets its own slot instead of sharing fields with an existing preset. See [Merge algorithm](#merge-algorithm).
 - Promote an inline definition to a shared file only when a second species needs it (WET first).
 - Inline definitions are local to their species; they cannot be referenced from elsewhere. An inline name that shadows a shared one is reported at `Info`.
 - Large species files may split definitions into files next to them (`assets/<bird>/layout.json`, `routine.json`), merged as if inline.
@@ -729,6 +771,11 @@ classDiagram
 - One sealed `Bird : Critter` composed of an `IBody` (anchoring, drawing offsets, movement physics, collision, body triggers), a `Routine`, `IReaction`s, a `SoundSet`, and `IAction` primitives created from action definitions.
 - Bodies, primitives, triggers, effects, target searches, condition keys and formations are registered by string id in `ModEntry` (same registry pattern, no reflection). No combinatorial subclasses (no `FlyingWaterBirdWithSongAndCallWhichIsShy`).
 - Capabilities are derived from data: a bird can fly if its layout has a `fly` clip and it has a `flyOff` action.
+- Escapes split into **scan → decide → move**:
+  - Scan: `BirdCritter.ScanThreats` finds the nearest threat (game boundary).
+  - Decide: pure `EscapePlanner` returns an `EscapeChoice(Kind, Tile)` from the bird's position, threats, reaction, occupied tiles, an `ILocationQuery` and the RNG. One shared `EscapeEligibility` holds the spot rules for every target.
+  - Move: the body or bird type flies, hops or swims to the chosen tile (`Relocation.ArcOffset` for arcs). Bird classes never search for spots themselves.
+- Coordination units (`GroupAlarm`, `ActionLocks`, `DepartureLog`) are pure and return data (who responds, who holds a lock, who returns where); the bird or spawner applies it.
 - Migration: the four current classes first become bodies with hardcoded compositions (behavior unchanged), then the compositions move into JSON.
 - `BirdState` serializes body kind, current action id, action progress, clip index and anchor; old saves map legacy `birdTypeName` values to bodies.
 
@@ -789,7 +836,7 @@ Reactions (and routine `rare.when`) can branch on context. A list of alternative
 ]
 ```
 
-Condition keys are a fixed C# vocabulary: `groupHasRole`, `nearWater`, `season`, `timeOfDay`, `weather`, `stage`. Keys in one object are ANDed; there is no OR/NOT inside an object (use separate alternatives).
+Condition keys are a fixed C# vocabulary: `groupHasRole`, `nearWater`, `season`, `timeOfDay`, `weather`, `stage` (planned: `role`, the bird's own role, see [Behavior coordination](#behavior-coordination-planned-step-9)). Keys in one object are ANDed; there is no OR/NOT inside an object (use separate alternatives).
 
 Member fields (step 8, implemented):
 
@@ -799,9 +846,89 @@ Member fields (step 8, implemented):
 #### Group runtime
 
 - Each bird carries `groupId` and `role` (also in `BirdState`).
-- Group-level reactions are possible (one member's flee triggers the group).
+- Group-level reactions: one member's flee or escape can pass on to others, see [Group cohesion](#group-cohesion-planned-step-9).
 - The owner of the group leader owns the whole group.
 - `follow` is committed movement relative to the leader. Each follower takes a stable slot (rank among same-role members by bird id) on a golden-angle spiral around the leader (`FollowSlot`), so a brood spreads out instead of stacking; a slot that is not water falls back to the leader's position. Later reused for cattle egrets on farm animals (moving anchor).
+
+#### Behavior coordination (planned, [step 9](REFACTOR.md#step-9-natural-escape-and-coordination-planned))
+
+Some actions look wrong when several birds do them at once. For example, a signature song from two great tits at the same time sounds like a bug. An action can claim a location-wide lock:
+
+```json
+"actions": {
+  "song": { "do": "stay", "clip": "sing", "sound": "song", "exclusive": "song", "exclusiveCooldownMs": 30000 }
+},
+"routine": { "rare": { "song": { "chance": 0.02, "when": { "any": [{ "seasons": ["spring"] }] }, "if": { "role": "male" } } } }
+```
+
+- `exclusive` names a lock. Lock names are shared across species, so one `song` holder per location covers every songbird. A different name (e.g. `display`) is a separate lock.
+- Each location has one lock table, owned by the location owner (see [Multiplayer ownership](#multiplayer-ownership)). It maps a lock name to the holder bird id and the time it becomes free. It is runtime state only: not saved and not in `BirdState`. A new owner starts with an empty table. Replicas never check locks; they just render the action the owner picked.
+- The routine skips an action whose lock is held or still cooling down, and the roll is not repeated, so lock state never shifts the RNG of other picks. The bird takes the lock when the action starts. The lock is released when the action ends, the bird flees, hides or despawns, or the location unloads; after release it stays blocked for `exclusiveCooldownMs` (default 0).
+- Only routine and `rare` actions can be exclusive; reactions always run.
+
+**Sex as roles.** Sex is a group role, not a new trait. A species that needs it lists `male`/`female` members. Members can share textures, since role and texture are picked separately, so great tits need no new art. `required: true` with `count` min ≥ 1 guarantees each placed group has a male, and the group is dropped if no male can be placed.
+
+```json
+"group": { "members": { "male": { "count": [1, 2], "required": true }, "female": { "count": [0, 2] } } }
+```
+
+The routine `rare` entry gains an optional `if` using the context condition keys, plus a new `role` key (the bird's own role; `groupHasRole` checks the group). Actions limited to one sex are gated with `if: { role: male }`. Ungrouped rules have no role, so a role-gated action never fires for them.
+
+#### Group cohesion (planned, [step 9](REFACTOR.md#step-9-natural-escape-and-coordination-planned))
+
+A group should react as a group, but not by chasing a leader. Members drift apart while idling, and a player who runs through the middle would otherwise make followers fly through the player toward the leader. So cohesion only decides **whether** and **when** a member responds. **Where** it goes is always the member's own escape decision (see [Escape options](#escape-options-planned-step-9)), with its own position and the same eligibility rules.
+
+```json
+"reactions": {
+  "threat": "wary",
+  "cohesion": "tight_flock"
+}
+// or inline / extending a preset
+"reactions": {
+  "threat": "wary",
+  "cohesion": { "extends": "loose_flock", "spread": 0.5, "rally": 4 }
+}
+```
+
+`cohesion` is its own named reaction slot ([Ref or inline](#ref-or-inline): one source per slot). Presets are files in `assets/reactions/<id>.json`, loaded by the reaction loader, and follow `extends` plus overrides. Missing `cohesion` = independent birds, as today.
+
+| Field | Meaning | Default |
+|---|---|---|
+| `spread` | chance (0–1) that an informed bird passes the alarm to each neighbour within `linkRadius` (rolled per neighbour, not per group) | 0 |
+| `linkRadius` | tiles between two birds for one to inform the other | 5 |
+| `delayMs` | `[min, max]` stagger before an informed bird reacts, scaled up with its distance from the trigger bird | `[80, 400]` |
+| `sameOutcome` | chance (0–1) that an informed bird tries the trigger bird's outcome kind first (`tree`, `ground`, `water`, `offscreen`); otherwise it rolls its own escape list | 1 |
+| `rally` | radius (tiles) within which birds of one sub-flock prefer to land near each other; 0 disables rallying | 3 |
+| `regroup` | if true, scattered members drift back together once calm (see below) | true |
+
+Examples:
+- Sparrow or finch flock: `spread` 1, short delays, `sameOutcome` 1, so the whole flock goes at once.
+- Mallard family: ducklings already `follow` the parent (`groupRole`); `cohesion` only needs `spread` 1 so the parents react together.
+- Large winter crow flock: `spread` 0.3 and `sameOutcome` 0.4. A few birds leave, the rest stay on their tiles, and some of those leave when the neighbours near them go.
+
+**Alarm wave.** When a bird commits to a threat response (escape or offscreen flight), the owner builds the list of birds that will respond, once, and does not change it afterwards:
+1. Start with the trigger bird. Visit its neighbours (same group, within `linkRadius`) in bird-id order and roll `spread` for each; an informed bird informs its own neighbours the same way.
+2. Birds the wave does not reach keep idling. They still react to the threat themselves if it gets within their own alert or flee radius.
+3. Every informed bird gets a delay and its own RNG seed derived from its bird id and the trigger time, so tick order never shifts other picks.
+4. An informed bird that is already fleeing, hiding or departed is skipped. A bird that is farther from every farmer than `fleeRadius + linkRadius` is informed but rolls a normal escape, which may be "stay put and go alert" (it enters the existing `Alert` state).
+
+**Own decision, shared outcome.** The informed bird runs the normal escape loop. `sameOutcome` only reorders which option it tries first. It still has to pass every eligibility rule: free tile, `fleeRadius + 1` from every farmer, passable, inside the cone away from the threat, within `maxDistance`. An addition to eligibility for all escapes, not only grouped ones: the straight flight line from the bird to the spot stays at least 2 tiles away from every farmer, so no bird flies through or over the player. A bird on the far side of the player therefore flies the other way.
+
+**Sub-flocks and rally.** The informed set is a transient sub-flock. Landing spots are assigned greedily in bird-id order:
+1. The first bird picks a spot as usual and that spot becomes a rally anchor.
+2. Each next bird prefers eligible spots within `rally` tiles of an existing anchor, if the anchor is in the bird's own escape cone and the flight line to it is clear.
+3. If no existing anchor works, the bird picks its own spot and that becomes a new anchor.
+
+A player running through the middle of the flock therefore splits it into two sub-flocks on the two sides without any special case, and each side lands together. Rally is a preference, never a reason to use a spot that fails eligibility.
+
+**Regroup.** With `regroup`, a bird that is calm (no farmer within alert radius) and farther than `linkRadius * 2` from the nearest group mate gets a low-weight routine action `rejoin`. It walks, hops or flies (by bird type) to an eligible spot within `rally` tiles of the nearest group mate, at most once per calm period. Members that left offscreen return through [Departures and return](#departures-and-return-planned-step-9) instead: if any group mate is still in the location, a departed bird returns near that mate; if none is, the group returns together around the planned centre.
+
+**Ownership and multiplayer.**
+- The group owner (the owner of the group leader, as above) builds the alarm list and the seeds. Only the owner decides; replicas play the resulting committed movement and clips. No new message is needed for the wave.
+- The delayed start is a timer in `BirdState` (`AlarmDelayMs`), so a snapshot taken during the stagger resumes correctly. Alarm list, anchors and the regroup budget are runtime state: not saved, rebuilt empty on an owner change. A bird whose delay was pending then reacts on its own threat distance only.
+- The song and other [exclusive locks](#behavior-coordination-planned-step-9) are unaffected by alarms; fleeing releases them as before.
+
+**Out of scope.** Alert spreading (one bird freezes, neighbours freeze), flock-in-flight rendering (V formations, boids), and member-specific leaders other than the existing `follow` role. Alert spreading can use the same neighbour wave later.
 
 #### Placement controls
 
@@ -860,14 +987,14 @@ The extraction was pure: zero behavior change, PNGs unchanged. Layouts extracted
 | `land_32` | 0–8 | stand 0; walk 0/1 @100 loop; peck 2(480) 3(170) 4(170), repeat [1,4] × [3(70), 4(100, `peck`)], end 3(100) 2(70) 1(70) 0(500); sleep 5; fly 6(70) 7(60, `flap`) 8(70) 7(60) loop |
 | `waterland_32` | 0–13 | walk 0/1 @200 loop; peck 2(100) 3(100) 4(200) 5(200), repeat [0,4] × [4(200), 5(200)]; rest 6([500,3999]); hop 6(500) 7(100, `hop`) 8(100), repeat [0,2] × [7(100), 8(100)]; swim 9 (static, body bobs ±2 px per second with ripple); fly 10/11/12(80) 13(100) loop |
 | `trunk_16` | 0–4 | peck repeat [2,7] × [0(100), 1(100, `peck`)], end 0(200); fly 2(70) 3(60, `flap`) 4(70) 3(60) loop |
-| `bush_32` | 0–5 (4 unused) | run 0/1/2(40) 3(100) 5(70) 5(40) loop |
+| `bush_32` | 0–4 | stand 0; look 1/0/1/0; crouch 2/0; run 3/4/3/4(70) loop |
 
 | Shipped type | Composition after extraction |
 |---|---|
 | Land | routine chance 0.008, pick `{sleep:1, peck:1, hop:1, turnAndHop:1, walk:2}` (legacy list order); `sleep` endChance 0.003; `peck` `next {peck:1, stop:1}` rolled on `Rng`; walk 1 px/tick, `durationMs [500,1400,100]`; hop impulse 2 (`turnAndHop` flips first); flee radius 4, `flyOff` ±6 px, climb 2 + spawn jitter, sound role `alarm` = `SpringBirds` at 0.85; `flap` = `batFlap`, `peck` = `shiny4` (on screen only) |
-| WaterLand | routine chance 0.003, pick `{peck:1, rest:1, hop:1, walk:4}`; walk 2 px/tick, endChance 0.005; `hop` effect impulse 4; swims with slight water-only drift when stopped on water; default flee radius 4, `flyOff` ±4 px, climb 2, `alarm` = `seagulls` at 0.25; herring gull overrides threat reactions as described above |
+| WaterLand | routine chance 0.003, pick `{peck:1, rest:1, hop:1, walk:4}`; walk 2 px/tick, endChance 0.005; `hop` effect impulse 4; swims with slight water-only drift (0.25 px/step) when stopped on water; `swim` speed 0.26 is also the `swimAway` speed; default flee radius 4, `flyOff` ±4 px, climb 2, `alarm` = `seagulls` at 0.25; herring gull overrides threat reactions as described above |
 | TreeTrunk | owner-only peck loop, clip repeat rolled on `Rng` (legacy), then wait `[1000,2999]` ms on `Rng`; flee radius 6 or tree felled, `flyOff` ±6 px, climb 1; `flap` = `batFlap`, `peck` = `Cowboy_gunshot` |
-| Bush | flee radius = anchor distance − 1, only on screen; `runToBush` at 6 px/tick, then the bush's use action and despawn |
+| Bush | routine chance 0.004, pick `{look:2, crouch:1}` (partridge custom `stay` actions); flee radius = anchor distance − 1, only on screen (planned: alert ring with `fleeAfterMs`, see [Config-driven placement](#config-driven-placement)); `runToBush` at 6 px/tick, then the bush's use action and despawn |
 
 - Keep the same RNG streams (`Rng`, `VisualRng`, schedule RNG) and call order. Legacy `DonePecking` 50% becomes a `next` rule rolled on `Rng`.
 - Legacy frame callbacks become frame events mapped to the same vanilla cues and effects.
@@ -904,6 +1031,16 @@ sequenceDiagram
 - Selection uses inclusive ranges and handles empty candidate lists by returning no placement.
 - Farmhands never plan; they receive the plan. Placements carry everything needed to recreate a bird, so farmhands do not need per-day mutable state in the catalog.
 
+### Departures and return (planned, [step 9](REFACTOR.md#step-9-natural-escape-and-coordination-planned))
+
+Today every visit re-runs `Populate` from the plan, so a bird that just flew offscreen is back on its planned tile when the player re-enters. Instead:
+
+- A placement whose bird flew offscreen is **departed**. Both the Warped and the TimeChanged `Populate` calls skip it until `DepartureDelay` (code constant, about 120 in-game minutes) has passed.
+- It never returns while a farmer is still in the location; it returns only on a new visit.
+- On return, the spawn pattern re-places it on a fresh eligible tile near the planned spot (within the group radius or a few tiles), not the old tile, and away from every farmer. A group whose members all fled returns together around the group centre.
+- A hiding bird (canopy hide) or a bird that relocated within the location is not departed.
+- Shared and host-authoritative per location for the day: the location owner sends `BirdDeparted`, and the host keeps the departure table and broadcasts it. Cleared on DayStarted, not saved.
+
 ## Multiplayer ownership
 
 | Message | Sender → receiver | Validated by | Persisted by |
@@ -917,6 +1054,8 @@ sequenceDiagram
 | `LocationBirdsRequest` (location, requester, request id) | entering peer → peer in location, forwarded to owner | responder: is in that location | not persisted |
 | `LocationBirdsState` (location, visit id, sequence, birds JSON, request id) | location owner → peers in location | recipient: matching location, owner and newer sequence; first snapshot matches request id | not persisted |
 | `LocationBirdsHandoff` (location, next owner, visit id, sequence, birds JSON) | departing owner → remaining peers | recipient: current owner and visit, newer sequence | not persisted |
+| `BirdDeparted` (location, placement seed, time) — planned, step 9 | location owner → host | host: sender owns the location, placement in today's plan | not persisted |
+| `DeparturesSnapshot` (departure table) — planned, step 9 | host → all (DayStarted, PeerConnected, on change) | recipient: from host only | not persisted |
 
 - All messages are records implementing `IMessage` with a `Version` field (`IMessage.CurrentVersion`, currently 4); the record type name is the SMAPI message type. Other versions are logged and dropped.
 - Observation updates send deltas plus a monotonic log version. A stale delta is ignored and the peer re-requests the full log.
@@ -994,7 +1133,16 @@ Goals, not designs, unless marked implemented. Composition, groups and spacing a
 - Popular map mods without their own patch get a shipped compat file, `assets/compat/<modUniqueId>.json`, merged only when `ModRegistry.IsLoaded(modUniqueId)`.
 - Regions and their groups are loaded from `assets/regions.json` (plus compat files) at `SaveLoaded`; the game-asset route (`Mods/<ModId>/LocationGroups`, Content Patcher `EditData`) is not implemented yet. Other mods add their areas with a Content Patcher `EditData` patch in their own content pack (or `IAssetEditor` code); compat files are only for mods that don't. Because Content Patcher conditions can depend on the save, groups are read at `SaveLoaded` and re-read on `AssetsInvalidated`; `@group` references are validated at load but expanded per day. Members for locations or areas that don't exist are ignored silently, because they usually come from a mod that isn't installed.
 - Distance to shore is the one geometric filter: `shoreDistance: [min, max]` in tiles from the nearest walkable ground (for water tiles) or nearest water (for ground tiles). It splits the beach into sand, shore land, shallow water and open sea, and keeps water birds within sight of walkable ground: the deep sea in the middle of the Beach and the whole sea along the bottom of the Forest are excluded.
+- Reachability (planned, [step 9 G](REFACTOR.md#step-9-natural-escape-and-coordination-planned)): a candidate tile must be reachable by a farmer. Land tiles qualify if a flood fill over farmer-passable tiles, started from the location's warp arrival tiles, reaches them. Water tiles qualify within `shoreDistance` of a reachable land tile. The set is computed per location per day and cached. It is recomputed when a gate changes. Spawn placement, escape targets and return placement all use it. This keeps birds off the Beach east side until the bridge is repaired (`Beach.bridgeFixed`), with no coordinates in code.
+- Gated areas (planned, step 9 G): `Beach:East` is a derived area, used like a fish-area habitat key. It covers the tiles that are reachable only once the bridge is fixed: the full reachable set minus the set computed with the bridge treated as broken. The spawn-rule `when` gains a `bridgeFixed` key. A rule with `when.bridgeFixed: true` and the `Beach:East` habitat adds species after the repair, as player progression. Generalise to other gates only when a second one exists.
 - Remote areas players rarely visit early (e.g. the southern Forest, selected as a coarse map region) get a low weight that rises with birding progression, so unseen birds don't spawn where players won't look.
+- Bush birds (planned, [step 9 H](REFACTOR.md#step-9-natural-escape-and-coordination-planned)):
+  - Vanilla behavior (`GameLocation.addBunnies` and `Rabbit` in 1.6.15): a rabbit spawns 5–11 tiles beside any bush and runs as soon as it is on screen, so the approach side never matters.
+  - Our distance trigger lets a farmer approach from the bush side, and then the bird runs through them. Copying the vanilla trigger would fix that, but then players never see the bird idle. Planned changes:
+    - **Bushes:** only large bushes (`Bush.size == 2`). Small, medium, tea and walnut bushes don't look like cover. The feasibility check counts only large bushes.
+    - **Trigger:** the existing two-radius threat reaction ([Reactions](#4-reactions)) with a wide alert ring (about 12 tiles, fixed in tiles for every farmer and zoom) and a small `fleeRadius` (about 3). Outside the ring the bird runs its idle routine. Inside the ring it freezes on `stand` and calms back to idle after the farmer leaves. Inside `fleeRadius`, or once the farmer has stayed in the ring for `fleeAfterMs` (3000), it runs to the bush at 6 px/tick. Timing: a 5-tile run takes about 0.9 s and a farmer moves about 5 px/tick, so a 12-tile ring leaves the bird time to reach cover.
+    - **Placement:** 2–5 tiles beside the bush, keeping the straight-path check. The bird sits on the side facing the nearest warp arrival tile, so arriving farmers come from the open side. Reject the spot if any arrival tile is within the alert radius of the bird, or on the bush side within the alert radius plus the run distance. Checking every arrival tile covers several entrances and players in multiplayer.
+    - No path-blocked fallback: no farmer can reach the run path before the bird bolts. Bush birds stay ground-only: no flight and no new sprites.
 - Candidate spots too close to vanilla critters are rejected (see [Vanilla critters](#vanilla-critters)).
 - Each pattern has a cheap feasibility check (e.g. "this location has no fences") that runs before the candidate search. On failure the planner tries the bird's next rule or location, then the next bird, so an unseen bird always spawns if any can be placed, though not necessarily the first one tried.
 
@@ -1003,6 +1151,7 @@ Goals, not designs, unless marked implemented. Composition, groups and spacing a
 Designed in [Bird composition → Reactions](#4-reactions) and implemented in [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds) steps 4 and 5.
 
 - Threat response has two radii instead of instant flee: inside the outer radius the bird freezes (`Alert` state, head-up frame), inside the inner radius it flees, and it resumes idling a short while after the threat leaves the outer radius. A running farmer counts as closer, so sneaking pays off. `BirdContext` carries the threat distance instead of a bool; order becomes `Flee(inner) → Alert(outer) → Wake → IdleRoutine`.
+- Birds should stay in the location and react to the player believably: hide in a nearby tree, land farther away or move to other water or another trunk, and fly offscreen only when nothing nearby is safe. Signature songs are rare, one singer at a time, and sung by males. Designed in [Escape options](#escape-options-planned-step-9), [Behavior coordination](#behavior-coordination-planned-step-9) and [Group cohesion](#group-cohesion-planned-step-9): a group reacts as a group (tight flock, loose flock, independent), each bird still picks its own spot.
 - Rare forage events are data-selected behaviors: worm pull (e.g. blackbird), fish strike near water (e.g. egret, reusing the vanilla splash sprite), and diving while swimming (ducks, grebes: hide, then resurface on a nearby water tile).
 
 ## Out of scope for now

@@ -82,9 +82,15 @@ public partial class ModEntry
             }
         }
 
-        return DailySpawnPlan.Build(_regions, _saveData.SeenBirds, _catalog, _spawnPatterns, season, weather,
+        DailySpawnPlan plan = DailySpawnPlan.Build(_regions, _saveData.SeenBirds, _catalog, _spawnPatterns, season, weather,
             Game1.dayOfMonth, Game1.player.DailyLuck, BirdingProgress.Level(_saveData.BirdingXp), random, Monitor,
             skipped: message => Monitor.VerboseLog(message));
+        if (plan.Locations.Count == 0)
+        {
+            Monitor.Log($"No birds planned: season={season}, weather={weather}, day={Game1.dayOfMonth}.", LogLevel.Info);
+        }
+
+        return plan;
     }
 
     private static Weather CurrentWeather() => Game1.isGreenRain ? Weather.GreenRain

@@ -128,7 +128,7 @@ Replace constructor-time merging and reflection-based default filling with a loa
 
 **Exit:** all shipped content passes validation in tests; characterization snapshot unchanged unless a difference is documented as a bug fix.
 
-**Implemented (code and tests):** `JObject` template resolution with per-field provenance, including deleted default fields and removed/re-added rules; strict boundary deserialization and domain validation; id-keyed seasonal rules and location groups; immutable validated catalog; invalid birds skipped with diagnostics; `birds_dump <id>`; legacy models, reflection filling, mock loader, and old fixtures removed. The shipped six-bird snapshot now checks the effective spawn rules. The tit group-size snapshot follows template values instead of the former global-default shadowing, as intended. Day-start selection handles sun, rain, storm, snow, wind, and green rain; the first player entering a location retries pending time-window placements on time changes.
+**Implemented (code and tests):** `JObject` template resolution with per-field provenance, including deleted default fields and removed/re-added rules; strict boundary deserialization and domain validation; id-keyed seasonal rules and location groups; immutable validated catalog; invalid birds skipped with diagnostics; `birds_dump <id>`; legacy models, reflection filling, mock loader, and old fixtures removed. The shipped six-bird snapshot now checks the effective spawn rules. The tit group-size snapshot follows template values instead of the former global-default shadowing, as intended. Day-start selection handles sun, rain, storm, snow, wind, and green rain, with the groups `any`, `clear`, `precipitation` expanded at load; the base template no longer restricts weather (the old sun/rain default had excluded windy, snow and storm days); the first player entering a location retries pending time-window placements on time changes.
 
 **Verification:** shipped content and full x64 tests pass (67 tests); compile-only Debug and focused formatting pass. Release warnings-as-errors is still blocked by analyzer/style diagnostics in legacy game code. Runtime spawning, day transitions, multiplayer visits, and the dump command still need in-game verification via SMAPI. Visit ownership is not transferred if the first player leaves while another remains; shared multiplayer spawn state belongs to Phase 8.
 
@@ -237,6 +237,7 @@ Observed: birds without `defaultSpawnData` get global defaults (Forest, 1–2 gr
 | `timeOfDayRanges` never checked: `isTimeOfDayPossible` is unused, `possibleSpawnDataToday` ignores time | [SpawnData.cs](../Birding/Data/SpawnData.cs#L42), [LocationSpawner.cs](../Birding/Spawning/LocationSpawner.cs) | 3/6 |
 | `CopyProperties` treats `0`/`false` as unset, so a bird cannot override a template value with 0 or false | [Reflection.cs](../Birding/Data/Reflection.cs) | 3 |
 | ~~Process-wide `JsonConvert.DefaultSettings`; `OnJsonError` marks every error handled → silent bad data~~ (messages use `MessageJson` with explicit settings) | [MessageJson.cs](../Birding/MessageJson.cs) | 2 |
+| Bush birds spawn beside small bushes and trigger by distance only, so a farmer approaching from the bush side makes the bird run through them | [TerrainFeatureSpawner.cs](../Birding/Spawning/Spawners/TerrainFeatureSpawner.cs), [BushBird.cs](../Birding/BirdTypes/BushBird.cs) | 10 step 9 H |
 | Debug output written to `assets/inspect_output/` on every save load | [ModEntry.cs](../Birding/ModEntry.cs#L108) | 3 |
 | ~~`Player_Warped` logs `e.NewLocation.Name` before the null check~~ | [ModEntry.cs](../Birding/ModEntry.cs) | 2 |
 | ~~Vanilla-bird removal logs every critter on every `TimeChanged`~~ | [ModEntry.cs](../Birding/ModEntry.cs) | 2 |
@@ -504,6 +505,91 @@ Design: [ARCHITECTURE.md → Condition clauses and time anchors](ARCHITECTURE.md
 
 **Exit:** the tests above pass; existing goldens unchanged for rules without the new fields; a fixture species sings only in the configured windows. Verification stays separate: compile-only mod and playground builds, `dotnet test Birding.sln --arch x64`, a playground check of `any` output, then in-game and two-player checks recorded in [MANUAL_TESTS.md](MANUAL_TESTS.md) (never claimed from builds or tests). No shipped species has song audio yet, so shipped behavior does not change.
 
+### Step 9: natural escape and coordination (planned)
+
+Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-planned-step-9), [Behavior coordination](ARCHITECTURE.md#behavior-coordination-planned-step-9) and [Group cohesion](ARCHITECTURE.md#group-cohesion-planned-step-9). The goal is for birds to stay in the location and react to the player believably instead of flying offscreen.
+
+**0. Escape pipeline extraction** (prerequisite of A–I; no behavior change)
+
+- Split escapes into scan → decide → move ([Code shape](ARCHITECTURE.md#code-shape)). The pure decide step (`EscapePlanner`, returning an `EscapeChoice`) owns occupied-tile building and target search for surface and trunk relocation; bird classes keep only movement.
+- Same RNG call order. **Exit:** goldens unchanged; the three duplicated relocation paths are gone.
+- **Implemented (compile/test verified, not tested in game):** `Relocation` became `EscapePlanner` (`Surface`, `Tree`, `Choose`, `Pick`); shared relocation state and movement live in `BirdCritter`. Goldens unchanged.
+
+**A. Escape options and eligibility**
+
+- `threat.escape` is a weighted list of `{target, weight, maxDistance}` plus `maxRelocations`. Legacy `relocate` and the `any` target are removed (unreleased mod); shipped JSON (`tree_hopper`, `herring_gull`) is migrated and an explicit `offscreen` option replaces `chance`. Goldens that change are re-recorded on purpose and named in the commit.
+  - **Implemented (compile/test verified, not tested in game):** `ThreatReaction.Escape`/`MaxRelocations`, `EscapeOption`, `EscapePlanner.Choose` (weight roll only when several options are open), loader/schema/validator, migrated `tree_hopper` and `herring_gull`. No golden changed. The eligibility, budget-reset and `tree` items below remain planned.
+- Shared eligibility in `EscapePlanner`: free tile, at least `fleeRadius + 1` from every farmer in the location, farmer-passable ground or open water, within `maxDistance`. `ILocationQuery` gains farmer positions, `IsPassable(tile)` and mature trees.
+- One escape loop for land, water-land and trunk birds, replacing today's three separate relocation paths.
+- Open water means `shoreDistance ≥ 2`; pier, dock and bridge tiles count as land.
+- The relocation budget applies per threat episode: `Relocations` resets after a calm period (about 30 s with no farmer in the alert or flee radius). Today it is a lifetime counter with `maxRelocations` defaulting to 1, so a single hop uses it up for good.
+
+**B. Canopy hide**
+
+- Target `tree`, status `Hiding`, `hideFor`. The bird returns to the ground near the tree once no farmer has been within `fleeRadius` of the tree for `hideFor` ms.
+- `treeShaken` trigger, plus a felled-tree check on the hide anchor. Both flush the bird offscreen.
+- `BirdState` carries `Hiding`, the timer and the anchor. Replicas don't draw a hidden bird.
+- great tit (`garden_flock` or a shared `tree_hider` reaction): `tree` weight 3, `ground` weight 1.
+
+**C. Directional trunk relocation**
+
+- `otherTree` candidates are limited to a cone (±60°) away from the threat.
+- black woodpecker adopts `tree_hopper`.
+
+**D. Water preference**
+
+- herring gull starting from water: `escape` `water` weighted above `ground`. Swimming after landing already works.
+- Escapes from land: a water-land bird on land can fly to other ground or back to water (land → land, land → water), not only offscreen.
+- Shore safety: swimming, drift and `swimAway` stay in open water. A blocked `swimAway` step escalates to the escape list instead of falling back to `Swimming`, and `swimAway` is not re-selected while blocked.
+
+**F. Departures and return**
+
+- Design: [Departures and return](ARCHITECTURE.md#departures-and-return-planned-step-9).
+- `LocationSpawner` skips departed placements in both the Warped and the TimeChanged `Populate` until `DepartureDelay` has passed, and only on a new visit. A returning bird is re-placed via its spawn pattern near the planned spot, away from farmers; a group that fled together returns together.
+- Messages `BirdDeparted` (owner → host) and `DeparturesSnapshot` (host → all). Cleared daily, not saved.
+
+**G. Reachability and Beach bridge progression**
+
+- Design: [Config-driven placement → Reachability, Gated areas](ARCHITECTURE.md#config-driven-placement).
+- `ILocationQuery` reachable set:
+  - flood fill over farmer-passable tiles from the warp arrival tiles;
+  - water tiles count within `shoreDistance` of reachable land;
+  - cached per location per day; invalidated when `Beach.bridgeFixed` changes.
+- `TileSelection` filters spawn candidates, escape targets and return placement through the set.
+- Spawn `when` key `bridgeFixed` (bool) in `ConditionParser`/`ConditionClause`, plus schema.
+- Derived habitat key `Beach:East`: the reachable set minus the set computed with the bridge treated as broken. Unknown derived keys are load errors.
+- One east-only shorebird rule with `when.bridgeFixed: true` once art exists.
+
+**H. Bush birds: cover and approach side**
+
+- Design: [Config-driven placement → Bush birds](ARCHITECTURE.md#config-driven-placement).
+- `BushSpawner` and `HasStraightPathToBush`: large bushes only (`Bush.size == 2`); distance 2–5 tiles; side facing the nearest warp arrival tile; reject spots with any arrival tile inside the alert radius or on the bush side within alert radius + run distance; `birds_inspect` counts large bushes.
+- `AlertReaction`: optional generic `fleeAfterMs` (absent = never), in loader and schema; the timer resets when the alert ring is empty.
+- `BushBird`: `CanAlert: true`, a threat default and a shipped bush reaction preset (alert radius about 12, `fleeRadius` about 3, `clip` `stand`, `fleeAfterMs` 3000), replacing the anchor-distance trigger. No path-blocked fallback. Ground-only, no new sprites.
+- Bush spawn goldens change on purpose.
+
+**I. Group cohesion** (after A, D and F; it reuses the escape loop and departures)
+
+- Design: [Group cohesion](ARCHITECTURE.md#group-cohesion-planned-step-9). No leader-following: cohesion decides whether and when a member responds, never where it lands.
+- `assets/reactions/<id>.json` presets (`tight_flock`, `loose_flock`) with ref-or-inline plus `extends`, loaded by `ReactionLoader` into the named slot `reactions.cohesion`; a `cohesion` definition in `schemas/reaction.schema.json`; validator checks ranges and `rally` ≤ `maxDistance`.
+- Escape eligibility gains the flight-line rule (line from bird to spot at least 2 tiles from every farmer). It applies to all escapes, so goldens for ungrouped birds stay unchanged only if the existing picks already satisfy it; any change is made on purpose.
+- Owner-side `GroupAlarm`: neighbour wave in bird-id order with per-bird seeds, delays in `BirdState.AlarmDelayMs`, `sameOutcome` reorder of the escape options, greedy rally anchors per sub-flock.
+- Routine action `rejoin` for `regroup`, and group-aware return in departures (return near a remaining mate).
+- Shipped content: tit, finch and sparrow `tight_flock`; crow and gull `loose_flock`; mallard family `tight_flock` for the parents.
+- Tests: wave reach and determinism for fixed seeds and a fixed id order; `spread` 0 behaves as today with no RNG drift; `spread` 1 informs the whole connected group and not a distant one beyond `linkRadius`; delay scaling; `sameOutcome` 1 and 0; eligibility with a farmer in the middle of a group (no flight line through the farmer, birds on opposite sides go opposite ways, two anchors); rally anchor reuse and fallback to own pick; skipped fleeing, hiding and departed birds; `rejoin` only when calm, only once per calm period; snapshot round trip of `AlarmDelayMs`; preset `extends` and unknown-key errors; schema/loader agreement. Each rule is asserted in one layer only.
+
+**E. Exclusive actions and sex roles**
+
+- Action fields `exclusive` and `exclusiveCooldownMs`. A per-location lock table owned by the location owner: not saved, reset on ownership change, released on action end, flee, hide or despawn.
+- Routine `rare.if` with context condition keys, plus a new `role` key.
+- great tit: `male` (`required`, count ≥ 1) and `female` members with shared textures, and a male-only `song` rare entry once song art and audio exist.
+
+**Tests:** weighted option pick; `relocate` key rejected; the all-farmers distance rule with two farmers; passability rejection; offscreen fallback when nothing is eligible; directional cone; hide → return timeline and flush on shake or fell; snapshot and replica fields for `Hiding`; lock acquire, skip, release and cooldown with two birds, with no RNG drift in other picks; the `role` condition; required-male placement; open-water rejection next to land and pier tiles; blocked `swimAway` escalates to flight with no state oscillation over N ticks; relocation budget reset after calm; land → land and land → water picks for a water-land bird; departure skip in both populate paths, return only on a new visit after the delay, re-placed tile eligible and not the old one, group returns together, departure message validation and day reset; flood fill on a synthetic map with a blocked island (land excluded, water within `shoreDistance` of reachable land kept), cache invalidation when the bridge flag flips, the `bridgeFixed` condition, `Beach:East` resolution (empty while broken); bush size filter, 2–5 tile placement with a clear path, side preference and rejection with several arrival tiles; `fleeAfterMs` fires, never fires when absent and resets when the ring empties; bush alert → calm → idle and the `fleeRadius` dash. Schema/loader agreement covers `escape`, `exclusive`, `rare.if` and `fleeAfterMs`. Each rule is asserted in one layer only.
+
+**Exit:** the tests above pass; goldens are unchanged for rules without the new fields. In game (recorded in [MANUAL_TESTS.md](MANUAL_TESTS.md)): a great tit hides in a nearby tree and comes back down, a gull resettles on water, takes off before reaching the pier and later hops land → water, a fled bird is absent on immediate re-entry and returns to a new spot later, a woodpecker moves to a trunk ahead, two singers never overlap, a sparrow flock leaves together while a crow flock leaves in pieces and regroups, running through a flock splits it into two sides that never fly through the player, a fresh save has no beach birds east of the broken bridge while east-only species appear after the repair, bush birds sit only beside large bushes, idle until a farmer is within about 12 tiles, freeze, then calm down or run into the bush and never run through a farmer, and a two-player check of hiding, the lock handoff and a bush bird approached from both sides.
+
+**Prototype species once art exists** ([table](#backlog)): great tit `sing` clip and song audio.
+
 ---
 
 ## Open items and definition of done
@@ -518,6 +604,7 @@ The refactor is done when every box is checked. Phase sections hold the details;
 - [ ] Phase 10 step 2: in-game check (see step 2), including whether the `"flip"` frame tags are visible.
 - [ ] Phase 10 steps 3–7: exit criteria met.
 - [ ] Phase 10 step 8: implemented (compile and unit tests pass); in-game and two-player checks still to be recorded.
+- [ ] Phase 10 step 9: escape options, canopy hide, exclusive actions, departures and return, group cohesion, reachability and Beach bridge progression, bush cover and approach side (planned).
 - [ ] Phase 9 smoke test and full pass recorded before release.
 
 ---
@@ -538,12 +625,16 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 
 - Bush birds sometimes misbehave when running into bushes: possibly skip small bushes, and accept any bush on the path, not only the anchored one, so they don't run out of bounds.
 - Bush birds idle before running into the bush; flight distance is off.
+- Gulls swim up to land (e.g. the Beach pier), then rapidly flip left/right, appear to stand on the pier and barely react to the player. Suspected cause (`WaterLandBird`): when blocked, `SwimmingAway` falls back to `Swimming`; the radius-6 `swimAway` alternative is re-selected in the same blocked direction; `Drift` flips at every non-water step; and the water check has no shore margin. → Phase 10 step 9 D.
+- Gulls fly water → land, but then never fly land → land or land → water, only offscreen. Suspected cause: `Relocations` is a lifetime counter and `maxRelocations` defaults to 1, so the first hop uses up the budget. → Phase 10 step 9 A/D.
+- A bird that flew offscreen is back on its planned tile when the player re-enters immediately. → Phase 10 step 9 F.
+- Beach birds spawn on the east side before the bridge is repaired (unreachable for the player). → Phase 10 step 9 G.
 
 **Bird types and behaviors** (as Phase 10 composition where possible; a new body only when anchoring or drawing differs)
 
-- Birds flying into trees.
-- Water birds that swim away. On land `swimAway` falls back to flight. Not needed for families that spawn only on water (e.g. mallards); a land/water-aware family flee is not designed.
-- Singing: seasonal `rare` `sing` entries with `when.any` and time anchors (step 8); needs song clips and `audio:` cues per species.
+- Birds flying into trees (hidden canopy hide). → Phase 10 step 9.
+- Water birds that swim away. On land `swimAway` falls back to flight. Not needed for families that spawn only on water (e.g. mallards); land/water-aware escapes and shore safety → Phase 10 step 9 D.
+- Singing: seasonal `rare` `sing` entries with `when.any` and time anchors (step 8); needs song clips and `audio:` cues per species. One singer per location and male-only via `exclusive` and roles. → Phase 10 step 9.
 - Visible birds in tree canopies that fly off when the tree is shaken.
 - Shore birds.
 - Flyovers: migrating birds passing through, predators circling.

@@ -9,29 +9,21 @@ namespace Birding.BirdTypes;
 
 internal sealed class TreeTrunkBird : BirdCritter
 {
-    private const float ArcHeight = 48f;
-
     private Tree? _tree;
-    private Vector2 _relocateFrom;
 
     public override string BirdTypeName { get; } = "TreeTrunkBird";
     public Vector2 AnchorTile { get; set; }
     public string? LocationName { get; set; }
     public int PeckTimer { get; set; }
-    public int Relocations { get; set; }
-    public Vector2? RelocateTarget { get; set; }
 
     public TreeTrunkBird() { }
 
     internal override BirdState CaptureExtras(BirdState state) =>
-        state with { AnchorTile = AnchorTile, LocationName = LocationName, PeckTimer = PeckTimer, Relocations = Relocations, RelocateTarget = RelocateTarget };
+        state with { AnchorTile = AnchorTile, LocationName = LocationName, PeckTimer = PeckTimer };
 
     internal override void RestoreExtras(BirdState state)
     {
         PeckTimer = state.PeckTimer;
-        Relocations = state.Relocations;
-        RelocateTarget = state.RelocateTarget;
-        _relocateFrom = position;
         SetAnchor(state.AnchorTile ?? Vector2.Zero, state.LocationName);
     }
 
@@ -41,8 +33,6 @@ internal sealed class TreeTrunkBird : BirdCritter
         {
             return;
         }
-        Relocations = owner.Relocations;
-        RelocateTarget = owner.RelocateTarget;
         if (owner.AnchorTile != AnchorTile || owner.LocationName != LocationName)
         {
             SetAnchor(owner.AnchorTile, owner.LocationName);
@@ -136,34 +126,24 @@ internal sealed class TreeTrunkBird : BirdCritter
 
     private static Vector2 TrunkPosition(Vector2 tile) => tile * 64f + new Vector2(32f, 0f);
 
-    private Vector2 Step(Vector2 target, float speed)
-    {
-        Vector2 toTarget = target - position;
-        return toTarget.Length() <= speed ? toTarget : Vector2.Normalize(toTarget) * speed;
-    }
-
-    /// <summary>A free eligible tree for the relocate reaction, or null when it is used up, unset, or no tree fits.</summary>
+    /// <summary>A free eligible tree for an <c>otherTree</c> escape option; occupied counts other trunk birds' anchors and flight targets.</summary>
     private Vector2? RelocationTarget(GameLocation environment, Character threat)
     {
-        if (Threat.Relocate is not { Target: "otherTree" } relocate || Relocations >= relocate.MaxRelocations)
+        if (!Threat.CanEscapeTo("otherTree"))
         {
             return null;
         }
         HashSet<Vector2> occupied = environment.critters?.OfType<TreeTrunkBird>().Where(bird => bird != this)
             .SelectMany(bird => bird.RelocateTarget is { } target ? new[] { bird.AnchorTile, target } : new[] { bird.AnchorTile }).ToHashSet() ?? new();
         IEnumerable<Vector2> trees = environment.terrainFeatures.Pairs.Where(pair => Spawners.Condition.IsEligibleTree(pair.Value)).Select(pair => pair.Key);
-        return Relocation.Pick(trees, AnchorTile, threat.Tile, Threat.FleeRadius, relocate.MaxDistance, occupied, Rng);
+        return EscapePlanner.Tree(trees, AnchorTile, threat.Tile, Threat, Relocations, occupied, Rng);
     }
 
     private void StartRelocate(Vector2 tree, GameLocation environment)
     {
         PlayActionSound(Action("flee"));
         State = BehaviorStatus.Relocating;
-        AddBirdObservation(BirdName, environment.Name);
-        Relocations++;
-        RelocateTarget = tree;
-        _relocateFrom = position;
-        flip = TrunkPosition(tree).X > position.X;
+        BeginRelocation(tree, TrunkPosition(tree), environment);
         StartFlyAnimation();
     }
 
@@ -174,17 +154,10 @@ internal sealed class TreeTrunkBird : BirdCritter
             StartFlee(null, environment);
             return;
         }
-        Vector2 target = TrunkPosition(tile);
-        position += Step(target, speed);
-        float total = Vector2.Distance(_relocateFrom, target);
-        yOffset = total <= 0f ? 0f : Relocation.ArcOffset(1f - (Vector2.Distance(position, target) / total), ArcHeight);
-        if (position != target)
+        if (!AdvanceRelocation(TrunkPosition(tile), speed))
         {
             return;
         }
-
-        yOffset = 0f;
-        RelocateTarget = null;
         SetAnchor(tile, environment.Name);
         if (_tree == null)
         {

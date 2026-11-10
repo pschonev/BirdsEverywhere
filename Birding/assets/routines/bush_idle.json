@@ -1,0 +1,7 @@
+{
+    "chance": 0.004,
+    "pick": {
+        "look": 2,
+        "crouch": 1
+    }
+}

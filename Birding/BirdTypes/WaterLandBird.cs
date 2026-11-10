@@ -9,7 +9,6 @@ namespace Birding.BirdTypes;
 internal sealed class WaterLandBird : BirdCritter
 {
     private const int DefaultDiveRadius = 3;
-    private const float ArcHeight = 48f;
 
     private IReadOnlyList<IBirdBehavior>? _behaviors;
     private int? _walkTimer;
@@ -18,14 +17,11 @@ internal sealed class WaterLandBird : BirdCritter
     private Vector2 _swimDirection;
     private ActionDefinition? _activeFlee;
     private ThreatAlternative? _selectedThreat;
-    private Vector2 _relocateFrom;
 
     public override string BirdTypeName { get; } = "WaterLandBird";
     public bool Hidden { get; set; }
     public int DiveTimer { get; set; }
     public int DiveRadius { get; set; }
-    public int Relocations { get; set; }
-    public Vector2? RelocateTarget { get; set; }
     internal string? FollowRole => _followRole;
     internal Vector2 SwimDirection => _swimDirection;
     protected override ActionDefinition ReplicaFleeAction => _activeFlee ?? Action("flee");
@@ -41,8 +37,6 @@ internal sealed class WaterLandBird : BirdCritter
         FollowSpeedFactor = _followSpeedFactor,
         SwimDirection = _swimDirection,
         ActiveFlee = _activeFlee,
-        Relocations = Relocations,
-        RelocateTarget = RelocateTarget,
     };
 
     internal override void RestoreExtras(BirdState state)
@@ -54,9 +48,6 @@ internal sealed class WaterLandBird : BirdCritter
         _followSpeedFactor = state.FollowSpeedFactor;
         _swimDirection = state.SwimDirection;
         _activeFlee = state.ActiveFlee;
-        Relocations = state.Relocations;
-        RelocateTarget = state.RelocateTarget;
-        _relocateFrom = position;
     }
 
     protected override void ApplyReplicaExtras(BirdCritter source)
@@ -77,8 +68,6 @@ internal sealed class WaterLandBird : BirdCritter
         _followSpeedFactor = owner._followSpeedFactor;
         _swimDirection = owner._swimDirection;
         _activeFlee = owner._activeFlee;
-        Relocations = owner.Relocations;
-        RelocateTarget = owner.RelocateTarget;
     }
 
     public override void draw(SpriteBatch b)
@@ -370,7 +359,7 @@ internal sealed class WaterLandBird : BirdCritter
         {
             if (selected.Do == "swimAway" && IsOnWater(environment))
             {
-                flee = flee with { Do = "swimAway", Clip = Action("swim").Clip, Sound = selected.Sound ?? flee.Sound };
+                flee = flee with { Do = "swimAway", Clip = Action("swim").Clip, Speed = Action("swim").Speed, Sound = selected.Sound ?? flee.Sound };
             }
             else
             {
@@ -406,33 +395,15 @@ internal sealed class WaterLandBird : BirdCritter
 
     private static Vector2 TilePosition(Vector2 tile) => tile * 64f;
 
-    private Vector2 Step(Vector2 target, float speed)
-    {
-        Vector2 delta = target - position;
-        return delta.Length() <= speed ? delta : Vector2.Normalize(delta) * speed;
-    }
-
-    private Vector2? RelocationTarget(GameLocation environment, Vector2 threatPosition)
-    {
-        ThreatReaction reaction = _selectedThreat?.Threat ?? Threat;
-        if (reaction.Relocate is not { } relocate || Relocations >= relocate.MaxRelocations)
-        {
-            return null;
-        }
-        HashSet<Vector2> occupied = environment.critters?.OfType<BirdCritter>().Where(bird => bird != this)
-            .Select(bird => new Vector2((int)(bird.position.X / 64f), (int)(bird.position.Y / 64f))).ToHashSet() ?? new();
-        return Relocation.PickSurface(new Birding.Spawners.GameLocationQuery(environment), new Vector2((int)(position.X / 64f), (int)(position.Y / 64f)), threatPosition / 64f, reaction, occupied, Rng);
-    }
+    private Vector2? RelocationTarget(GameLocation environment, Vector2 threatPosition) =>
+        EscapePlanner.Surface(new Birding.Spawners.GameLocationQuery(environment), OwnTile, threatPosition / 64f, _selectedThreat?.Threat ?? Threat,
+            Relocations, OccupiedTiles(environment), Rng);
 
     private void StartRelocate(Vector2 tile, ActionDefinition flee, GameLocation environment)
     {
         _activeFlee = flee;
         PlayActionSound(flee);
-        AddBirdObservation(BirdName, environment.Name);
-        Relocations++;
-        RelocateTarget = tile;
-        _relocateFrom = position;
-        flip = TilePosition(tile).X > position.X;
+        BeginRelocation(tile, TilePosition(tile), environment);
         State = BehaviorStatus.Relocating;
         StartFlyAnimation();
     }
@@ -444,16 +415,10 @@ internal sealed class WaterLandBird : BirdCritter
             State = BehaviorStatus.FlyingAway;
             return;
         }
-        Vector2 target = TilePosition(tile);
-        position += Step(target, speed);
-        float total = Vector2.Distance(_relocateFrom, target);
-        yOffset = total <= 0f ? 0f : Relocation.ArcOffset(1f - Vector2.Distance(position, target) / total, ArcHeight);
-        if (position != target)
+        if (!AdvanceRelocation(TilePosition(tile), speed))
         {
             return;
         }
-        yOffset = 0f;
-        RelocateTarget = null;
         startingPosition = position;
         State = IsOnWater(environment) ? BehaviorStatus.Swimming : BehaviorStatus.Stopped;
         sprite.loop = false;
@@ -520,7 +485,7 @@ internal sealed class WaterLandBird : BirdCritter
         {
             return;
         }
-        float step = flip ? 0.5f : -0.5f;
+        float step = flip ? 0.25f : -0.25f;
         Vector2 next = position + new Vector2(step, 0f);
         if (Math.Abs(next.X - startingPosition.X) > 64f || !IsWater(environment, next))
         {

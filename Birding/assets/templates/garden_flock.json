@@ -1,0 +1,21 @@
+{
+  "template": "all_year_garden",
+  "defaults": {
+    "groupCount": [
+      1,
+      2
+    ],
+    "groupSize": [
+      1,
+      3
+    ]
+  },
+  "rules": {
+    "winter": {
+      "groupSize": [
+        2,
+        5
+      ]
+    }
+  }
+}

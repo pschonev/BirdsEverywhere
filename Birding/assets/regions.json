@@ -17,6 +17,17 @@
             ],
             "coast": [
                 "Beach"
+            ],
+            "mountains": [
+                "Mountain"
+            ],
+            "city": [
+                "Town"
+            ],
+            "rivers": [
+                "Forest",
+                "Town",
+                "Farm_Riverland"
             ]
         }
     },

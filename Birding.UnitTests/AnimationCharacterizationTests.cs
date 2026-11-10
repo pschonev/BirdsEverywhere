@@ -91,7 +91,7 @@ public class AnimationCharacterizationTests
 
     [Test]
     public void BushRun() =>
-        Golden(Run<BushBird>(1, false, bird => bird.StartRunAnimation()), "0:40 1:40 2:40 3:100 5:70 5:40 loop | next 668");
+        Golden(Run<BushBird>(1, false, bird => bird.StartRunAnimation()), "3:70 4:70 3:70 4:70 loop | next 668");
 
     [Test]
     public void LandPeckEnd_RollsNextStateOnOwnerRandom()

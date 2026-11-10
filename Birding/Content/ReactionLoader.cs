@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Birding.Domain;
 using Newtonsoft.Json.Linq;
 
@@ -8,12 +9,13 @@ public static class ReactionLoader
     private const int MaxRadius = 20;
 
     private static readonly HashSet<string> _keys = new(StringComparer.Ordinal) { "threat" };
-    private static readonly HashSet<string> _threatKeys = new(StringComparer.Ordinal) { "fleeRadius", "runningMultiplier", "alert", "relocate" };
+    private static readonly HashSet<string> _threatKeys = new(StringComparer.Ordinal) { "fleeRadius", "runningMultiplier", "alert", "escape", "maxRelocations" };
     private static readonly HashSet<string> _alertKeys = new(StringComparer.Ordinal) { "radius", "clip", "sound", "calmMs" };
-    private static readonly HashSet<string> _relocateKeys = new(StringComparer.Ordinal) { "target", "maxDistance", "maxRelocations", "chance" };
+    private static readonly HashSet<string> _escapeKeys = new(StringComparer.Ordinal) { "target", "weight", "maxDistance" };
+    private static readonly HashSet<string> _escapeTargets = new(StringComparer.Ordinal) { "ground", "water", "otherTree", EscapeOption.Offscreen };
     private static readonly HashSet<string> _alternativeKeys = new(StringComparer.Ordinal) { "if", "flee" };
     private static readonly HashSet<string> _conditionKeys = new(StringComparer.Ordinal) { "groupHasRole", "nearWater", "season", "timeOfDay", "weather", "stage" };
-    private static readonly HashSet<string> _fleeKeys = new(StringComparer.Ordinal) { "radius", "do", "sound", "target", "speedFactor", "relocate" };
+    private static readonly HashSet<string> _fleeKeys = new(StringComparer.Ordinal) { "radius", "do", "sound", "target", "speedFactor", "escape", "maxRelocations" };
 
     /// <summary>Loads <c>reactions/*.json</c> raw so rules can override single fields; each file is parsed once against a neutral default to fail fast.</summary>
     public static (IReadOnlyDictionary<string, JObject> Sets, IReadOnlyList<ValidationIssue> Issues) LoadAll(string root) =>
@@ -66,7 +68,7 @@ public static class ReactionLoader
                     _ => throw new FormatException($"{file}: {choicePath}.if.nearWater must be a boolean."),
                 };
                 Season? season = Name<Season>(condition["season"], file, choicePath + ".if.season");
-                Weather? weather = Name<Weather>(condition["weather"], file, choicePath + ".if.weather");
+                ImmutableArray<Weather> weather = Weathers(condition["weather"], file, choicePath + ".if.weather");
                 IntRange? time = condition["timeOfDay"] is { } range ? new IntRange(
                     Int(range is JArray { Count: 2 } pair ? pair[0] : range, 600, 2600, file, choicePath + ".if.timeOfDay"),
                     Int(range is JArray { Count: 2 } times ? times[1] : range, 600, 2600, file, choicePath + ".if.timeOfDay")) : null;
@@ -77,8 +79,7 @@ public static class ReactionLoader
                 choices.Add(new ThreatAlternative(
                     new ReactionCondition(Text(condition["groupHasRole"], file, choicePath + ".if.groupHasRole"), nearWater, season, time, weather,
                         Text(condition["stage"], file, choicePath + ".if.stage")),
-                    defaults.Threat with { FleeRadius = radius, Relocate = fleeBody["relocate"] is { } alternativeRelocate
-                        ? ParseRelocate(alternativeRelocate, file, choicePath + ".flee.relocate") : defaults.Threat.Relocate },
+                    WithEscape(defaults.Threat with { FleeRadius = radius }, fleeBody, file, choicePath + ".flee"),
                     new ActionDefinition(primitive, null, Text(fleeBody["sound"], file, choicePath + ".flee.sound"), 1, null, null, null, null, null, false, null)));
             }
             return new Reactions(defaults.Threat, choices);
@@ -112,29 +113,41 @@ public static class ReactionLoader
             throw new FormatException($"{file}: {threatPath}.fleeRadius must be smaller than the alert radius ({alert.Radius}).");
         }
 
-        RelocateReaction? relocate = defaults.Threat.Relocate;
-        if (threat["relocate"] is { } relocateToken)
-        {
-            relocate = ParseRelocate(relocateToken, file, threatPath + ".relocate");
-        }
-
-        return new Reactions(new ThreatReaction(fleeRadius, alert, running, relocate));
+        return new Reactions(WithEscape(new ThreatReaction(fleeRadius, alert, running, defaults.Threat.Escape, defaults.Threat.MaxRelocations), threat, file, threatPath));
     }
 
-    private static RelocateReaction ParseRelocate(JToken token, string file, string path)
+    private static ThreatReaction WithEscape(ThreatReaction threat, JObject body, string file, string path)
     {
-        JObject body = Object(token, file, path, _relocateKeys);
-        double chance = body["chance"] switch
+        if (body["escape"] is { } escapeToken)
+        {
+            if (escapeToken is not JArray { Count: > 0 } options)
+            {
+                throw new FormatException($"{file}: {path}.escape must be a non-empty array.");
+            }
+            threat = threat with { Escape = options.Select((option, index) => ParseEscape(option, file, $"{path}.escape[{index}]")).ToImmutableArray() };
+        }
+        if (body["maxRelocations"] is { } count)
+        {
+            threat = threat with { MaxRelocations = Int(count, 1, 10, file, path + ".maxRelocations") };
+        }
+        return threat;
+    }
+
+    private static EscapeOption ParseEscape(JToken token, string file, string path)
+    {
+        JObject body = Object(token, file, path, _escapeKeys);
+        string target = Text(body["target"], file, path + ".target") ?? throw new FormatException($"{file}: {path}.target is required.");
+        if (!_escapeTargets.Contains(target))
+        {
+            throw new FormatException($"{file}: {path}.target has unknown value '{target}'. Use {string.Join(", ", _escapeTargets)}.");
+        }
+        double weight = body["weight"] switch
         {
             null => 1,
-            { Type: JTokenType.Float or JTokenType.Integer } value when value.Value<double>() is >= 0 and <= 1 => value.Value<double>(),
-            _ => throw new FormatException($"{file}: {path}.chance must be a number in [0, 1]."),
+            { Type: JTokenType.Float or JTokenType.Integer } value when value.Value<double>() > 0 => value.Value<double>(),
+            _ => throw new FormatException($"{file}: {path}.weight must be a number above 0."),
         };
-        return new RelocateReaction(
-            Text(body["target"], file, path + ".target") ?? throw new FormatException($"{file}: {path}.target is required."),
-            body["maxDistance"] is { } distance ? Int(distance, 2, 30, file, path + ".maxDistance") : 12,
-            body["maxRelocations"] is { } count ? Int(count, 1, 10, file, path + ".maxRelocations") : 1,
-            chance);
+        return new EscapeOption(target, weight, body["maxDistance"] is { } distance ? Int(distance, 2, 30, file, path + ".maxDistance") : 12);
     }
 
     private static JObject Object(JToken token, string file, string path, HashSet<string> keys)
@@ -145,6 +158,10 @@ public static class ReactionLoader
         }
         foreach (JProperty property in body.Properties().Where(property => !keys.Contains(property.Name)))
         {
+            if (property.Name == "relocate")
+            {
+                throw new FormatException($"{file}: {path}.relocate was replaced by escape: [{{ target, weight, maxDistance }}] plus maxRelocations.");
+            }
             throw new FormatException($"{file}: {path}.{property.Name} is not a known field. Known: {string.Join(", ", keys)}.");
         }
         return body;
@@ -161,6 +178,23 @@ public static class ReactionLoader
         { Type: JTokenType.String } value when value.Value<string>()!.Length > 0 => value.Value<string>(),
         _ => throw new FormatException($"{file}: {path} must be a non-empty string."),
     };
+
+    private static ImmutableArray<Weather> Weathers(JToken? token, string file, string path)
+    {
+        string[] names = token switch
+        {
+            null => Array.Empty<string>(),
+            JArray list => list.Select(item => Text(item, file, path) ?? throw new FormatException($"{file}: {path} must contain names.")).ToArray(),
+            _ => new[] { Text(token, file, path)! },
+        };
+        HashSet<Weather> result = new();
+        foreach (string name in names)
+        {
+            result.UnionWith(WeatherNames.TryExpand(name, out IReadOnlyList<Weather> expanded)
+                ? expanded : throw new FormatException($"{file}: {path} has unknown value '{name}'. Use {string.Join(", ", WeatherNames.Known)}."));
+        }
+        return result.Count == Enum.GetValues<Weather>().Length ? ImmutableArray<Weather>.Empty : result.OrderBy(weather => weather).ToImmutableArray();
+    }
 
     private static T? Name<T>(JToken? token, string file, string path) where T : struct, Enum
     {

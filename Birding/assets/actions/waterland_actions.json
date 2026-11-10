@@ -20,7 +20,8 @@
     },
     "swim": {
         "do": "swim",
-        "clip": "swim"
+        "clip": "swim",
+        "speed": 0.26
     },
     "flee": {
         "do": "flyOff",

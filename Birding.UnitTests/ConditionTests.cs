@@ -122,6 +122,35 @@ public class ConditionTests
         Assert.That(windows[2].Contains(2010), Is.False, "an empty window never contains a time");
     }
 
+    [TestCase("clear", Weather.Sun, true)]
+    [TestCase("clear", Weather.Wind, true)]
+    [TestCase("clear", Weather.Rain, false)]
+    [TestCase("clear", Weather.Storm, false)]
+    [TestCase("precipitation", Weather.Snow, true)]
+    [TestCase("precipitation", Weather.GreenRain, true)]
+    [TestCase("precipitation", Weather.Wind, false)]
+    [TestCase("rain", Weather.Storm, false)]
+    [TestCase("storm", Weather.Rain, false)]
+    [TestCase("any", Weather.Storm, true)]
+    public void Weather_GroupsExpandToConcreteWeathers(string name, Weather weather, bool matches)
+    {
+        (SpawnConditions conditions, List<string> errors) = Parse($@"{{""weather"":[""{name}""]}}");
+
+        Assert.That(errors, Is.Empty);
+        Assert.That(conditions.MatchesDay(Season.Spring, weather, 1), Is.EqualTo(matches));
+    }
+
+    [Test]
+    public void Weather_AnyIsUnconditionalAndUnknownIsRejected()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(Parse(@"{""weather"":[""any""]}").Conditions.IsUnconditional, Is.True);
+            Assert.That(Parse(@"{""weather"":[""clear"",""precipitation""]}").Conditions.IsUnconditional, Is.True);
+            Assert.That(Parse(@"{""weather"":[""hail""]}").Errors, Has.Count.EqualTo(1));
+        });
+    }
+
     [Test]
     public void Unconditional_ClauseOrEmptyWhenMatchesEverything()
     {

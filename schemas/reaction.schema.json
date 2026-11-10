@@ -52,7 +52,14 @@
                                         }
                                     },
                                     "weather": {
-                                        "$ref": "rule.schema.json#/properties/when/properties/weather/items"
+                                        "oneOf": [
+                                            {
+                                                "$ref": "rule.schema.json#/properties/when/properties/weather/items"
+                                            },
+                                            {
+                                                "$ref": "rule.schema.json#/properties/when/properties/weather"
+                                            }
+                                        ]
                                     },
                                     "stage": {
                                         "type": "string",
@@ -82,8 +89,11 @@
                                         "type": "string",
                                         "minLength": 1
                                     },
-                                    "relocate": {
-                                        "$ref": "#/$defs/relocate"
+                                    "escape": {
+                                        "$ref": "#/$defs/escape"
+                                    },
+                                    "maxRelocations": {
+                                        "$ref": "#/$defs/maxRelocations"
                                     }
                                 }
                             }
@@ -110,8 +120,11 @@
                     "minimum": 1,
                     "maximum": 4
                 },
-                "relocate": {
-                    "$ref": "#/$defs/relocate"
+                "escape": {
+                    "$ref": "#/$defs/escape"
+                },
+                "maxRelocations": {
+                    "$ref": "#/$defs/maxRelocations"
                 },
                 "alert": {
                     "description": "Land and water-land only. Inside this radius (larger than fleeRadius) a grounded bird freezes on the clip, then resumes after calmMs without a threat in the radius. Registers an observation.",
@@ -146,40 +159,44 @@
                 }
             }
         },
-        "relocate": {
-            "description": "Fly to a free target within maxDistance tiles and away from the threat, at most maxRelocations times. Chance defaults to 1.",
-            "type": "object",
-            "required": [
-                "target"
-            ],
-            "additionalProperties": false,
-            "properties": {
-                "target": {
-                    "enum": [
-                        "otherTree",
-                        "ground",
-                        "water",
-                        "any"
-                    ]
-                },
-                "maxDistance": {
-                    "description": "Tiles, default 12.",
-                    "type": "integer",
-                    "minimum": 2,
-                    "maximum": 30
-                },
-                "maxRelocations": {
-                    "description": "Default 1.",
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 10
-                },
-                "chance": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
+        "escape": {
+            "description": "Weighted ways to escape a threat. Options with no free spot within maxDistance tiles, away from the threat, are skipped; offscreen always qualifies. With no option left the bird flees.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "required": [
+                    "target"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "target": {
+                        "enum": [
+                            "ground",
+                            "water",
+                            "otherTree",
+                            "offscreen"
+                        ]
+                    },
+                    "weight": {
+                        "description": "Default 1.",
+                        "type": "number",
+                        "exclusiveMinimum": 0
+                    },
+                    "maxDistance": {
+                        "description": "Tiles, default 12.",
+                        "type": "integer",
+                        "minimum": 2,
+                        "maximum": 30
+                    }
                 }
             }
+        },
+        "maxRelocations": {
+            "description": "Nearby escapes before the bird flees for good. Default 1.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
         }
     }
 }

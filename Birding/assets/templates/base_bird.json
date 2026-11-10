@@ -1,10 +1,6 @@
 {
     "defaults": {
         "when": {
-            "weather": [
-                "sun",
-                "rain"
-            ],
             "days": [
                 [
                     1,

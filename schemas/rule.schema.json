@@ -35,12 +35,16 @@
                             "snow",
                             "wind",
                             "greenrain",
+                            "greenRain",
                             "Sun",
                             "Rain",
                             "Storm",
                             "Snow",
                             "Wind",
-                            "GreenRain"
+                            "GreenRain",
+                            "any",
+                            "clear",
+                            "precipitation"
                         ]
                     }
                 },

@@ -30,6 +30,7 @@ internal sealed class BushBird : BirdCritter
     {
         position.Y += 48f;
         sprite.loop = true;
+        State = BehaviorStatus.Stopped;
     }
 
     public BushBird SetAnchor(Vector2 tile, string? locationName)
@@ -53,6 +54,7 @@ internal sealed class BushBird : BirdCritter
         float runSpeed = Action("flee").Speed!.Value;
         if (IsReplica)
         {
+            AdvanceReplicaIdle();
             return UpdateReplica(time, State == BehaviorStatus.Running ? new Vector2(flip ? runSpeed : -runSpeed, 0f) : default);
         }
 
@@ -73,9 +75,14 @@ internal sealed class BushBird : BirdCritter
 
         Character? threat = PollThreat(time, environment, FlightDistance);
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
+        AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle);
         if (BirdBehaviors.Decide(BirdBehaviors.FleeOnly, context) == BirdAction.Flee && Utility.isOnScreen(position, -32))
         {
             StartRun(environment);
+        }
+        else if (State == BehaviorStatus.Stopped && sprite.CurrentAnimation == null)
+        {
+            ShowPose("stand");
         }
         return base.update(time, environment);
     }

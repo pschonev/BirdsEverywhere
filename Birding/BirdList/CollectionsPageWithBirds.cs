@@ -1,7 +1,8 @@
 using Birding.Domain;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewValley;
-using Microsoft.Xna.Framework.Graphics;
 using StardewValley.Menus;
 
 namespace Birding.BirdList;
@@ -9,8 +10,22 @@ namespace Birding.BirdList;
 internal class CollectionsPageWithBirds : CollectionsPage
 {
     private const int TooltipWidth = 320;
+    private const int Padding = 20;
+    private const float IconScale = 1.5f;
+    private const int IconSize = 24;
+    private const int IconGap = 8;
 
-    private (string Title, string Body)? _birdTooltip;
+    private static readonly Rectangle _boxSource = new(0, 256, 60, 60);
+    private static readonly Color _playerColor = new(60, 100, 170);
+    private static readonly Color _locationColor = new(50, 120, 70);
+    private static readonly Color _springColor = new(70, 140, 50);
+    private static readonly Color _summerColor = new(190, 130, 20);
+    private static readonly Color _fallColor = new(170, 80, 30);
+    private static readonly Color _winterColor = new(70, 120, 190);
+
+    private sealed record BirdTooltip(string Name, string ScientificName, string Description, string Player, string Location, string Date, string Season);
+
+    private BirdTooltip? _birdTooltip;
     private readonly IReflectedField<string> _hoverText;
     private readonly IReflectedField<int> _value;
     private readonly IReflectedField<Item?> _hoverItem;
@@ -111,20 +126,82 @@ internal class CollectionsPageWithBirds : CollectionsPage
     public override void draw(SpriteBatch b)
     {
         base.draw(b);
-        if (_birdTooltip is not var (title, body))
+        if (_birdTooltip is { } tooltip)
         {
-            return;
+            DrawBirdTooltip(b, tooltip);
+            drawMouse(b);
         }
-        drawHoverText(b, body, Game1.smallFont, boldTitleText: title);
-        drawMouse(b);
     }
 
-    private (string Title, string Body) GetBirdTooltip(string id)
+    private BirdTooltip GetBirdTooltip(string id)
     {
         BirdDefinition data = _catalog[id];
-        ObservationData obsData = _saveData.BirdObservations[id];
-        string firstSeen = _translation.Get("ui.first-seen", new { player = obsData.PlayerName, location = obsData.ObservationLocation, date = obsData.ObservationDate });
-        string description = Game1.parseText(BirdText.Description(_translation, data), Game1.smallFont, TooltipWidth);
-        return (BirdText.Name(_translation, data), $"{data.ScientificName}\n\n{description}\n\n{firstSeen}");
+        ObservationData obs = _saveData.BirdObservations[id];
+        return new BirdTooltip(
+            BirdText.Name(_translation, data),
+            data.ScientificName,
+            Game1.parseText(BirdText.Description(_translation, data), Game1.smallFont, TooltipWidth),
+            _translation.Get("ui.first-seen.player", new { player = obs.PlayerName }),
+            _translation.Get("ui.first-seen.location", new { location = obs.ObservationLocation }),
+            _translation.Get("ui.first-seen.date", new { date = obs.ObservationDate.ToLocaleString() }),
+            obs.ObservationDate.Season.ToString().ToLowerInvariant());
+    }
+
+    private static (string ItemId, Color Color) SeasonStyle(string season) => season switch
+    {
+        "spring" => ("(O)18", _springColor),
+        "summer" => ("(O)421", _summerColor),
+        "fall" => ("(O)276", _fallColor),
+        _ => ("(O)416", _winterColor),
+    };
+
+    private static void DrawBox(SpriteBatch b, int x, int y, int width, int height) =>
+        drawTextureBox(b, Game1.menuTexture, _boxSource, x, y, width, height, Color.White, 1f, drawShadow: false);
+
+    private static void DrawRow(SpriteBatch b, int x, int y, int rowHeight, string text, Color color, string? itemId)
+    {
+        if (itemId is null)
+        {
+            b.Draw(Game1.staminaRect, new Rectangle(x + (IconSize / 2) - 4, y + (rowHeight / 2) - 4, 8, 8), color);
+        }
+        else
+        {
+            var data = ItemRegistry.GetDataOrErrorItem(itemId);
+            b.Draw(data.GetTexture(), new Vector2(x, y + ((rowHeight - IconSize) / 2f)), data.GetSourceRect(), Color.White, 0f, Vector2.Zero, IconScale, SpriteEffects.None, 1f);
+        }
+        Utility.drawTextWithShadow(b, text, Game1.smallFont, new Vector2(x + IconSize + IconGap, y + ((rowHeight - Game1.smallFont.MeasureString(text).Y) / 2f)), color);
+    }
+
+    private static void DrawBirdTooltip(SpriteBatch b, BirdTooltip tip)
+    {
+        (string seasonItem, Color seasonColor) = SeasonStyle(tip.Season);
+        Vector2 nameSize = Game1.dialogueFont.MeasureString(tip.Name);
+        Vector2 scientificSize = Game1.smallFont.MeasureString(tip.ScientificName);
+        Vector2 descriptionSize = Game1.smallFont.MeasureString(tip.Description);
+        int rowHeight = Math.Max(IconSize, Game1.smallFont.LineSpacing) + 4;
+        float rowsWidth = IconSize + IconGap + Math.Max(Game1.smallFont.MeasureString(tip.Player).X, Math.Max(Game1.smallFont.MeasureString(tip.Location).X, Game1.smallFont.MeasureString(tip.Date).X));
+        int contentWidth = (int)Math.Max(TooltipWidth, Math.Max(nameSize.X, Math.Max(scientificSize.X, rowsWidth)));
+        int boxWidth = contentWidth + (2 * Padding);
+        int headerHeight = (int)(nameSize.Y + scientificSize.Y) + (2 * Padding);
+        int descriptionHeight = (int)descriptionSize.Y + (2 * Padding);
+        int footerHeight = (3 * rowHeight) + (2 * Padding);
+        int totalHeight = headerHeight + descriptionHeight + footerHeight;
+
+        int x = Math.Max(0, Math.Min(Game1.getMouseX() + 32, Game1.uiViewport.Width - boxWidth));
+        int y = Math.Max(0, Math.Min(Game1.getMouseY() + 32, Game1.uiViewport.Height - totalHeight));
+
+        DrawBox(b, x, y, boxWidth, headerHeight);
+        DrawBox(b, x, y + headerHeight, boxWidth, descriptionHeight);
+        DrawBox(b, x, y + headerHeight + descriptionHeight, boxWidth, footerHeight);
+
+        Utility.drawTextWithShadow(b, tip.Name, Game1.dialogueFont, new Vector2(x + Padding, y + Padding), Game1.textColor);
+        b.DrawString(Game1.smallFont, tip.ScientificName, new Vector2(x + Padding, y + Padding + nameSize.Y), Game1.textColor * 0.6f);
+        b.DrawString(Game1.smallFont, tip.Description, new Vector2(x + Padding, y + headerHeight + Padding), Game1.textColor);
+
+        int rowX = x + Padding;
+        int rowY = y + headerHeight + descriptionHeight + Padding;
+        DrawRow(b, rowX, rowY, rowHeight, tip.Player, _playerColor, null);
+        DrawRow(b, rowX, rowY + rowHeight, rowHeight, tip.Location, _locationColor, null);
+        DrawRow(b, rowX, rowY + (2 * rowHeight), rowHeight, tip.Date, seasonColor, seasonItem);
     }
 }

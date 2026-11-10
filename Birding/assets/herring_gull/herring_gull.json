@@ -10,6 +10,14 @@
     ],
     "spawnPattern": "WaterOrGroundSpawner",
     "birdType": "WaterLandBird",
+    "groupCount": [
+      1,
+      2
+    ],
+    "groupSize": [
+      1,
+      3
+    ],
     "reactions": {
       "threat": [
         {
@@ -25,12 +33,30 @@
           "flee": {
             "radius": 3,
             "do": "flyOff",
-            "relocate": {
-              "target": "any",
-              "chance": 0.7
-            }
+            "escape": [
+              {
+                "target": "water",
+                "weight": 0.4
+              },
+              {
+                "target": "ground",
+                "weight": 0.3
+              },
+              {
+                "target": "offscreen",
+                "weight": 0.3
+              }
+            ]
           }
         }
+      ]
+    }
+  },
+  "rules": {
+    "winter": {
+      "groupSize": [
+        2,
+        4
       ]
     }
   }

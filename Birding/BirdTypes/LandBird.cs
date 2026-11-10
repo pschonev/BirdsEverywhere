@@ -7,36 +7,20 @@ namespace Birding.BirdTypes;
 
 internal sealed class LandBird : BirdCritter
 {
-    private const float ArcHeight = 48f;
     private IReadOnlyList<IBirdBehavior>? _behaviors;
-    private Vector2 _relocateFrom;
 
     public override string BirdTypeName { get; } = "LandBird";
     public float FlightOffset { get; set; }
     public int WalkTimer { get; set; }
-    public int Relocations { get; set; }
-    public Vector2? RelocateTarget { get; set; }
 
     public LandBird() { }
 
-    internal override BirdState CaptureExtras(BirdState state) => state with { FlightOffset = FlightOffset, WalkTimer = WalkTimer, Relocations = Relocations, RelocateTarget = RelocateTarget };
+    internal override BirdState CaptureExtras(BirdState state) => state with { FlightOffset = FlightOffset, WalkTimer = WalkTimer };
 
     internal override void RestoreExtras(BirdState state)
     {
         FlightOffset = state.FlightOffset;
         WalkTimer = state.WalkTimer;
-        Relocations = state.Relocations;
-        RelocateTarget = state.RelocateTarget;
-        _relocateFrom = position;
-    }
-
-    protected override void ApplyReplicaExtras(BirdCritter source)
-    {
-        if (source is LandBird owner)
-        {
-            Relocations = owner.Relocations;
-            RelocateTarget = owner.RelocateTarget;
-        }
     }
 
     public LandBird(int tileX, int tileY, string birdName, string texture, BirdServices services, BehaviorStatus state = BehaviorStatus.Pecking)
@@ -196,31 +180,13 @@ internal sealed class LandBird : BirdCritter
 
     private static Vector2 TilePosition(Vector2 tile) => tile * 64f + new Vector2(32f, 32f);
 
-    private Vector2 Step(Vector2 target, float speed)
-    {
-        Vector2 delta = target - position;
-        return delta.Length() <= speed ? delta : Vector2.Normalize(delta) * speed;
-    }
-
-    private Vector2? RelocationTarget(GameLocation environment, Character threat)
-    {
-        if (Threat.Relocate is not { } relocate || Relocations >= relocate.MaxRelocations)
-        {
-            return null;
-        }
-        HashSet<Vector2> occupied = environment.critters?.OfType<BirdCritter>().Where(bird => bird != this)
-            .Select(bird => new Vector2((int)(bird.position.X / 64f), (int)(bird.position.Y / 64f))).ToHashSet() ?? new();
-        return Relocation.PickSurface(new Birding.Spawners.GameLocationQuery(environment), new Vector2((int)(position.X / 64f), (int)(position.Y / 64f)), threat.Tile, Threat, occupied, Rng);
-    }
+    private Vector2? RelocationTarget(GameLocation environment, Character threat) =>
+        EscapePlanner.Surface(new Birding.Spawners.GameLocationQuery(environment), OwnTile, threat.Tile, Threat, Relocations, OccupiedTiles(environment), Rng);
 
     private void StartRelocate(Vector2 tile, GameLocation environment)
     {
         PlayActionSound(Action("flee"));
-        AddBirdObservation(BirdName, environment.Name);
-        Relocations++;
-        RelocateTarget = tile;
-        _relocateFrom = position;
-        flip = TilePosition(tile).X > position.X;
+        BeginRelocation(tile, TilePosition(tile), environment);
         State = BehaviorStatus.Relocating;
         StartFlyAnimation();
     }
@@ -232,16 +198,10 @@ internal sealed class LandBird : BirdCritter
             State = BehaviorStatus.FlyingAway;
             return;
         }
-        Vector2 target = TilePosition(tile);
-        position += Step(target, speed);
-        float total = Vector2.Distance(_relocateFrom, target);
-        yOffset = total <= 0f ? 0f : Relocation.ArcOffset(1f - Vector2.Distance(position, target) / total, ArcHeight);
-        if (position != target)
+        if (!AdvanceRelocation(TilePosition(tile), speed))
         {
             return;
         }
-        yOffset = 0f;
-        RelocateTarget = null;
         startingPosition = position;
         State = BehaviorStatus.Stopped;
         sprite.loop = false;

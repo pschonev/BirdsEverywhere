@@ -253,13 +253,10 @@ public static class ContentValidator
                 }
                 foreach (ThreatAlternative alternative in alternatives)
                 {
-                    if (alternative.Threat.Relocate is { } choiceRelocate && !profile.RelocateTargets.Contains(choiceRelocate.Target))
+                    ReportEscapeTargets(alternative.Threat, rule.BirdType, profile, reactionPath + ".threat.flee.escape", report);
+                    if (alternative.Flee?.Do == "swimAway" && !alternative.Threat.Escape.IsEmpty)
                     {
-                        report(IssueSeverity.Error, reactionPath + ".threat.flee.relocate.target", $"{rule.BirdType} cannot relocate to '{choiceRelocate.Target}'. Known: {string.Join(", ", profile.RelocateTargets)}.");
-                    }
-                    if (alternative.Flee?.Do == "swimAway" && alternative.Threat.Relocate is not null)
-                    {
-                        report(IssueSeverity.Error, reactionPath + ".threat.flee.relocate", "Swimming reactions cannot relocate by flight.");
+                        report(IssueSeverity.Error, reactionPath + ".threat.flee.escape", "Swimming reactions cannot escape by flight.");
                     }
                     if (alternative.Flee?.Sound is { } sound && !sounds.ContainsKey(sound))
                     {
@@ -275,12 +272,7 @@ public static class ContentValidator
                     }
                 }
             }
-            if (reactions.Threat.Relocate is { } relocate && !profile.RelocateTargets.Contains(relocate.Target))
-            {
-                report(IssueSeverity.Error, reactionPath + ".threat.relocate.target", profile.RelocateTargets.Count == 0
-                    ? $"{rule.BirdType} cannot relocate."
-                    : $"{rule.BirdType} cannot relocate to '{relocate.Target}'. Known: {string.Join(", ", profile.RelocateTargets)}.");
-            }
+            ReportEscapeTargets(reactions.Threat, rule.BirdType, profile, reactionPath + ".threat.escape", report);
             if (reactions.Threat.Alert is { } alert)
             {
                 if (!profile.CanAlert)
@@ -660,6 +652,16 @@ public static class ContentValidator
         return issues.Any(issue => issue.Severity == IssueSeverity.Error)
             ? (null, issues)
             : (new BirdDefinition(new BirdId(json.Id), json.Name, json.ScientificName, rules.ToImmutable()) { Shorthand = json.Shorthand }, issues);
+    }
+
+    private static void ReportEscapeTargets(ThreatReaction threat, string birdType, BirdTypeProfile profile, string path, Action<IssueSeverity, string, string> report)
+    {
+        foreach (EscapeOption option in threat.Escape.Where(option => option.Target != EscapeOption.Offscreen && !profile.EscapeTargets.Contains(option.Target)))
+        {
+            report(IssueSeverity.Error, path, profile.EscapeTargets.Count == 0
+                ? $"{birdType} cannot escape to a nearby spot."
+                : $"{birdType} cannot escape to '{option.Target}'. Known: {string.Join(", ", profile.EscapeTargets)}, {EscapeOption.Offscreen}.");
+        }
     }
 
     private static IntRange ValidateRange(int[]? values, string path, int minimum, int maximum, Action<IssueSeverity, string, string> report)
