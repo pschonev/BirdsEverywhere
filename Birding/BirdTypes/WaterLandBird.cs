@@ -17,6 +17,9 @@ internal sealed class WaterLandBird : BirdCritter
     private Vector2 _swimDirection;
     private ActionDefinition? _activeFlee;
     private ThreatAlternative? _selectedThreat;
+    private ThreatAlternative? _flightAlternative;
+    private Vector2 _openWaterTile = new(-1f, -1f);
+    private bool _openWaterResult;
 
     public override string BirdTypeName { get; } = "WaterLandBird";
     public bool Hidden { get; set; }
@@ -142,14 +145,14 @@ internal sealed class WaterLandBird : BirdCritter
                 break;
             case BehaviorStatus.SwimmingAway:
                 Vector2 next = position + _swimDirection * flee.Speed!.Value;
-                if (environment.doesTileHaveProperty((int)(next.X / 64), (int)(next.Y / 64), "Water", "Back") != null)
+                if (IsOpenWater(environment, next))
                 {
                     position = next;
                     Swim(time, environment);
                 }
                 else
                 {
-                    State = BehaviorStatus.Swimming;
+                    StartFlee(position - _swimDirection * 64f, environment, swimBlocked: true);
                 }
                 break;
             case BehaviorStatus.FlyingAway:
@@ -205,17 +208,14 @@ internal sealed class WaterLandBird : BirdCritter
         ReactionContext context = new(roles, IsOnWater(environment), world?.Season ?? Domain.Season.Spring,
             world?.Weather ?? Weather.Sun, world?.Time ?? 600, Stage);
         _selectedThreat = Composition.Reactions.Select(context);
-        if (State == BehaviorStatus.SwimmingAway)
+        _flightAlternative = Composition.Reactions.Alternatives.FirstOrDefault(alternative => alternative.Flee?.Do == "flyOff" && alternative.Condition.Matches(context));
+        if (State == BehaviorStatus.SwimmingAway && _flightAlternative is { } flight)
         {
-            ThreatAlternative? flight = Composition.Reactions.Alternatives.FirstOrDefault(alternative => alternative.Flee?.Do == "flyOff" && alternative.Condition.Matches(context));
-            if (flight is not null)
+            (Character? closeThreat, bool closeAlerted) = ScanThreats(environment, flight.Threat);
+            if (closeThreat is not null)
             {
-                (Character? closeThreat, bool closeAlerted) = ScanThreats(environment, flight.Threat);
-                if (closeThreat is not null)
-                {
-                    _selectedThreat = flight;
-                    return (closeThreat, closeAlerted);
-                }
+                _selectedThreat = flight;
+                return (closeThreat, closeAlerted);
             }
         }
         return ScanThreats(environment, _selectedThreat.Threat);
@@ -352,7 +352,7 @@ internal sealed class WaterLandBird : BirdCritter
         }
     }
 
-    private void StartFlee(Vector2 threatPosition, GameLocation environment)
+    private void StartFlee(Vector2 threatPosition, GameLocation environment, bool swimBlocked = false)
     {
         ActionDefinition flee = Action("flee");
         if (_selectedThreat?.Flee is { } selected)
@@ -371,6 +371,12 @@ internal sealed class WaterLandBird : BirdCritter
         {
             flee = Services!.Actions["waterland_actions"]["flee"];
         }
+        if (flee.Do == "swimAway" && (swimBlocked || !IsOpenWater(environment, position + SwimDirectionAway(threatPosition) * 64f)))
+        {
+            _selectedThreat = _flightAlternative ?? _selectedThreat;
+            ActionDefinition flight = Services!.Actions["waterland_actions"]["flee"];
+            flee = flight with { Sound = _selectedThreat?.Flee?.Sound ?? flight.Sound };
+        }
         if (flee.Do != "swimAway" && RelocationTarget(environment, threatPosition) is { } tile)
         {
             StartRelocate(tile, flee, environment);
@@ -381,8 +387,7 @@ internal sealed class WaterLandBird : BirdCritter
         AddBirdObservation(BirdName, environment.Name);
         if (flee.Do == "swimAway")
         {
-            Vector2 difference = position - threatPosition;
-            _swimDirection = difference.LengthSquared() > 0 ? Vector2.Normalize(difference) : new Vector2(flip ? 1f : -1f, 0f);
+            _swimDirection = SwimDirectionAway(threatPosition);
             State = BehaviorStatus.SwimmingAway;
             flip = _swimDirection.X > 0;
             PlayClip(flee.Clip!, VisualRng);
@@ -391,6 +396,12 @@ internal sealed class WaterLandBird : BirdCritter
         State = BehaviorStatus.FlyingAway;
         flip = threatPosition.X <= position.X;
         StartFlyAnimation();
+    }
+
+    private Vector2 SwimDirectionAway(Vector2 threatPosition)
+    {
+        Vector2 difference = position - threatPosition;
+        return difference.LengthSquared() > 0 ? Vector2.Normalize(difference) : new Vector2(flip ? 1f : -1f, 0f);
     }
 
     private static Vector2 TilePosition(Vector2 tile) => tile * 64f;
@@ -487,7 +498,7 @@ internal sealed class WaterLandBird : BirdCritter
         }
         float step = flip ? 0.25f : -0.25f;
         Vector2 next = position + new Vector2(step, 0f);
-        if (Math.Abs(next.X - startingPosition.X) > 64f || !IsWater(environment, next))
+        if (Math.Abs(next.X - startingPosition.X) > 64f || !IsWater(environment, next) || (IsOpenWater(environment, position) && !IsOpenWater(environment, next)))
         {
             flip = !flip;
             return;
@@ -545,6 +556,17 @@ internal sealed class WaterLandBird : BirdCritter
 
     private static bool IsWater(GameLocation environment, Vector2 point) =>
         environment.doesTileHaveProperty((int)(point.X / 64), (int)(point.Y / 64), "Water", "Back") != null;
+
+    private bool IsOpenWater(GameLocation environment, Vector2 point)
+    {
+        Vector2 tile = new((int)(point.X / 64), (int)(point.Y / 64));
+        if (tile != _openWaterTile)
+        {
+            _openWaterTile = tile;
+            _openWaterResult = Birding.Spawners.TileRules.IsOpenWater(new Birding.Spawners.GameLocationQuery(environment), tile);
+        }
+        return _openWaterResult;
+    }
 
     private bool IsOnWater(GameLocation environment) =>
         environment.doesTileHaveProperty((int)(position.X / 64), (int)(position.Y / 64), "Water", "Back") != null;

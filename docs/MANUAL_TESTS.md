@@ -60,6 +60,14 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | W01 | Spawn a black woodpecker on a trunk with other mature trees around and approach from one side. | It flies to another trunk on the far side from you, not past you. |
 | W02 | Repeat with no tree on the far side. | It flees offscreen; it never hops toward you. |
 
+## Gull shore safety (one client)
+
+| ID | Action | Expected result |
+|---|---|---|
+| G01 | At the Beach, approach a swimming gull from the open-water side toward the pier. | It takes off before touching the shore; no left/right jitter beside the pier. |
+| G02 | Approach a gull standing on sand or the pier, then approach it again after it lands. | It flies to other ground or open water, and can do so a second time. |
+| G03 | Approach a gull on open water at 3 tiles. | It swims away first (radius 6), then flies if you keep closing in; it prefers landing on water. |
+
 ## Multiplayer synchronization (two SMAPI clients)
 
 | ID | Action | Expected result |

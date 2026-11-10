@@ -544,6 +544,7 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 - herring gull starting from water: `escape` `water` weighted above `ground`. Swimming after landing already works.
 - Escapes from land: a water-land bird on land can fly to other ground or back to water (land → land, land → water), not only offscreen.
 - Shore safety: swimming, drift and `swimAway` stay in open water. A blocked `swimAway` step escalates to the escape list instead of falling back to `Swimming`, and `swimAway` is not re-selected while blocked.
+- **Implemented (compile/test verified, not tested in game):** `WaterLandBird` tests `TileRules.IsOpenWater` (cached per tile) for each `swimAway` step and for `Drift`; a blocked step, or a `swimAway` that would start toward shore, calls `StartFlee` with the `flyOff` alternative so the escape list runs (water, ground, offscreen). `herring_gull.json` `flyOff` gets `maxRelocations: 2` so a gull can hop water → land → elsewhere; the existing `water` 0.4 > `ground` 0.3 weights already prefer water. Land → land and land → water use the same list, now with a budget above 1. Manual cases G01-G03.
 
 **F. Departures and return**
 

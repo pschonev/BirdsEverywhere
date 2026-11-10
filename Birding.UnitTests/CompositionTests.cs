@@ -282,7 +282,7 @@ public class CompositionTests
             {
                 new EscapeOption("water", 0.4, 12), new EscapeOption("ground", 0.3, 12), new EscapeOption(EscapeOption.Offscreen, 0.3, 12),
             }));
-            Assert.That(flight.Threat.MaxRelocations, Is.EqualTo(1));
+            Assert.That(flight.Threat.MaxRelocations, Is.EqualTo(2));
             Assert.That(reactions.Select(water with { NearWater = false }), Is.EqualTo(flight));
             Assert.That(ContentTests.LoadBird("herring_gull").Rules.First().Composition!.Actions["swim"].Speed, Is.EqualTo(0.26f));
         });

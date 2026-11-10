@@ -33,6 +33,7 @@
           "flee": {
             "radius": 3,
             "do": "flyOff",
+            "maxRelocations": 2,
             "escape": [
               {
                 "target": "water",
