@@ -103,6 +103,9 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | I03 | Stand in the middle of a flock. | Birds on each side flee away from you on their own side. |
 | I04 | Walk away after a flock scattered; wait 10 s. | Distant birds fly back to land near a mate, once. |
 | I05 | Let a flock fly offscreen, leave and re-enter. | Returning birds appear near a remaining mate. |
+| I06 | Spook a bird, then run to its landing spot while it flies. | It re-targets mid-flight to another spot away from you. |
+| I07 | Spook a bird with one player on each side. | No spot is free, so it flies offscreen. |
+| I08 | Repeat I06 many times on one bird. | At most two mid-flight changes per flight, no zigzag; tits, gulls and woodpeckers behave the same. |
 
 ## Multiplayer synchronization (two SMAPI clients)
 

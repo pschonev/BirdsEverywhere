@@ -179,6 +179,23 @@ internal static class EscapePlanner
             .OrderBy(tile => tile.X).ThenBy(tile => tile.Y)
             .ToList();
 
+    /// <summary>Whether a flight from <paramref name="from"/> to <paramref name="target"/> should be re-planned: a farmer is near the spot or the line, or the spot is taken.</summary>
+    public static bool NeedsRetarget(ILocationQuery query, Vector2 from, Vector2 target, int fleeRadius, IReadOnlyCollection<Vector2> occupied)
+    {
+        if (occupied.Contains(target))
+        {
+            return true;
+        }
+        foreach (Vector2 farmer in query.FarmerTiles)
+        {
+            if (Vector2.Distance(target, farmer) <= fleeRadius + 1 || !ClearFlightLine(from, target, farmer))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static bool ClearFlightLine(Vector2 from, Vector2 tile, Vector2 threat) =>
         DistanceToSegment(threat, from, tile) + 0.01f >= MathF.Min(FlightLineTiles, Vector2.Distance(threat, from));
 

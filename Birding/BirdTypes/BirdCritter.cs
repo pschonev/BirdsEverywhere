@@ -16,6 +16,8 @@ internal abstract class BirdCritter : Critter
     private const int ThreatCheckIntervalMs = 200;
     private const int DiscoveryRadiusTiles = 8;
     private const float RelocateArcHeight = 48f;
+    private const int RetargetIntervalMs = 300;
+    private const int MaxRetargets = 2;
     private const double RelocationCalmMs = 30000;
 
     private long _birdID;
@@ -41,6 +43,10 @@ internal abstract class BirdCritter : Critter
 
     /// <summary>Where the current relocation flight started; restored birds restart the arc from their position.</summary>
     internal Vector2 RelocateFrom { get; set; }
+
+    private int _retargetTimerMs = RetargetIntervalMs;
+
+    private int _retargets;
 
     public long BirdID
     {
@@ -707,6 +713,37 @@ internal abstract class BirdCritter : Critter
         flip = target.X > position.X;
     }
 
+    /// <summary>Tiles a retargeted flight must avoid; trunk birds override with their own occupancy.</summary>
+    protected virtual HashSet<Vector2> RetargetOccupied(GameLocation location) => OccupiedTiles(location);
+
+    /// <summary>Owner side, every 300 ms and at most twice per flight: the farmer to flee from when the flight target became unsafe, else null.</summary>
+    protected Farmer? RetargetThreat(GameTime time, GameLocation location)
+    {
+        _retargetTimerMs -= time.ElapsedGameTime.Milliseconds;
+        if (_retargetTimerMs > 0 || IsReplica || _retargets >= MaxRetargets || RelocateTarget is not { } target)
+        {
+            return null;
+        }
+        _retargetTimerMs = RetargetIntervalMs;
+        if (!EscapePlanner.NeedsRetarget(new GameLocationQuery(location), OwnTile, target, Threat.FleeRadius, RetargetOccupied(location)))
+        {
+            return null;
+        }
+        Farmer? nearest = null;
+        foreach (Farmer farmer in location.farmers)
+        {
+            if (nearest == null || Vector2.DistanceSquared(farmer.Position, position) < Vector2.DistanceSquared(nearest.Position, position))
+            {
+                nearest = farmer;
+            }
+        }
+        if (nearest != null)
+        {
+            _retargets++;
+        }
+        return nearest;
+    }
+
     /// <summary>The velocity towards <paramref name="target"/>, capped at <paramref name="speed"/>.</summary>
     protected Vector2 Step(Vector2 target, float speed)
     {
@@ -726,6 +763,7 @@ internal abstract class BirdCritter : Critter
         }
         yOffset = 0f;
         RelocateTarget = null;
+        _retargets = 0;
         return true;
     }
 

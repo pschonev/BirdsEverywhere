@@ -81,7 +81,22 @@ internal sealed class TreeTrunkBird : BirdCritter
 
         if (State == BehaviorStatus.Relocating)
         {
-            Fly(environment, flee.Speed!.Value);
+            if (RetargetThreat(time, environment) is { } farmer)
+            {
+                if (RelocationTarget(environment, farmer) is { } tree)
+                {
+                    StartRelocate(tree, environment);
+                }
+                else
+                {
+                    RelocateTarget = null;
+                    StartFlee(farmer, environment);
+                }
+            }
+            if (State == BehaviorStatus.Relocating)
+            {
+                Fly(environment, flee.Speed!.Value);
+            }
             return UpdateAndReportDeparture(time, environment);
         }
         if (environment == null || sprite == null || _tree == null)
@@ -133,10 +148,12 @@ internal sealed class TreeTrunkBird : BirdCritter
         {
             return null;
         }
-        HashSet<Vector2> occupied = environment.critters?.OfType<TreeTrunkBird>().Where(bird => bird != this)
-            .SelectMany(bird => bird.RelocateTarget is { } target ? new[] { bird.AnchorTile, target } : new[] { bird.AnchorTile }).ToHashSet() ?? new();
-        return Record(EscapePlanner.Tree(new Spawners.GameLocationQuery(environment), AnchorTile, threat.Tile, Threat, Relocations, occupied, Rng, Flock(environment, threat.Tile)))?.Tile;
+        return Record(EscapePlanner.Tree(new Spawners.GameLocationQuery(environment), AnchorTile, threat.Tile, Threat, Relocations, RetargetOccupied(environment), Rng, Flock(environment, threat.Tile)))?.Tile;
     }
+
+    protected override HashSet<Vector2> RetargetOccupied(GameLocation environment) =>
+        environment.critters?.OfType<TreeTrunkBird>().Where(bird => bird != this)
+            .SelectMany(bird => bird.RelocateTarget is { } target ? new[] { bird.AnchorTile, target } : new[] { bird.AnchorTile }).ToHashSet() ?? new();
 
     private void StartRelocate(Vector2 tree, GameLocation environment)
     {

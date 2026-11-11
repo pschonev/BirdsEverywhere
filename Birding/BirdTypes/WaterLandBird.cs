@@ -104,7 +104,14 @@ internal sealed class WaterLandBird : BirdCritter
 
         if (State == BehaviorStatus.Relocating)
         {
-            Fly(environment, flee.Speed!.Value);
+            if (RetargetThreat(time, environment) is { } farmer)
+            {
+                Retarget(farmer.Position, environment);
+            }
+            if (State == BehaviorStatus.Relocating)
+            {
+                Fly(environment, flee.Speed!.Value);
+            }
             return UpdateAndReportDeparture(time, environment);
         }
 
@@ -419,6 +426,19 @@ internal sealed class WaterLandBird : BirdCritter
     private Vector2? RelocationTarget(GameLocation environment, Vector2 threatPosition) =>
         Record(EscapePlanner.Surface(new Birding.Spawners.GameLocationQuery(environment), OwnTile, threatPosition / 64f, _selectedThreat?.Threat ?? Threat,
             Relocations, OccupiedTiles(environment), Rng, Flock(environment, threatPosition / 64f)))?.Tile;
+
+    private void Retarget(Vector2 threatPosition, GameLocation environment)
+    {
+        if (RelocationTarget(environment, threatPosition) is { } tile)
+        {
+            StartRelocate(tile, _activeFlee ?? Action("flee"), environment);
+            return;
+        }
+        RelocateTarget = null;
+        State = BehaviorStatus.FlyingAway;
+        flip = threatPosition.X <= position.X;
+        StartFlyAnimation();
+    }
 
     private void StartRelocate(Vector2 tile, ActionDefinition flee, GameLocation environment, bool counted = true)
     {

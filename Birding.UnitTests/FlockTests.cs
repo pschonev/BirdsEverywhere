@@ -128,6 +128,31 @@ internal sealed class FlockTests
     }
 
     [Test]
+    public void Retarget_SafeSpot_KeepsFlying()
+    {
+        Field field = new() { FarmerTiles = new[] { new Vector2(2, 10) } };
+        Assert.That(EscapePlanner.NeedsRetarget(field, new(10, 10), new(20, 10), 4, Array.Empty<Vector2>()), Is.False);
+    }
+
+    [Test]
+    public void Retarget_FarmerNearSpot_Replans()
+    {
+        Field field = new() { FarmerTiles = new[] { new Vector2(22, 10) } };
+        Assert.That(EscapePlanner.NeedsRetarget(field, new(10, 10), new(20, 10), 4, Array.Empty<Vector2>()), Is.True);
+    }
+
+    [Test]
+    public void Retarget_FarmerOnFlightLine_Replans()
+    {
+        Field field = new() { FarmerTiles = new[] { new Vector2(15, 11) } };
+        Assert.That(EscapePlanner.NeedsRetarget(field, new(10, 10), new(20, 10), 4, Array.Empty<Vector2>()), Is.True);
+    }
+
+    [Test]
+    public void Retarget_SpotTaken_Replans() =>
+        Assert.That(EscapePlanner.NeedsRetarget(new Field(), new(10, 10), new(20, 10), 4, new[] { new Vector2(20, 10) }), Is.True);
+
+    [Test]
     public void Planner_FarmerMidGroup_BlocksLandingBehindThem()
     {
         Field field = new() { FarmerTiles = new[] { new Vector2(12, 10) } };

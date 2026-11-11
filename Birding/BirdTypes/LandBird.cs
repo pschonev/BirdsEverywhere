@@ -69,7 +69,16 @@ internal sealed class LandBird : BirdCritter
 
         if (State == BehaviorStatus.Relocating)
         {
-            Fly(flee.Speed!.Value);
+            if (RetargetThreat(time, environment) is { } farmer)
+            {
+                RelocateTarget = null;
+                HideTree = null;
+                Escape(farmer, environment);
+            }
+            if (State == BehaviorStatus.Relocating)
+            {
+                Fly(flee.Speed!.Value);
+            }
             return UpdateAndReportDeparture(time, environment);
         }
 
@@ -136,16 +145,7 @@ internal sealed class LandBird : BirdCritter
         switch (action)
         {
             case BirdAction.Flee:
-                if (RelocationTarget(environment, threat!) is { } choice)
-                {
-                    HideTree = choice.Option.Target == EscapeOption.Tree ? choice.Tile : null;
-                    HideTimer = choice.Option.HideForMs;
-                    StartRelocate(choice.Tile, environment, counted: true);
-                }
-                else
-                {
-                    StartFlee(threat!.Position.X <= position.X, environment);
-                }
+                Escape(threat!, environment);
                 break;
             case BirdAction.Alert:
                 StartAlert(environment);
@@ -205,6 +205,20 @@ internal sealed class LandBird : BirdCritter
         AddBirdObservation(BirdName, environment.Name);
         flip = flyRight;
         StartFlyAnimation();
+    }
+
+    private void Escape(Character threat, GameLocation environment)
+    {
+        if (RelocationTarget(environment, threat) is { } choice)
+        {
+            HideTree = choice.Option.Target == EscapeOption.Tree ? choice.Tile : null;
+            HideTimer = choice.Option.HideForMs;
+            StartRelocate(choice.Tile, environment, counted: true);
+        }
+        else
+        {
+            StartFlee(threat.Position.X <= position.X, environment);
+        }
     }
 
     private static Vector2 TilePosition(Vector2 tile) => tile * 64f + new Vector2(32f, 32f);

@@ -588,7 +588,7 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 - Shipped content: tit, finch and sparrow `tight_flock`; crow and gull `loose_flock`; mallard family `tight_flock` for the parents.
 - Tests: `fan` 0 changes no pick and `fan` 1 sends birds on opposite sides of a farmer to opposite sides; two farmers with one free side flee there, and with none fall through to offscreen; `rejoin` target rejected near a second farmer and delayed within `rejoinDelayMs`; wave reach and determinism for fixed seeds and a fixed id order; `spread` 0 behaves as today with no RNG drift; `spread` 1 informs the whole connected group and not a distant one beyond `linkRadius`; delay scaling; `sameOutcome` 1 and 0; eligibility with a farmer in the middle of a group (no flight line through the farmer, birds on opposite sides go opposite ways, two anchors); rally anchor reuse and fallback to own pick; skipped fleeing, hiding and departed birds; `rejoin` only when calm, only once per calm period; preset `extends` and unknown-key errors; schema/loader agreement. Each rule is asserted in one layer only.
 
-**I2. In-flight retarget** (after I; it reuses rally anchors and the flight-line rule)
+**I2. In-flight retarget** (after I; it reuses rally anchors and the flight-line rule). **Implemented** (compile and unit tests): `EscapePlanner.NeedsRetarget` is covered by `FlockTests`; the farmers-on-both-sides escalation relies on `Choose` returning null, already covered by the planner tests; in-game checks are I06–I08 in `MANUAL_TESTS.md`.
 
 - Design: [Group cohesion → In-flight retarget](ARCHITECTURE.md#group-cohesion-step-9).
 - One shared check in the escape code, run on the owner about every 300 ms for `Relocating` birds of every type: landing spot unsafe (farmer within `fleeRadius + 1`, flight line within 2 tiles of a farmer) or no longer eligible. On a hit it re-plans from the current tile with the normal eligibility rules, preferring a rally anchor, and escalates to offscreen when nothing is eligible.
@@ -621,7 +621,7 @@ The refactor is done when every box is checked. Phase sections hold the details;
 - [ ] Phase 10 step 2: in-game check (see step 2), including whether the `"flip"` frame tags are visible.
 - [ ] Phase 10 steps 3–7: exit criteria met.
 - [ ] Phase 10 step 8: implemented (compile and unit tests pass); in-game and two-player checks still to be recorded.
-- [ ] Phase 10 step 9: escape options, canopy hide, exclusive actions, departures and return, group cohesion, in-flight retarget, reachability and Beach bridge progression, bush cover and approach side. Steps 9.0, A–D, F–H implemented (compile and unit tests); I, I2 and E planned.
+- [ ] Phase 10 step 9: escape options, canopy hide, exclusive actions, departures and return, group cohesion, in-flight retarget, reachability and Beach bridge progression, bush cover and approach side. Steps 9.0, A–D, F–I2 implemented (compile and unit tests); E planned.
 - [ ] Phase 9 smoke test and full pass recorded before release.
 
 ---
