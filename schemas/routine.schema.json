@@ -41,6 +41,20 @@
                     },
                     "when": {
                         "$ref": "rule.schema.json#/properties/when"
+                    },
+                    "if": {
+                        "description": "The bird's own group role must match; ungrouped birds never match.",
+                        "type": "object",
+                        "required": [
+                            "role"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "role": {
+                                "type": "string",
+                                "minLength": 1
+                            }
+                        }
                     }
                 }
             }

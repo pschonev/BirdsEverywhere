@@ -234,6 +234,15 @@ internal sealed class BirdBehaviorTests
     public void Routine_ConditionalRareNeverFiresWithoutAWorld() =>
         Assert.That(_forager.Choose(new FixedRandom(0, 0), _ => true, null), Is.EqualTo("peck"));
 
+    [TestCase("male", "song")]
+    [TestCase("female", "peck")]
+    [TestCase(null, "peck")]
+    public void Routine_RoleGatedRareOnlyFiresForThatRole(string? role, string expected)
+    {
+        Birding.Domain.Routine routine = _forager with { Rare = new[] { new Birding.Domain.RareAction("song", 0.5, Birding.Domain.SpawnConditions.Always, "male") } };
+        Assert.That(routine.Choose(new FixedRandom(0.1, 0), id => id != "dive", null, role), Is.EqualTo(expected));
+    }
+
     [Test]
     public void Routine_FilterRestrictsPicksAndHasOptions() =>
         Assert.Multiple(() =>

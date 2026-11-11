@@ -195,6 +195,10 @@ public static class ContentValidator
             {
                 report(IssueSeverity.Error, routinePath + ".pick", $"{rule.BirdType} cannot perform action '{action}'. Known: {string.Join(", ", pickable)}.");
             }
+            foreach (RareAction rare in (routine.Rare ?? Array.Empty<RareAction>()).Where(rare => rare.Role is { } role && rule.SpawnParams?.Group?.Members?.ContainsKey(role) != true))
+            {
+                report(IssueSeverity.Error, $"{routinePath}.rare.{rare.Id}.if.role", $"Unknown group role '{rare.Role}'.");
+            }
             foreach ((string action, IReadOnlyList<WeightedId> options) in routine.Next)
             {
                 if (!profile.FollowUps.TryGetValue(action, out IReadOnlyList<string>? allowed))
@@ -662,10 +666,14 @@ public static class ContentValidator
                         });
                         if (parent.Rare is { } rare)
                         {
-                            resolved["rare"] = JObject.FromObject(rare.ToDictionary(action => action.Id, action => new
+                            resolved["rare"] = new JObject(rare.Select(action =>
                             {
-                                chance = action.Chance,
-                                when = ConditionParser.ToJson(action.When),
+                                JObject entry = JObject.FromObject(new { chance = action.Chance, when = ConditionParser.ToJson(action.When) });
+                                if (action.Role is { } role)
+                                {
+                                    entry["if"] = new JObject { ["role"] = role };
+                                }
+                                return new JProperty(action.Id, entry);
                             }));
                         }
                         JObject overrides = (JObject)inline.DeepClone();

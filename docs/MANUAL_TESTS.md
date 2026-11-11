@@ -122,6 +122,8 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | M09 | If a controllable delayed network is available, repeat M02 and M03 with added latency. | Motion continues locally, late reactions start without rewind, snapshots correct drift, no duplicate birds or permanent divergent state. Mark Blocked if delay cannot be applied reliably. |
 | M10 | Keep both players connected through sleep/day change; revisit a previously populated location. | New plan is shared, stale birds disappear and today's birds appear only once; consoles show no sync errors. |
 | M11 | With both players watching a gull, approach it from water and from land until it relocates; repeat after an owner handoff. | Flight and the final water/land state agree on both clients, with no duplicate observations or stranded replicas. |
+| M12 | Using a test species with an `exclusive` stay action and several birds in view, watch for 5 minutes. | Never two birds run the exclusive action at once; the cooldown gap is respected; fleeing mid-action frees the lock. |
+| M13 | With both players watching, repeat M12, then hand off ownership (the owner leaves). | The new owner keeps at most one holder; replicas show only the owner's picks. |
 
 ## Result log
 

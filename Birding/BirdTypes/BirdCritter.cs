@@ -235,7 +235,8 @@ internal abstract class BirdCritter : Critter
 
     protected BirdAction AdvanceIdle(Routine routine, bool eligible, Func<string, bool>? allowed = null)
     {
-        allowed ??= _ => true;
+        Func<string, bool> permitted = allowed ?? (_ => true);
+        allowed = id => permitted(id) && !LockBlocked(id);
         IdleTick++;
         if (!eligible)
         {
@@ -257,7 +258,7 @@ internal abstract class BirdCritter : Critter
                 {
                     continue;
                 }
-                if (routine.Choose(_scheduleRandom, allowed, Services?.World?.Invoke()) is not { } picked)
+                if (routine.Choose(_scheduleRandom, allowed, Services?.World?.Invoke(), Role) is not { } picked)
                 {
                     break;
                 }
@@ -291,9 +292,47 @@ internal abstract class BirdCritter : Critter
         }
 
         ActionDefinition custom = Action(id);
+        if (custom.Exclusive is { } lockName && !IsReplica && !TryTakeLock(lockName, custom.ExclusiveCooldownMs))
+        {
+            return BirdAction.None;
+        }
         PlayActionSound(custom);
         StartCustomAction(custom);
         return BirdAction.None;
+    }
+
+    private string? _heldLock;
+    private int _heldCooldownMs;
+
+    private static double NowMs => Game1.currentGameTime?.TotalGameTime.TotalMilliseconds ?? 0;
+
+    private string? LockKey(string lockName) => CurrentLocation is { } location && Services?.Locks != null ? location.NameOrUniqueName + "/" + lockName : null;
+
+    private bool LockBlocked(string id) =>
+        !BirdActionIds.TryParse(id, out _) && Action(id).Exclusive is { } lockName && LockKey(lockName) is { } key && Services!.Locks!.IsBlocked(key, NowMs);
+
+    private bool TryTakeLock(string lockName, int cooldownMs)
+    {
+        if (LockKey(lockName) is not { } key)
+        {
+            return true;
+        }
+        if (!Services!.Locks!.TryAcquire(key, BirdID, NowMs))
+        {
+            return false;
+        }
+        _heldLock = lockName;
+        _heldCooldownMs = cooldownMs;
+        return true;
+    }
+
+    private void ReleaseLock()
+    {
+        if (_heldLock is { } lockName && LockKey(lockName) is { } key)
+        {
+            Services!.Locks!.Release(key, BirdID, NowMs, _heldCooldownMs);
+        }
+        _heldLock = null;
     }
 
     /// <summary>Runs a custom action by primitive; the base handles <c>stay</c> (play the clip, stay stopped).</summary>
@@ -673,6 +712,10 @@ internal abstract class BirdCritter : Critter
     protected bool UpdateAndReportDeparture(GameTime time, GameLocation environment)
     {
         bool remove = base.update(time, environment);
+        if (_heldLock != null && (remove || State is not (BehaviorStatus.Stopped or BehaviorStatus.Swimming) || sprite.CurrentAnimation == null))
+        {
+            ReleaseLock();
+        }
         if (remove && !IsReplica && State is BehaviorStatus.FlyingAway or BehaviorStatus.SwimmingAway or BehaviorStatus.Running)
         {
             Services?.Departed?.Invoke(environment.Name, BirdID);

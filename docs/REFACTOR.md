@@ -595,7 +595,7 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 - Counts against the relocation budget; at most two retargets per flight. No new `BirdState` field (`RelocateTarget` already syncs); the retarget timer is runtime only. Replicas unchanged.
 - Tests: no retarget while the spot stays safe; retarget when a farmer walks onto the spot or the line; second farmer from the other side leaves no spot and escalates to offscreen; the two-retarget cap and no zigzag over N ticks; budget accounting; prefers a rally anchor; trunk and water-land birds use the same path; replica unaffected. Each rule is asserted in one layer only.
 
-**E. Exclusive actions and sex roles**
+**E. Exclusive actions and sex roles** (engine implemented; great tit roles and song deferred until song art, audio and a group-size plan exist)
 
 - Action fields `exclusive` and `exclusiveCooldownMs`. A per-location lock table owned by the location owner: not saved, reset on ownership change, released on action end, flee, hide or despawn.
 - Routine `rare.if` with context condition keys, plus a new `role` key.
@@ -621,7 +621,7 @@ The refactor is done when every box is checked. Phase sections hold the details;
 - [ ] Phase 10 step 2: in-game check (see step 2), including whether the `"flip"` frame tags are visible.
 - [ ] Phase 10 steps 3–7: exit criteria met.
 - [ ] Phase 10 step 8: implemented (compile and unit tests pass); in-game and two-player checks still to be recorded.
-- [ ] Phase 10 step 9: escape options, canopy hide, exclusive actions, departures and return, group cohesion, in-flight retarget, reachability and Beach bridge progression, bush cover and approach side. Steps 9.0, A–D, F–I2 implemented (compile and unit tests); E planned.
+- [ ] Phase 10 step 9: escape options, canopy hide, exclusive actions, departures and return, group cohesion, in-flight retarget, reachability and Beach bridge progression, bush cover and approach side. Steps 9.0, A–D, E–I2 implemented (compile and unit tests); great tit male/female roles and song deferred.
 - [ ] Phase 9 smoke test and full pass recorded before release.
 
 ---

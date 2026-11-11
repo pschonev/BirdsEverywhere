@@ -9,7 +9,7 @@ public static class ActionLoader
 
     private static readonly HashSet<string> _keys = new(StringComparer.Ordinal)
     {
-        "do", "clip", "sound", "soundChance", "durationMs", "endChance", "speed", "climb", "impulse", "turn", "pauseMs", "hiddenMs", "radius", "target", "speedFactor",
+        "do", "clip", "sound", "soundChance", "durationMs", "endChance", "speed", "climb", "impulse", "turn", "pauseMs", "hiddenMs", "radius", "target", "speedFactor", "exclusive", "exclusiveCooldownMs",
     };
 
     /// <summary>Loads <c>actions/*.json</c> sets (action id → definition) as raw objects so rules can override single fields; each set is parsed once to fail fast.</summary>
@@ -58,7 +58,14 @@ public static class ActionLoader
                 ? radius.Type == JTokenType.Integer && radius.Value<int>() is >= 1 and <= 10 ? radius.Value<int>() : throw new FormatException($"{file}: {path}.radius must be an integer from 1 to 10.")
                 : null,
             Text(body, "target", file, path),
-            Number(body, "speedFactor", file, path));
+            Number(body, "speedFactor", file, path),
+            Text(body, "exclusive", file, path),
+            body["exclusiveCooldownMs"] switch
+            {
+                null => 0,
+                { Type: JTokenType.Integer } value when value.Value<int>() >= 0 => value.Value<int>(),
+                _ => throw new FormatException($"{file}: {path}.exclusiveCooldownMs must be a non-negative integer."),
+            });
 
         string? missing = action.Do switch
         {

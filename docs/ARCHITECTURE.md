@@ -836,7 +836,7 @@ Reactions (and routine `rare.when`) can branch on context. A list of alternative
 ]
 ```
 
-Condition keys are a fixed C# vocabulary: `groupHasRole`, `nearWater`, `season`, `timeOfDay`, `weather`, `stage` (planned: `role`, the bird's own role, see [Behavior coordination](#behavior-coordination-planned-step-9)). Keys in one object are ANDed; there is no OR/NOT inside an object (use separate alternatives).
+Condition keys are a fixed C# vocabulary: `groupHasRole`, `nearWater`, `season`, `timeOfDay`, `weather`, `stage` (routine `rare.if` takes only `role`, the bird's own role, see [Behavior coordination](#behavior-coordination-planned-step-9)). Keys in one object are ANDed; there is no OR/NOT inside an object (use separate alternatives).
 
 Member fields (step 8, implemented):
 
@@ -865,6 +865,8 @@ Some actions look wrong when several birds do them at once. For example, a signa
 - Each location has one lock table, owned by the location owner (see [Multiplayer ownership](#multiplayer-ownership)). It maps a lock name to the holder bird id and the time it becomes free. It is runtime state only: not saved and not in `BirdState`. A new owner starts with an empty table. Replicas never check locks; they just render the action the owner picked.
 - The routine skips an action whose lock is held or still cooling down, and the roll is not repeated, so lock state never shifts the RNG of other picks. The bird takes the lock when the action starts. The lock is released when the action ends, the bird flees, hides or despawns, or the location unloads; after release it stays blocked for `exclusiveCooldownMs` (default 0).
 - Only routine and `rare` actions can be exclusive; reactions always run.
+
+Status: engine implemented (compile and unit tests only). `ExclusiveLocks` is a runtime table in `BirdServices`, keyed by location and lock name. The schedule-time pick skips blocked actions without an extra draw, and the owner re-checks and takes the lock when the cue fires; if another bird won it meanwhile the cue is dropped. The bird releases it when the clip ends, it leaves `Stopped`/`Swimming` (flee, hide), or it despawns. A lock is never held longer than 30 s, so a vanished holder cannot block a location. `rare.if` accepts only `role`, validated against the rule's group members. Not done: the great tit `male`/`female` roles and the song (no song art or audio yet, and the shared `garden_flock` template varies group size, which fixed member counts would conflict with).
 
 **Sex as roles.** Sex is a group role, not a new trait. A species that needs it lists `male`/`female` members. Members can share textures, since role and texture are picked separately, so great tits need no new art. `required: true` with `count` min ≥ 1 guarantees each placed group has a male, and the group is dropped if no male can be placed.
 

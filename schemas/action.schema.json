@@ -82,6 +82,16 @@
                     "description": "follow: multiple of the target's speed.",
                     "type": "number",
                     "minimum": 0
+                },
+                "exclusive": {
+                    "description": "Routine/rare actions only: lock name; one bird per location runs an action holding it at a time (shared across species). Reactions ignore it.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                "exclusiveCooldownMs": {
+                    "description": "Milliseconds the lock stays blocked after the action ends (default 0).",
+                    "type": "integer",
+                    "minimum": 0
                 }
             },
             "allOf": [
@@ -267,6 +277,12 @@
                 },
                 "speedFactor": {
                     "$ref": "#/$defs/action/properties/speedFactor"
+                },
+                "exclusive": {
+                    "$ref": "#/$defs/action/properties/exclusive"
+                },
+                "exclusiveCooldownMs": {
+                    "$ref": "#/$defs/action/properties/exclusiveCooldownMs"
                 },
                 "extends": {
                     "description": "New action ids only: '<set>.<id>' of a shared action (e.g. forage.dive) this one overrides.",

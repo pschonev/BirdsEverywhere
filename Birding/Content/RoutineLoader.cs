@@ -6,7 +6,7 @@ namespace Birding.Content;
 public static class RoutineLoader
 {
     private static readonly HashSet<string> _keys = new(StringComparer.Ordinal) { "chance", "pick", "next", "rare" };
-    private static readonly HashSet<string> _rareKeys = new(StringComparer.Ordinal) { "chance", "when" };
+    private static readonly HashSet<string> _rareKeys = new(StringComparer.Ordinal) { "chance", "when", "if" };
 
     public static (IReadOnlyDictionary<string, Routine> Routines, IReadOnlyList<ValidationIssue> Issues) LoadAll(string root) =>
         DefinitionFiles.LoadAll(ContentPaths.RoutinesDirectory(root), (_, json, file) => Parse(JToken.Parse(json), file, "$"));
@@ -70,9 +70,22 @@ public static class RoutineLoader
             {
                 throw new FormatException($"{file}: {entryPath}.chance must be a number in (0, 1].");
             }
-            rare.Add(new RareAction(entry.Name, chance.Value<double>(), When(body["when"], file, entryPath + ".when")));
+            rare.Add(new RareAction(entry.Name, chance.Value<double>(), When(body["when"], file, entryPath + ".when"), Role(body["if"], file, entryPath + ".if")));
         }
         return rare;
+    }
+
+    private static string? Role(JToken? token, string file, string path)
+    {
+        if (token is null)
+        {
+            return null;
+        }
+        if (token is not JObject body || body.Count != 1 || body["role"] is not { Type: JTokenType.String } role || role.Value<string>()!.Length == 0)
+        {
+            throw new FormatException($"{file}: {path} must be an object with a non-empty 'role'.");
+        }
+        return role.Value<string>();
     }
 
     private static SpawnConditions When(JToken? token, string file, string path) =>

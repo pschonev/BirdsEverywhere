@@ -11,11 +11,11 @@ public sealed record Routine(double Chance, IReadOnlyList<WeightedId> Pick, IRea
         Pick.Any(option => allowed(option.Id)) || (Rare ?? Array.Empty<RareAction>()).Any(rare => allowed(rare.Id));
 
     /// <summary>Each allowed rare action whose conditions match rolls its chance in order; otherwise one weighted roll over the allowed picks. Without rare actions and filtering this equals <see cref="Roll"/>.</summary>
-    public string? Choose(Random random, Func<string, bool> allowed, IdleWorld? world)
+    public string? Choose(Random random, Func<string, bool> allowed, IdleWorld? world, string? role = null)
     {
         foreach (RareAction rare in Rare ?? Array.Empty<RareAction>())
         {
-            if (allowed(rare.Id) && rare.Matches(world) && random.NextDouble() < rare.Chance)
+            if (allowed(rare.Id) && rare.Matches(world, role) && random.NextDouble() < rare.Chance)
             {
                 return rare.Id;
             }

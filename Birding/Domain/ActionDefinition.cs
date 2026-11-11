@@ -1,6 +1,6 @@
 namespace Birding.Domain;
 
-/// <summary>Binds a code primitive (<c>Do</c>) to a clip and parameters. Unused fields are null. <c>HiddenMs</c>/<c>Radius</c>: how long a diver stays under and how far (tiles) it may resurface.</summary>
+/// <summary>Binds a code primitive (<c>Do</c>) to a clip and parameters. Unused fields are null. <c>HiddenMs</c>/<c>Radius</c>: how long a diver stays under and how far (tiles) it may resurface. <c>Exclusive</c>: lock name only one bird per location holds while the action runs, then blocked for <c>ExclusiveCooldownMs</c>.</summary>
 public sealed record ActionDefinition(
     string Do,
     string? Clip,
@@ -16,4 +16,6 @@ public sealed record ActionDefinition(
     StepRange? HiddenMs = null,
     int? Radius = null,
     string? Target = null,
-    float? SpeedFactor = null);
+    float? SpeedFactor = null,
+    string? Exclusive = null,
+    int ExclusiveCooldownMs = 0);

@@ -147,6 +147,18 @@ public class CompositionTests
             && issue.Path.EndsWith(".threat.if.groupHasRole", StringComparison.Ordinal)));
     }
 
+    private static string WithRareRole(string role) => FamilySpecies.Replace(@"""birdType"":""WaterLandBird"",",
+        @"""birdType"":""WaterLandBird"",""routine"":{""chance"":0.02,""pick"":{""swim"":1},""rare"":{""swim"":{""chance"":0.1,""if"":{""role"":""" + role + @"""}}}},", StringComparison.Ordinal);
+
+    [TestCase("parent", false)]
+    [TestCase("stranger", true)]
+    public void RareRole_MustBeAGroupRole(string role, bool rejected)
+    {
+        IReadOnlyList<ValidationIssue> issues = Load(WithRareRole(role)).Issues;
+
+        Assert.That(issues.Any(issue => issue.Severity == IssueSeverity.Error && issue.Path.EndsWith(".rare.swim.if.role", StringComparison.Ordinal)), Is.EqualTo(rejected));
+    }
+
     [TestCase(@"""target"":""groupRole:parent""", ".target", false)]
     [TestCase(@"""target"":""parent""", ".target", true)]
     [TestCase(@"""target"":""food:worm""", ".target", true)]
