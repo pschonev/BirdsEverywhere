@@ -36,6 +36,7 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
         Action<string>? skipped = null)
     {
         Dictionary<string, List<BirdPlacement>> locations = new(StringComparer.Ordinal);
+        bool bridgeFixed = GatedAreas.BridgeFixed();
         bool Place(SpawnAssignment assignment)
         {
             if (!patterns.TryCreate(assignment.Rule.SpawnPattern, out Spawner? spawner))
@@ -46,7 +47,7 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
 
             locations.TryGetValue(assignment.Location, out List<BirdPlacement>? existing);
             GameLocation location = Game1.getLocationFromName(assignment.Location);
-            IReadOnlyList<IntRange> times = assignment.Rule.When.TimesOn(season, weather, day, GameTimeAnchors.For(location));
+            IReadOnlyList<IntRange> times = assignment.Rule.When.TimesOn(season, weather, day, GameTimeAnchors.For(location), bridgeFixed);
             List<BirdPlacement> placements = spawner.SpawnBirds(location, assignment.Bird, assignment.Rule, assignment.Habitat.FishArea, random, monitor,
                 existing?.Select(placement => placement.Tile).ToList());
             if (placements.Count == 0)
@@ -74,7 +75,7 @@ public sealed record DailySpawnPlan(IReadOnlyDictionary<string, IReadOnlyList<Bi
 
         int LocationArea(string name) => Game1.getLocationFromName(name) is { map: not null } location ? location.map.DisplayWidth / 64 * (location.map.DisplayHeight / 64) : 0;
 
-        SpawnPlanner.Plan(regions, catalog, seenBirds, season, weather, day, luck, level, random, GameHabitat.Exists, Place, LocationArea, skipped);
+        SpawnPlanner.Plan(regions, catalog, seenBirds, season, weather, day, luck, level, random, GameHabitat.Exists, Place, LocationArea, skipped, bridgeFixed);
         return new DailySpawnPlan(locations.ToDictionary(entry => entry.Key, entry => (IReadOnlyList<BirdPlacement>)entry.Value, StringComparer.Ordinal));
     }
 

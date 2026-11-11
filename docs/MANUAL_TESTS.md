@@ -77,6 +77,14 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | F03 | Scare a whole group offscreen; return after 2 in-game hours. | The group returns together, not on the old tiles. |
 | F04 | Two players: farmhand scares a bird offscreen and leaves; host enters at once, then after 2 in-game hours. | Absent for the host at once; present after the delay. |
 
+## Reachability and Beach bridge (one client)
+
+| ID | Action | Expected result |
+|---|---|---|
+| G01 | Fresh save, bridge unrepaired: visit the Beach several days. | No bird on the unreachable east side; gulls never fly or land there. |
+| G02 | Repair the bridge, then visit the Beach after the next day starts. | Birds may spawn east of the bridge. |
+| G03 | Run `birds_check` for a Beach bird before and after the repair. | Candidate tiles never include the east side before repair. |
+
 ## Multiplayer synchronization (two SMAPI clients)
 
 | ID | Action | Expected result |

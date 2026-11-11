@@ -7,13 +7,13 @@ public static class SpawnTarget
 {
     public static bool TryResolve(BirdDefinition bird, BirdSelector selector, string currentLocation,
         Season season, Weather weather, int day, Func<Habitat, bool> habitatExists, Random random,
-        out SpawnAssignment? assignment, out string error, Func<string, bool>? locationExists = null)
+        out SpawnAssignment? assignment, out string error, Func<string, bool>? locationExists = null, bool bridgeFixed = false)
     {
         assignment = null;
         error = "No eligible rule and location found for this bird.";
         List<SpawnRule> rules = bird.Rules
             .Where(rule => (selector.RuleId is null || rule.Id == selector.RuleId)
-                && (selector.Force || rule.When.MatchesDay(season, weather, day)))
+                && (selector.Force || rule.When.MatchesDay(season, weather, day, bridgeFixed)))
             .ToList();
         if (rules.Count == 0)
         {

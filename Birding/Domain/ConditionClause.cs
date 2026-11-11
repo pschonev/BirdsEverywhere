@@ -7,15 +7,17 @@ public sealed record ConditionClause(
     ImmutableArray<Season> Seasons,
     ImmutableArray<Weather> Weathers,
     ImmutableArray<IntRange> Days,
-    ImmutableArray<TimeRange> Times)
+    ImmutableArray<TimeRange> Times,
+    bool? BridgeFixed = null)
 {
     public static readonly ConditionClause Unconditional = new(
         ImmutableArray<Season>.Empty, ImmutableArray<Weather>.Empty, ImmutableArray<IntRange>.Empty, ImmutableArray<TimeRange>.Empty);
 
-    public bool IsUnconditional => Seasons.IsEmpty && Weathers.IsEmpty && Days.IsEmpty && Times.IsEmpty;
+    public bool IsUnconditional => Seasons.IsEmpty && Weathers.IsEmpty && Days.IsEmpty && Times.IsEmpty && BridgeFixed is null;
 
-    public bool MatchesDay(Season season, Weather weather, int day) =>
-        (Seasons.IsEmpty || Seasons.Contains(season))
+    public bool MatchesDay(Season season, Weather weather, int day, bool bridgeFixed = false) =>
+        (BridgeFixed is null || BridgeFixed == bridgeFixed)
+        && (Seasons.IsEmpty || Seasons.Contains(season))
         && (Weathers.IsEmpty || Weathers.Contains(weather))
         && (Days.IsEmpty || Days.Any(range => range.Contains(day)));
 

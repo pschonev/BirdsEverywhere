@@ -564,6 +564,7 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 - Spawn `when` key `bridgeFixed` (bool) in `ConditionParser`/`ConditionClause`, plus schema.
 - Derived habitat key `Beach:East`: the reachable set minus the set computed with the bridge treated as broken. Unknown derived keys are load errors.
 - One east-only shorebird rule with `when.bridgeFixed: true` once art exists.
+- **Implemented (compile/test verified, not tested in game):** `Spawning/Reachability.cs` (pure flood fill from warp-adjacent tiles and farmer tiles, then water within 20 tiles of reachable land), `ILocationQuery.IsReachable`/`InArea` default members overridden by `GameLocationQuery` (static cache keyed by location, `Beach.bridgeFixed` and bridge-blocked, cleared on SaveLoaded and DayStarted). `TileSpawner.TileCondition` and `TileRules.CanLand`/`IsOpenWater` require reachability. `Spawning/GatedAreas.cs` holds the derived `Beach:East` and the bridge span (58..61 × 13..14). `when.bridgeFixed` is parsed, described, serialised and schema-checked; `MatchesDay`/`Matches`/`TimesOn`/`EligibleRules`/`SpawnPlanner` take an optional `bridgeFixed`, passed by the daily plan and debug commands. `GameHabitat.Exists` accepts `Beach:East`. Not done: the east-only species rule (no art yet), reachability for trunk and bush spawners, and a load error for unknown derived keys (other fish-area keys cannot be checked at load time). `ReachabilityTests`; manual cases G01-G03.
 
 **H. Bush birds: cover and approach side**
 
@@ -633,7 +634,7 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 - Gulls swim up to land (e.g. the Beach pier), then rapidly flip left/right, appear to stand on the pier and barely react to the player. Suspected cause (`WaterLandBird`): when blocked, `SwimmingAway` falls back to `Swimming`; the radius-6 `swimAway` alternative is re-selected in the same blocked direction; `Drift` flips at every non-water step; and the water check has no shore margin. → Phase 10 step 9 D.
 - Gulls fly water → land, but then never fly land → land or land → water, only offscreen. Suspected cause: `Relocations` is a lifetime counter and `maxRelocations` defaults to 1, so the first hop uses up the budget. → Phase 10 step 9 A/D.
 - A bird that flew offscreen is back on its planned tile when the player re-enters immediately. → Phase 10 step 9 F.
-- Beach birds spawn on the east side before the bridge is repaired (unreachable for the player). → Phase 10 step 9 G.
+- Beach birds spawn on the east side before the bridge is repaired (unreachable for the player). → Phase 10 step 9 G (implemented, not tested in game).
 
 **Bird types and behaviors** (as Phase 10 composition where possible; a new body only when anchoring or drawing differs)
 

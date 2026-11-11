@@ -10,6 +10,9 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "bridgeFixed": {
+                    "type": "boolean"
+                },
                 "seasons": {
                     "type": "array",
                     "items": {
@@ -83,6 +86,9 @@
                             },
                             "times": {
                                 "$ref": "#/properties/when/properties/times"
+                            },
+                            "bridgeFixed": {
+                                "$ref": "#/properties/when/properties/bridgeFixed"
                             }
                         }
                     }

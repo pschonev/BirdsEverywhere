@@ -33,14 +33,14 @@ public static class SpawnPlanner
 
     /// <summary>Weight of each bird that has an eligible rule today: (ratio^rank x best rule weight)^exponent.</summary>
     public static IReadOnlyList<BirdWeight> Weights(Region region, IEnumerable<BirdDefinition> birds,
-        Season season, Weather weather, int day, double luck, int level)
+        Season season, Weather weather, int day, double luck, int level, bool bridgeFixed = false)
     {
         double exponent = Exponent(luck, level);
         List<BirdWeight> weights = new();
         foreach (BirdDefinition bird in birds)
         {
             int rank = region.Species.ToList().IndexOf(bird.Id.Value);
-            IReadOnlyList<SpawnRule> rules = bird.EligibleRules(season, weather, day);
+            IReadOnlyList<SpawnRule> rules = bird.EligibleRules(season, weather, day, bridgeFixed);
             if (rank >= 0 && rules.Count > 0)
             {
                 weights.Add(new BirdWeight(bird, rank, Math.Pow(Math.Pow(region.Ratio, rank) * rules.Max(rule => rule.Weight), exponent)));
@@ -54,7 +54,7 @@ public static class SpawnPlanner
     public static IReadOnlyList<SpawnAssignment> Plan(IReadOnlyList<Region> regions, IReadOnlyDictionary<string, BirdDefinition> catalog,
         IReadOnlySet<string> seenBirds, Season season, Weather weather, int day, double luck, int level, Random random,
         Func<Habitat, bool> habitatExists, Func<SpawnAssignment, bool> place,
-        Func<string, int>? locationArea = null, Action<string>? skipped = null)
+        Func<string, int>? locationArea = null, Action<string>? skipped = null, bool bridgeFixed = false)
     {
         List<SpawnAssignment> assigned = new();
 
@@ -91,8 +91,8 @@ public static class SpawnPlanner
 
         foreach (Region region in regions)
         {
-            List<Candidate> candidates = Weights(region, region.Species.Where(catalog.ContainsKey).Select(id => catalog[id]), season, weather, day, luck, level)
-                .Select(weight => new Candidate(weight.Bird, weight.Bird.EligibleRules(season, weather, day), weight.Weight))
+            List<Candidate> candidates = Weights(region, region.Species.Where(catalog.ContainsKey).Select(id => catalog[id]), season, weather, day, luck, level, bridgeFixed)
+                .Select(weight => new Candidate(weight.Bird, weight.Bird.EligibleRules(season, weather, day, bridgeFixed), weight.Weight))
                 .ToList();
 
             int unseenTarget = UnseenCount(luck, level, random);

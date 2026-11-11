@@ -46,7 +46,7 @@ public abstract class TileSpawner : Spawner
 {
     protected TileSpawner(TileSpawnCondition tileCondition)
     {
-        TileCondition = tileCondition;
+        TileCondition = (location, tile) => location.IsReachable(tile) && tileCondition(location, tile);
     }
 
     public TileSpawnCondition TileCondition { get; }
@@ -88,7 +88,7 @@ public abstract class TileSpawner : Spawner
         }
 
         return (location, tile) => TileCondition(location, tile)
-            && (fishArea is null || location.FishArea(tile) == fishArea)
+            && (fishArea is null || location.InArea(fishArea, tile))
             && (shore is not IntRange range || range.Contains(ShoreDistance.From(location, tile)));
     }
 }

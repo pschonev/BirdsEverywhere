@@ -7,7 +7,7 @@ namespace Birding.Content;
 /// <summary>Parses and writes a <c>when</c> object (rule or rare action): one clause, or <c>any</c> with several. Reports every problem, naming the field.</summary>
 public static class ConditionParser
 {
-    private static readonly string[] _clauseKeys = { "seasons", "weather", "days", "times" };
+    private static readonly string[] _clauseKeys = { "seasons", "weather", "days", "times", "bridgeFixed" };
 
     /// <summary>Parses <paramref name="token"/>; <paramref name="error"/> receives (path, message) per problem and the result is then unreliable.</summary>
     public static SpawnConditions Parse(JToken? token, string path, Action<string, string> error)
@@ -61,6 +61,7 @@ public static class ConditionParser
             clause.Weathers.IsEmpty ? null : "weather " + string.Join(", ", clause.Weathers),
             clause.Days.IsEmpty ? null : "days " + string.Join(", ", clause.Days.Select(range => $"{range.Min}–{range.Max}")),
             clause.Times.IsEmpty ? null : "times " + string.Join(", ", clause.Times),
+            clause.BridgeFixed is bool fixedBridge ? "bridgeFixed " + (fixedBridge ? "true" : "false") : null,
         }.Where(part => part is not null))));
 
     private static SpawnConditions Build(ImmutableArray<ConditionClause> clauses) =>
@@ -81,7 +82,22 @@ public static class ConditionParser
             Names<Season>(body["seasons"], path + ".seasons", error),
             Weathers(body["weather"], path + ".weather", error),
             Ranges(body["days"], 1, 28, path + ".days", error),
-            Times(body["times"], path + ".times", error));
+            Times(body["times"], path + ".times", error),
+            Flag(body["bridgeFixed"], path + ".bridgeFixed", error));
+    }
+
+    private static bool? Flag(JToken? token, string path, Action<string, string> error)
+    {
+        if (token is null or { Type: JTokenType.Null })
+        {
+            return null;
+        }
+        if (token.Type != JTokenType.Boolean)
+        {
+            error(path, "must be true or false.");
+            return null;
+        }
+        return token.Value<bool>();
     }
 
     private static ImmutableArray<Weather> Weathers(JToken? token, string path, Action<string, string> error)
@@ -230,6 +246,10 @@ public static class ConditionParser
         if (!clause.Times.IsEmpty)
         {
             json["times"] = new JArray(clause.Times.Select(range => new JArray(BoundJson(range.From), BoundJson(range.To))));
+        }
+        if (clause.BridgeFixed is bool fixedBridge)
+        {
+            json["bridgeFixed"] = fixedBridge;
         }
         return json;
     }

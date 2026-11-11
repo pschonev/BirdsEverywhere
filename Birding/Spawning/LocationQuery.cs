@@ -14,10 +14,18 @@ public interface ILocationQuery
     bool IsPassable(Vector2 tile);
     IReadOnlyList<Vector2> FarmerTiles { get; }
     IEnumerable<Vector2> MatureTrees();
+
+    /// <summary>True when a farmer can walk to the tile, or to land within shore reach of it.</summary>
+    bool IsReachable(Vector2 tile) => true;
+
+    /// <summary>True when the tile is in the fish area or derived area (see <see cref="GatedAreas"/>).</summary>
+    bool InArea(string area, Vector2 tile) => FishArea(tile) == area;
 }
 
 public sealed class GameLocationQuery : ILocationQuery
 {
+    private static readonly Dictionary<(string Name, bool BridgeFixed, bool BridgeBlocked), ReachableTiles> _reachable = new();
+
     private readonly GameLocation _location;
 
     public GameLocationQuery(GameLocation location)
@@ -60,6 +68,60 @@ public sealed class GameLocationQuery : ILocationQuery
 
     public IEnumerable<Vector2> MatureTrees() =>
         _location.terrainFeatures.Pairs.Where(pair => Condition.IsEligibleTree(pair.Value)).Select(pair => pair.Key);
+
+    public bool IsReachable(Vector2 tile)
+    {
+        ReachableTiles reachable = Reach(bridgeBlocked: false);
+        return reachable.Count == 0 || reachable.Contains(tile);
+    }
+
+    public bool InArea(string area, Vector2 tile)
+    {
+        if (!GatedAreas.Defines(Name, area))
+        {
+            return FishArea(tile) == area;
+        }
+
+        ReachableTiles reachable = Reach(bridgeBlocked: false);
+        ReachableTiles withoutBridge = Reach(bridgeBlocked: true);
+        return reachable.Contains(tile) && !withoutBridge.Contains(tile);
+    }
+
+    /// <summary>Drops cached reachability; call when a day starts or a save loads.</summary>
+    public static void ClearReachability() => _reachable.Clear();
+
+    private ReachableTiles Reach(bool bridgeBlocked)
+    {
+        (string, bool, bool) key = (Name, GatedAreas.BridgeFixed(_location), bridgeBlocked);
+        if (_reachable.TryGetValue(key, out ReachableTiles? cached))
+        {
+            return cached;
+        }
+
+        ReachableTiles computed = Reachability.Compute(MapSize,
+            tile => IsPassable(tile) && !HasWater(tile) && !(bridgeBlocked && GatedAreas.IsBridge(Name, tile)),
+            IsWaterTile,
+            ArrivalTiles());
+        _reachable[key] = computed;
+        return computed;
+    }
+
+    private IEnumerable<Vector2> ArrivalTiles()
+    {
+        foreach (Warp warp in _location.warps)
+        {
+            yield return new Vector2(warp.X, warp.Y);
+            yield return new Vector2(warp.X + 1, warp.Y);
+            yield return new Vector2(warp.X - 1, warp.Y);
+            yield return new Vector2(warp.X, warp.Y + 1);
+            yield return new Vector2(warp.X, warp.Y - 1);
+        }
+
+        foreach (Vector2 tile in FarmerTiles)
+        {
+            yield return tile;
+        }
+    }
 
     private bool HasWater(Vector2 tile) =>
         _location.doesTileHaveProperty((int)tile.X, (int)tile.Y, "Water", "Back") != null;

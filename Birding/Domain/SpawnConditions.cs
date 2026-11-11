@@ -9,20 +9,20 @@ public sealed record SpawnConditions(ImmutableArray<ConditionClause> Any)
 
     public bool IsUnconditional => Any.IsEmpty || Any.Any(clause => clause.IsUnconditional);
 
-    public bool MatchesDay(Season season, Weather weather, int day) =>
-        Any.IsEmpty || Any.Any(clause => clause.MatchesDay(season, weather, day));
+    public bool MatchesDay(Season season, Weather weather, int day, bool bridgeFixed = false) =>
+        Any.IsEmpty || Any.Any(clause => clause.MatchesDay(season, weather, day, bridgeFixed));
 
-    public bool Matches(Season season, Weather weather, int day, int time, TimeAnchors anchors) =>
-        Any.IsEmpty || Any.Any(clause => clause.MatchesDay(season, weather, day) && clause.MatchesTime(time, anchors));
+    public bool Matches(Season season, Weather weather, int day, int time, TimeAnchors anchors, bool bridgeFixed = false) =>
+        Any.IsEmpty || Any.Any(clause => clause.MatchesDay(season, weather, day, bridgeFixed) && clause.MatchesTime(time, anchors));
 
     /// <summary>
     /// Windows in which the rule is active on this day: empty means all day (a matching clause has no times), otherwise the matching clauses'
     /// windows resolved at the anchors. A window the anchors leave empty is kept (<c>Min &gt; Max</c>) and never contains a time.
     /// </summary>
-    public IReadOnlyList<IntRange> TimesOn(Season season, Weather weather, int day, TimeAnchors anchors)
+    public IReadOnlyList<IntRange> TimesOn(Season season, Weather weather, int day, TimeAnchors anchors, bool bridgeFixed = false)
     {
         List<IntRange> windows = new();
-        foreach (ConditionClause clause in Any.Where(clause => clause.MatchesDay(season, weather, day)))
+        foreach (ConditionClause clause in Any.Where(clause => clause.MatchesDay(season, weather, day, bridgeFixed)))
         {
             if (clause.Times.IsEmpty)
             {

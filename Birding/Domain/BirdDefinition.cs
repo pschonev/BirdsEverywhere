@@ -10,6 +10,6 @@ public sealed record BirdDefinition(
 {
     public string? Shorthand { get; init; }
 
-    public IReadOnlyList<SpawnRule> EligibleRules(Season season, Weather weather, int day) =>
-        Rules.Where(rule => rule.When.MatchesDay(season, weather, day)).ToList();
+    public IReadOnlyList<SpawnRule> EligibleRules(Season season, Weather weather, int day, bool bridgeFixed = false) =>
+        Rules.Where(rule => rule.When.MatchesDay(season, weather, day, bridgeFixed)).ToList();
 }

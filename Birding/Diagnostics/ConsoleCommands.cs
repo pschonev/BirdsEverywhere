@@ -76,7 +76,7 @@ public partial class ModEntry
         Weather weather = CurrentWeather();
         if (_config.Debug)
         {
-            foreach (BirdDefinition bird in _catalog.Values.Where(bird => bird.EligibleRules(season, weather, Game1.dayOfMonth).Count == 0))
+            foreach (BirdDefinition bird in _catalog.Values.Where(bird => bird.EligibleRules(season, weather, Game1.dayOfMonth, GatedAreas.BridgeFixed()).Count == 0))
             {
                 Monitor.VerboseLog($"{bird.Id.Value}: no eligible rule today.");
             }
@@ -122,7 +122,7 @@ public partial class ModEntry
         if (!Diagnostics.SpawnTarget.TryResolve(bird, selector, Game1.currentLocation.Name,
             Enum.Parse<Domain.Season>(Game1.currentSeason, true), CurrentWeather(), Game1.dayOfMonth,
             Diagnostics.GameHabitat.Exists, random, out SpawnAssignment? target, out error,
-            locationExists: name => Game1.getLocationFromName(name) is not null))
+            locationExists: name => Game1.getLocationFromName(name) is not null, bridgeFixed: GatedAreas.BridgeFixed()))
         {
             Monitor.Log(error, LogLevel.Warn);
             return;

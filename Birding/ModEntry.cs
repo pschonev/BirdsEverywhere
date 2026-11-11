@@ -89,6 +89,7 @@ public partial class ModEntry : Mod
 
     private void OnLoaded(object? sender, SaveLoadedEventArgs e)
     {
+        GameLocationQuery.ClearReachability();
         if (Context.IsMainPlayer)
         {
             _saveData = Helper.Data.ReadSaveData<SaveData>(SaveKey) ?? new SaveData();
@@ -286,6 +287,7 @@ public partial class ModEntry : Mod
 
     private void OnDayStarted(object? sender, DayStartedEventArgs e)
     {
+        GameLocationQuery.ClearReachability();
         _birdVisitId = "";
         _birdRequestId = "";
         _birdSequence = 0;

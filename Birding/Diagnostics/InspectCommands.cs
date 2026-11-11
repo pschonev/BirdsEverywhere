@@ -45,7 +45,7 @@ public partial class ModEntry
     }
 
     private bool IsEligibleToday(SpawnRule rule) =>
-        rule.When.MatchesDay(Enum.Parse<Domain.Season>(Game1.currentSeason, true), CurrentWeather(), Game1.dayOfMonth);
+        rule.When.MatchesDay(Enum.Parse<Domain.Season>(Game1.currentSeason, true), CurrentWeather(), Game1.dayOfMonth, GatedAreas.BridgeFixed());
 
     private void ShowRules(string command, string[] args)
     {
