@@ -10,7 +10,7 @@ public static class ReactionLoader
 
     private static readonly HashSet<string> _keys = new(StringComparer.Ordinal) { "threat" };
     private static readonly HashSet<string> _threatKeys = new(StringComparer.Ordinal) { "fleeRadius", "runningMultiplier", "alert", "escape", "maxRelocations" };
-    private static readonly HashSet<string> _alertKeys = new(StringComparer.Ordinal) { "radius", "clip", "sound", "calmMs" };
+    private static readonly HashSet<string> _alertKeys = new(StringComparer.Ordinal) { "radius", "clip", "sound", "calmMs", "fleeAfterMs" };
     private static readonly HashSet<string> _escapeKeys = new(StringComparer.Ordinal) { "target", "weight", "maxDistance", "hideForMs" };
     private static readonly HashSet<string> _escapeTargets = new(StringComparer.Ordinal) { "ground", "water", "otherTree", EscapeOption.Tree, EscapeOption.Offscreen };
     private static readonly HashSet<string> _alternativeKeys = new(StringComparer.Ordinal) { "if", "flee" };
@@ -106,7 +106,8 @@ public static class ReactionLoader
                 radius,
                 Text(alertBody["clip"], file, alertPath + ".clip") ?? throw new FormatException($"{file}: {alertPath}.clip is required."),
                 Text(alertBody["sound"], file, alertPath + ".sound"),
-                alertBody["calmMs"] is { } calm ? Int(calm, 0, 60000, file, alertPath + ".calmMs") : 1500);
+                alertBody["calmMs"] is { } calm ? Int(calm, 0, 60000, file, alertPath + ".calmMs") : 1500,
+                alertBody["fleeAfterMs"] is { } fleeAfter ? Int(fleeAfter, 1, 60000, file, alertPath + ".fleeAfterMs") : null);
         }
         else if (alert is not null && alert.Radius <= fleeRadius)
         {

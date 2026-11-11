@@ -26,6 +26,8 @@ public static class Condition
     public static bool IsEligibleTreeAt(GameLocation location, Vector2 tile) =>
         location.terrainFeatures.TryGetValue(tile, out TerrainFeature? feature) && IsEligibleTree(feature);
 
+    public static bool IsLargeBush(Bush bush) => bush.size.Value == Bush.largeBush;
+
     public static Bush? BushAt(GameLocation location, Vector2 tile) =>
         location.largeTerrainFeatures.OfType<Bush>().FirstOrDefault(bush => bush.Tile == tile);
 

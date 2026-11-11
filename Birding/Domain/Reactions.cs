@@ -50,5 +50,5 @@ public sealed record EscapeOption(string Target, double Weight, int MaxDistance,
     public const int DefaultHideForMs = 10000;
 }
 
-/// <summary>A threat between the flee and alert radius freezes the bird on <c>Clip</c>; it resumes after <c>CalmMs</c> without a threat in the alert radius.</summary>
-public sealed record AlertReaction(int Radius, string Clip, string? Sound, int CalmMs);
+/// <summary>A threat between the flee and alert radius freezes the bird on <c>Clip</c>; it resumes after <c>CalmMs</c> without a threat in the alert radius, or flees after <c>FleeAfterMs</c> of continuous alert (never when null).</summary>
+public sealed record AlertReaction(int Radius, string Clip, string? Sound, int CalmMs, int? FleeAfterMs = null);

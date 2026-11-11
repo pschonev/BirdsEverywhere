@@ -15,6 +15,9 @@ public interface ILocationQuery
     IReadOnlyList<Vector2> FarmerTiles { get; }
     IEnumerable<Vector2> MatureTrees();
 
+    /// <summary>Tiles where a farmer can appear: next to each warp, plus the farmers' own tiles.</summary>
+    IEnumerable<Vector2> ArrivalTiles() => FarmerTiles;
+
     /// <summary>True when a farmer can walk to the tile, or to land within shore reach of it.</summary>
     bool IsReachable(Vector2 tile) => true;
 
@@ -106,7 +109,7 @@ public sealed class GameLocationQuery : ILocationQuery
         return computed;
     }
 
-    private IEnumerable<Vector2> ArrivalTiles()
+    public IEnumerable<Vector2> ArrivalTiles()
     {
         foreach (Warp warp in _location.warps)
         {

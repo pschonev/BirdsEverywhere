@@ -1,3 +1,4 @@
+using Birding.Content;
 using Birding.Domain;
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
@@ -20,23 +21,24 @@ public class TreeTrunkSpawner : TerrainFeatureSpawner
     }
 }
 
-/// <summary>Places birds beside bushes with a free straight path, anchored by the bush's tile.</summary>
+/// <summary>Places birds 2-5 tiles beside large bushes on the side facing the nearest arrival, with a free straight path, anchored by the bush's tile.</summary>
 public class BushSpawner : TerrainFeatureSpawner
 {
     public BushSpawner() : base(HasStraightPathToBush) { }
 
     public override List<BirdPlacement> SpawnBirds(GameLocation location, BirdDefinition data, SpawnRule rule, string? fishArea, Random random, IMonitor monitor, IReadOnlyCollection<Vector2>? avoid = null)
     {
-        IEnumerable<Vector2> bushes = location.largeTerrainFeatures.OfType<Bush>().Select(bush => bush.Tile).ToList();
-        return Placements(TileSelection.Features(bushes, rule.GroupCount, random, (bush, r) => PlaceNearBush(location, bush, r), avoid,
+        IEnumerable<Vector2> bushes = location.largeTerrainFeatures.OfType<Bush>().Where(IsLargeBush).Select(bush => bush.Tile).ToList();
+        List<Vector2> arrivals = new GameLocationQuery(location).ArrivalTiles().ToList();
+        int alertRadius = (rule.Composition?.Reactions ?? BirdTypeProfiles.ByBirdType["BushBird"].Reactions)?.Threat.Alert?.Radius ?? 0;
+        return Placements(TileSelection.Features(bushes, rule.GroupCount, random, (bush, r) => PlaceNearBush(location, bush, arrivals, alertRadius, r), avoid,
             rule.Params.SpeciesDistance ?? TileSelection.MinSpeciesDistance), location, data, rule, random, monitor);
     }
 
-    private static Vector2? PlaceNearBush(GameLocation location, Vector2 bush, Random random)
+    private static Vector2? PlaceNearBush(GameLocation location, Vector2 bush, IReadOnlyCollection<Vector2> arrivals, int alertRadius, Random random)
     {
-        int distance = random.Next(5, 12);
-        Vector2 position = new(bush.X + (random.NextDouble() < 0.5 ? distance : -distance), bush.Y);
-        return HasStraightPathToBush(location, bush, position) ? position : null;
+        int distance = random.Next(BushPlacement.MinDistance, BushPlacement.MaxDistance + 1);
+        return BushPlacement.Place(bush, distance, arrivals, alertRadius, random) is { } position && HasStraightPathToBush(location, bush, position) ? position : null;
     }
 }
 

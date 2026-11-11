@@ -368,7 +368,6 @@ public class CompositionTests
     [TestCase("LandBird", "GroundSpawner", "{\"threat\":{\"escape\":[{\"target\":\"ground\",\"hideForMs\":5000}]}}", "hideForMs only applies to target 'tree'")]
     [TestCase("LandBird", "GroundSpawner", "{\"threat\":{\"relocate\":{\"target\":\"ground\"}}}", "relocate was replaced by escape")]
     [TestCase("TreeTrunkBird", "TreeTrunkSpawner", "{\"threat\":{\"alert\":{\"radius\":8,\"clip\":\"peck\"}}}", "cannot alert")]
-    [TestCase("BushBird", "BushSpawner", "{\"threat\":{\"fleeRadius\":3}}", "takes no reactions")]
     [TestCase("LandBird", "GroundSpawner", "\"skittish\"", "Unknown reactions 'skittish'")]
     [TestCase("LandBird", "GroundSpawner", "{\"threat\":{\"fleeRadius\":5,\"alert\":{\"radius\":5,\"clip\":\"stand\"}}}", "must be larger than fleeRadius")]
     [TestCase("LandBird", "GroundSpawner", "{\"threat\":{\"alert\":{\"radius\":7,\"clip\":\"crouch\"}}}", "has no clip 'crouch'")]

@@ -52,8 +52,8 @@ public static class BirdTypeProfiles
             FollowUps(),
             "bush_idle",
             Map(),
-            null,
-            CanAlert: false,
+            new Domain.Reactions(new Domain.ThreatReaction(3, new Domain.AlertReaction(12, "stand", null, 2000, 3000))),
+            CanAlert: true,
             Array.Empty<string>(),
             new[] { "stay" }),
     };

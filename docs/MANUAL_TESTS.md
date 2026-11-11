@@ -85,6 +85,15 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | G02 | Repair the bridge, then visit the Beach after the next day starts. | Birds may spawn east of the bridge. |
 | G03 | Run `birds_check` for a Beach bird before and after the repair. | Candidate tiles never include the east side before repair. |
 
+## Bush birds (one client)
+
+| ID | Action | Expected result |
+|---|---|---|
+| H01 | Enter a location with large bushes and find a bush bird (e.g. grey partridge). | It sits 2–5 tiles from a large bush, on the side facing the entrance. |
+| H02 | Walk toward it to about 10 tiles. | It freezes on `stand`; it returns to idling after you walk away. |
+| H03 | Stay 4–11 tiles away for over 3 s. | It runs to the bush and vanishes. |
+| H04 | Walk straight at it from the open side. | It bolts to the bush at 3 tiles, never through you. |
+
 ## Multiplayer synchronization (two SMAPI clients)
 
 | ID | Action | Expected result |

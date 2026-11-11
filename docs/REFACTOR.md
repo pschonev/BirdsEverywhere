@@ -569,10 +569,11 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 **H. Bush birds: cover and approach side**
 
 - Design: [Config-driven placement → Bush birds](ARCHITECTURE.md#config-driven-placement).
-- `BushSpawner` and `HasStraightPathToBush`: large bushes only (`Bush.size == 2`); distance 2–5 tiles; side facing the nearest warp arrival tile; reject spots with any arrival tile inside the alert radius or on the bush side within alert radius + run distance; `birds_inspect` counts large bushes.
+- `BushSpawner` and `HasStraightPathToBush`: large bushes only (`Bush.size == 2`); distance 2–5 tiles; side facing the nearest warp arrival tile; reject spots with any arrival tile inside the alert radius (`BushPlacement`); `birds_inspect` counts large bushes.
 - `AlertReaction`: optional generic `fleeAfterMs` (absent = never), in loader and schema; the timer resets when the alert ring is empty.
-- `BushBird`: `CanAlert: true`, a threat default and a shipped bush reaction preset (alert radius about 12, `fleeRadius` about 3, `clip` `stand`, `fleeAfterMs` 3000), replacing the anchor-distance trigger. No path-blocked fallback. Ground-only, no new sprites.
+- `BushBird`: `CanAlert: true`, a profile-default threat, no preset file needed (alert radius 12, `fleeRadius` about 3, `clip` `stand`, `fleeAfterMs` 3000), replacing the anchor-distance trigger. No path-blocked fallback. Ground-only, no new sprites.
 - Bush spawn goldens change on purpose.
+- Implemented (compile and unit tests only; in-game check in [MANUAL_TESTS.md](MANUAL_TESTS.md) H01–H04). `FleeAfterMs` lives in `BirdCritter.ScanThreats`, so any bird with an alert can use it. `BushBird.FlightDistance` is gone.
 
 **I. Group cohesion** (after A, D and F; it reuses the escape loop and departures)
 
@@ -610,7 +611,7 @@ The refactor is done when every box is checked. Phase sections hold the details;
 - [ ] Phase 10 step 2: in-game check (see step 2), including whether the `"flip"` frame tags are visible.
 - [ ] Phase 10 steps 3–7: exit criteria met.
 - [ ] Phase 10 step 8: implemented (compile and unit tests pass); in-game and two-player checks still to be recorded.
-- [ ] Phase 10 step 9: escape options, canopy hide, exclusive actions, departures and return, group cohesion, reachability and Beach bridge progression, bush cover and approach side (planned).
+- [ ] Phase 10 step 9: escape options, canopy hide, exclusive actions, departures and return, group cohesion, reachability and Beach bridge progression, bush cover and approach side. Steps 9.0, A–D, F–H implemented (compile and unit tests); I and E planned.
 - [ ] Phase 9 smoke test and full pass recorded before release.
 
 ---

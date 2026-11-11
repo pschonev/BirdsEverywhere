@@ -406,6 +406,7 @@ internal abstract class BirdCritter : Critter
     {
         (Character? Flee, bool Alerted) result = FindThreats(location, threat);
         double now = Game1.currentGameTime.TotalGameTime.TotalMilliseconds;
+        result = FleeAfterAlert(location, threat, result, now);
         if (result.Flee != null || result.Alerted || Relocations == 0)
         {
             _lastThreatMs = now;
@@ -413,6 +414,28 @@ internal abstract class BirdCritter : Critter
         else if (now - _lastThreatMs >= RelocationCalmMs)
         {
             Relocations = 0;
+        }
+        return result;
+    }
+
+    private double _alertedSinceMs = -1;
+
+    private (Character? Flee, bool Alerted) FleeAfterAlert(GameLocation location, ThreatReaction threat, (Character? Flee, bool Alerted) result, double now)
+    {
+        if (!result.Alerted || threat.Alert is not { FleeAfterMs: { } fleeAfter } alert)
+        {
+            _alertedSinceMs = -1;
+            return result;
+        }
+        if (_alertedSinceMs < 0)
+        {
+            _alertedSinceMs = now;
+        }
+        else if (now - _alertedSinceMs >= fleeAfter
+            && Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, alert.Radius, location) is { } watcher)
+        {
+            _alertedSinceMs = -1;
+            return (watcher, false);
         }
         return result;
     }

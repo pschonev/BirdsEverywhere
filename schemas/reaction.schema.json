@@ -2,7 +2,7 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://birding.invalid/schemas/reaction.schema.json",
     "title": "Reactions",
-    "description": "How a bird reacts to triggers. Missing fields keep the bird type's default (flee radius: land and water-land 4, tree trunk 6). Bush birds take no reactions.",
+    "description": "How a bird reacts to triggers. Missing fields keep the bird type's default (flee radius: land and water-land 4, tree trunk 6). Bush birds default to flee radius 3 and an alert ring of 12 that makes them flee after 3 s.",
     "type": "object",
     "additionalProperties": false,
     "properties": {
@@ -153,6 +153,12 @@
                             "description": "Default 1500.",
                             "type": "integer",
                             "minimum": 0,
+                            "maximum": 60000
+                        },
+                        "fleeAfterMs": {
+                            "description": "Flee after this long of continuous alert. Absent: never.",
+                            "type": "integer",
+                            "minimum": 1,
                             "maximum": 60000
                         }
                     }

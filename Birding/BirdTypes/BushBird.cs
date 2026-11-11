@@ -12,17 +12,15 @@ internal sealed class BushBird : BirdCritter
     public override string BirdTypeName { get; } = "BushBird";
     public Vector2 AnchorTile { get; set; }
     public string? LocationName { get; set; }
-    public int FlightDistance { get; set; }
 
     public BushBird() { }
 
     internal override BirdState CaptureExtras(BirdState state) =>
-        state with { AnchorTile = AnchorTile, LocationName = LocationName, FlightDistance = FlightDistance };
+        state with { AnchorTile = AnchorTile, LocationName = LocationName };
 
     internal override void RestoreExtras(BirdState state)
     {
         SetAnchor(state.AnchorTile ?? Vector2.Zero, state.LocationName);
-        FlightDistance = state.FlightDistance;
     }
 
     public BushBird(int tileX, int tileY, string birdName, string texture, BirdServices services)
@@ -44,7 +42,6 @@ internal sealed class BushBird : BirdCritter
         }
         flip = _bush.Tile.X > position.X / 64f;
         startingPosition = position;
-        FlightDistance = (int)Math.Abs(_bush.Tile.X - (position.X / 64f)) - 1;
         return this;
     }
 
@@ -55,6 +52,10 @@ internal sealed class BushBird : BirdCritter
         if (IsReplica)
         {
             AdvanceReplicaIdle();
+            if (State == BehaviorStatus.Alert)
+            {
+                ShowAlertPose();
+            }
             return UpdateReplica(time, State == BehaviorStatus.Running ? new Vector2(flip ? runSpeed : -runSpeed, 0f) : default);
         }
 
@@ -74,12 +75,25 @@ internal sealed class BushBird : BirdCritter
             return UpdateAndReportDeparture(time, environment);
         }
 
-        Character? threat = PollThreat(time, environment, FlightDistance);
-        BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
-        AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && context.AnimationIdle);
-        if (BirdBehaviors.Decide(BirdBehaviors.FleeOnly, context) == BirdAction.Flee && Utility.isOnScreen(position, -32))
+        (Character? threat, bool alerted) = PollThreats(time, environment);
+        BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng, alerted, TickCalm(time, alerted));
+        AdvanceIdle(IdleRoutine, State == BehaviorStatus.Stopped && threat == null && !alerted && context.AnimationIdle);
+        BirdAction action = BirdBehaviors.Decide(BirdBehaviors.Bush, context);
+        if (action == BirdAction.Flee && Utility.isOnScreen(position, -32))
         {
             StartRun(environment);
+        }
+        else if (action == BirdAction.Alert)
+        {
+            StartAlert(environment);
+        }
+        else if (action == BirdAction.Stop)
+        {
+            State = BehaviorStatus.Stopped;
+        }
+        else if (State == BehaviorStatus.Alert)
+        {
+            ShowAlertPose();
         }
         else if (State == BehaviorStatus.Stopped && sprite.CurrentAnimation == null)
         {

@@ -53,7 +53,7 @@ public static class RuleText
         ("WaterLandBird", "WaterOrGroundSpawner") => "on water swimming, or on ground standing",
         ("WaterLandBird", _) => "on ground, standing; swims if it reaches water",
         ("TreeTrunkBird", _) => "on a tree trunk, pecking",
-        ("BushBird", _) => "on ground beside a bush, runs into it when approached",
+        ("BushBird", _) => "on ground beside a bush, freezes when approached, then runs into it",
         _ => "unknown bird type",
     };
 }

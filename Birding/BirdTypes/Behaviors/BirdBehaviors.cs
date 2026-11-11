@@ -25,6 +25,11 @@ internal static class BirdBehaviors
         return behaviors;
     }
 
+    public static readonly IReadOnlyList<IBirdBehavior> Bush = new IBirdBehavior[]
+    {
+        new FleeBehavior(), new AlertBehavior(), new CalmBehavior(),
+    };
+
     public static readonly IReadOnlyList<IBirdBehavior> FleeOnly = new IBirdBehavior[]
     {
         new FleeBehavior(),

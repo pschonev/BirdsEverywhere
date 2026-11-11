@@ -123,7 +123,7 @@ public partial class ModEntry
         {
             TileSpawner tiles => $"{CountTiles(location, tiles.Restrict(rule, habitat.FishArea))} candidate tiles",
             TreeTrunkSpawner => $"{location.terrainFeatures.Pairs.Count(pair => Condition.IsEligibleTree(pair.Value))} eligible trees",
-            BushSpawner => $"{location.largeTerrainFeatures.Count(feature => feature is Bush)} bushes (needs a free straight path 5-11 tiles beside)",
+            BushSpawner => $"{location.largeTerrainFeatures.Count(feature => feature is Bush bush && Condition.IsLargeBush(bush))} large bushes (needs a free straight path 2-5 tiles beside)",
             _ => "unknown candidates",
         };
         int dryRun = spawner.SpawnBirds(location, bird, rule, habitat.FishArea, new Random(), Monitor).Count;
