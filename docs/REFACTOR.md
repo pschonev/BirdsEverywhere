@@ -548,9 +548,10 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 
 **F. Departures and return**
 
-- Design: [Departures and return](ARCHITECTURE.md#departures-and-return-planned-step-9).
+- Design: [Departures and return](ARCHITECTURE.md#departures-and-return-step-9).
 - `LocationSpawner` skips departed placements in both the Warped and the TimeChanged `Populate` until `DepartureDelay` has passed, and only on a new visit. A returning bird is re-placed via its spawn pattern near the planned spot, away from farmers; a group that fled together returns together.
 - Messages `BirdDeparted` (owner → host) and `DeparturesSnapshot` (host → all). Cleared daily, not saved.
+- **Implemented (compile/test verified, not tested in game):** `DepartureTable` (location + seed → minute, `DelayMinutes` 120) and `ReturnTiles` in `Spawning/DepartureTable.cs`. `BirdCritter.UpdateAndReportDeparture` reports a replica-free bird that is removed while `FlyingAway`, `SwimmingAway` or `Running` through `BirdServices.Departed`; `BushBird` reports on reaching a bush. `LocationSpawner.Populate` skips departed placements unless the visit just started and the delay has passed; a returning `TileSpawner` placement is re-placed by `ReturnTiles.Find` (60 attempts, radius 6 around the planned tile, or radius 3 around a live group mate; the placement's own condition, not the old tile, at least 10 tiles from every farmer), and a failed search keeps it away. Feature-tile birds (trunk, bush) return to their planned feature. Host validates `BirdDeparted` (sender in that location, seed in the plan) and broadcasts `DeparturesSnapshot` (also on DayStarted and PeerConnected). `DepartureTests`; manual cases F01-F04.
 
 **G. Reachability and Beach bridge progression**
 

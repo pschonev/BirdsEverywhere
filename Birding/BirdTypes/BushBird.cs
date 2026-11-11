@@ -68,9 +68,10 @@ internal sealed class BushBird : BirdCritter
             if (CheckIntervalElapsed(time) && ReachedBush())
             {
                 _bush.performUseAction(_bush.Tile);
+                Services?.Departed?.Invoke(environment.Name, BirdID);
                 return true;
             }
-            return base.update(time, environment);
+            return UpdateAndReportDeparture(time, environment);
         }
 
         Character? threat = PollThreat(time, environment, FlightDistance);
@@ -84,7 +85,7 @@ internal sealed class BushBird : BirdCritter
         {
             ShowPose("stand");
         }
-        return base.update(time, environment);
+        return UpdateAndReportDeparture(time, environment);
     }
 
     private bool ReachedBush() =>

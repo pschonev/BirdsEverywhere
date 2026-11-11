@@ -25,6 +25,7 @@ public partial class ModEntry : Mod
     private SaveData _saveData = new();
     private DailySpawnPlan _plan = DailySpawnPlan.Empty;
     private LocationSpawner _locationSpawner = null!;
+    private readonly DepartureTable _departures = new();
     private HashSet<string> _eligibleLocations = new();
     private IReadOnlyDictionary<string, BirdDefinition> _catalog = new Dictionary<string, BirdDefinition>();
     private IReadOnlyDictionary<string, (JObject Effective, IReadOnlyDictionary<string, string> Sources)> _effective =
@@ -58,9 +59,10 @@ public partial class ModEntry : Mod
         }
         _birdServices = new BirdServices(Monitor, helper.ModContent, helper.Multiplayer.GetNewID, RecordObservation, _layouts, _definitions.Routines,
             _definitions.ParsedActions(), ModManifest.UniqueID + "_", Math.Clamp(_config.SoundVolume, 0f, 1f),
-            () => Context.IsWorldReady ? new IdleWorld(Enum.Parse<Domain.Season>(Game1.currentSeason, true), CurrentWeather(), Game1.dayOfMonth, Game1.timeOfDay, Diagnostics.GameTimeAnchors.For(Game1.currentLocation)) : null);
+            () => Context.IsWorldReady ? new IdleWorld(Enum.Parse<Domain.Season>(Game1.currentSeason, true), CurrentWeather(), Game1.dayOfMonth, Game1.timeOfDay, Diagnostics.GameTimeAnchors.For(Game1.currentLocation)) : null,
+            OnBirdDeparted);
         RegisterAudio(helper);
-        _locationSpawner = new LocationSpawner(_spawnPatterns, _birdTypes, _birdServices);
+        _locationSpawner = new LocationSpawner(_spawnPatterns, _birdTypes, _birdServices, _departures);
 
         helper.Events.GameLoop.DayStarted += OnDayStarted;
         helper.Events.Player.Warped += OnWarped;
@@ -288,6 +290,7 @@ public partial class ModEntry : Mod
         _birdRequestId = "";
         _birdSequence = 0;
         _birdOwnerId = 0;
+        _departures.Clear();
         _locationSpawner.BeginVisit();
         if (Game1.currentLocation is { } location)
         {
@@ -305,6 +308,7 @@ public partial class ModEntry : Mod
             _plan = BuildDebugPlan(null);
             ReportPlan();
             _sync.SendToAll(new SpawnPlanMessage(IMessage.CurrentVersion, MessageJson.Serialize(_plan)));
+            _sync.SendToAll(new DeparturesSnapshot(IMessage.CurrentVersion, MessageJson.Serialize(_departures.Snapshot())));
         }
 
         Logging.LogBirdSeenStatus(Monitor, _saveData, _catalog);
@@ -393,6 +397,24 @@ public partial class ModEntry : Mod
                             }
                         }
                     }
+                }
+
+                break;
+            case nameof(BirdDeparted) when Context.IsMainPlayer:
+                if (_sync.Read<BirdDeparted>(e) is { } departed)
+                {
+                    Departure departure = new(departed.LocationName, departed.Seed, departed.Minute);
+                    if (DepartureTable.IsValid(_plan, departure, Game1.getOnlineFarmers().FirstOrDefault(farmer => farmer.UniqueMultiplayerID == e.FromPlayerID)?.currentLocation?.Name))
+                    {
+                        RecordDeparture(departure);
+                    }
+                }
+
+                break;
+            case nameof(DeparturesSnapshot) when IsFromHost(e):
+                if (_sync.Read<DeparturesSnapshot>(e) is { } departures)
+                {
+                    _departures.Replace(MessageJson.Deserialize<List<Departure>>(departures.DeparturesJson));
                 }
 
                 break;
@@ -616,6 +638,26 @@ public partial class ModEntry : Mod
 
         _sync.SendToPeer(new ObservationLogSnapshot(IMessage.CurrentVersion, _saveData), e.Peer.PlayerID);
         _sync.SendToPeer(new SpawnPlanMessage(IMessage.CurrentVersion, MessageJson.Serialize(_plan)), e.Peer.PlayerID);
+        _sync.SendToPeer(new DeparturesSnapshot(IMessage.CurrentVersion, MessageJson.Serialize(_departures.Snapshot())), e.Peer.PlayerID);
+    }
+
+    private void OnBirdDeparted(string locationName, long seed)
+    {
+        Departure departure = new(locationName, (int)seed, DepartureTable.ToMinutes(Game1.timeOfDay));
+        if (Context.IsMainPlayer)
+        {
+            RecordDeparture(departure);
+            return;
+        }
+
+        _departures.Record(departure);
+        _sync.SendToPeer(new BirdDeparted(IMessage.CurrentVersion, departure.Location, departure.Seed, departure.Minute), Game1.MasterPlayer.UniqueMultiplayerID);
+    }
+
+    private void RecordDeparture(Departure departure)
+    {
+        _departures.Record(departure);
+        _sync.SendToAll(new DeparturesSnapshot(IMessage.CurrentVersion, MessageJson.Serialize(_departures.Snapshot())));
     }
 
     private void RecordObservation(string birdName, string location)

@@ -921,7 +921,7 @@ Examples:
 
 A player running through the middle of the flock therefore splits it into two sub-flocks on the two sides without any special case, and each side lands together. Rally is a preference, never a reason to use a spot that fails eligibility.
 
-**Regroup.** With `regroup`, a bird that is calm (no farmer within alert radius) and farther than `linkRadius * 2` from the nearest group mate gets a low-weight routine action `rejoin`. It walks, hops or flies (by bird type) to an eligible spot within `rally` tiles of the nearest group mate, at most once per calm period. Members that left offscreen return through [Departures and return](#departures-and-return-planned-step-9) instead: if any group mate is still in the location, a departed bird returns near that mate; if none is, the group returns together around the planned centre.
+**Regroup.** With `regroup`, a bird that is calm (no farmer within alert radius) and farther than `linkRadius * 2` from the nearest group mate gets a low-weight routine action `rejoin`. It walks, hops or flies (by bird type) to an eligible spot within `rally` tiles of the nearest group mate, at most once per calm period. Members that left offscreen return through [Departures and return](#departures-and-return-step-9) instead: if any group mate is still in the location, a departed bird returns near that mate; if none is, the group returns together around the planned centre.
 
 **Ownership and multiplayer.**
 - The group owner (the owner of the group leader, as above) builds the alarm list and the seeds. Only the owner decides; replicas play the resulting committed movement and clips. No new message is needed for the wave.
@@ -1031,7 +1031,7 @@ sequenceDiagram
 - Selection uses inclusive ranges and handles empty candidate lists by returning no placement.
 - Farmhands never plan; they receive the plan. Placements carry everything needed to recreate a bird, so farmhands do not need per-day mutable state in the catalog.
 
-### Departures and return (planned, [step 9](REFACTOR.md#step-9-natural-escape-and-coordination-planned))
+### Departures and return ([step 9](REFACTOR.md#step-9-natural-escape-and-coordination-planned))
 
 Today every visit re-runs `Populate` from the plan, so a bird that just flew offscreen is back on its planned tile when the player re-enters. Instead:
 
@@ -1040,6 +1040,8 @@ Today every visit re-runs `Populate` from the plan, so a bird that just flew off
 - On return, the spawn pattern re-places it on a fresh eligible tile near the planned spot (within the group radius or a few tiles), not the old tile, and away from every farmer. A group whose members all fled returns together around the group centre.
 - A hiding bird (canopy hide) or a bird that relocated within the location is not departed.
 - Shared and host-authoritative per location for the day: the location owner sends `BirdDeparted`, and the host keeps the departure table and broadcasts it. Cleared on DayStarted, not saved.
+- Feature-tile birds (trunk, bush) return to their planned feature; only tile-spawned birds get a fresh tile. A returning bird whose group mates are still in the location returns within the group radius of one of them.
+- If no eligible tile is found, the bird stays away for that visit.
 
 ## Multiplayer ownership
 
@@ -1054,8 +1056,8 @@ Today every visit re-runs `Populate` from the plan, so a bird that just flew off
 | `LocationBirdsRequest` (location, requester, request id) | entering peer → peer in location, forwarded to owner | responder: is in that location | not persisted |
 | `LocationBirdsState` (location, visit id, sequence, birds JSON, request id) | location owner → peers in location | recipient: matching location, owner and newer sequence; first snapshot matches request id | not persisted |
 | `LocationBirdsHandoff` (location, next owner, visit id, sequence, birds JSON) | departing owner → remaining peers | recipient: current owner and visit, newer sequence | not persisted |
-| `BirdDeparted` (location, placement seed, time) — planned, step 9 | location owner → host | host: sender owns the location, placement in today's plan | not persisted |
-| `DeparturesSnapshot` (departure table) — planned, step 9 | host → all (DayStarted, PeerConnected, on change) | recipient: from host only | not persisted |
+| `BirdDeparted` (location, placement seed, time) | location owner → host | host: sender owns the location, placement in today's plan | not persisted |
+| `DeparturesSnapshot` (departure table) | host → all (DayStarted, PeerConnected, on change) | recipient: from host only | not persisted |
 
 - All messages are records implementing `IMessage` with a `Version` field (`IMessage.CurrentVersion`, currently 4); the record type name is the SMAPI message type. Other versions are logged and dropped.
 - Observation updates send deltas plus a monotonic log version. A stale delta is ignored and the peer re-requests the full log.

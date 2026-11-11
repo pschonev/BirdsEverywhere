@@ -105,7 +105,7 @@ internal sealed class WaterLandBird : BirdCritter
         if (State == BehaviorStatus.Relocating)
         {
             Fly(environment, flee.Speed!.Value);
-            return base.update(time, environment);
+            return UpdateAndReportDeparture(time, environment);
         }
 
         (Character? threat, bool alerted) = PollFamilyThreats(time, environment);
@@ -176,7 +176,7 @@ internal sealed class WaterLandBird : BirdCritter
                 }
                 break;
         }
-        return base.update(time, environment);
+        return UpdateAndReportDeparture(time, environment);
     }
 
     /// <summary>Water-only custom actions are picked while swimming, all others while standing.</summary>

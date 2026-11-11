@@ -475,6 +475,17 @@ internal abstract class BirdCritter : Critter
         }
     }
 
+    /// <summary>Runs the vanilla update and reports a bird that flew or swam off the map as departed.</summary>
+    protected bool UpdateAndReportDeparture(GameTime time, GameLocation environment)
+    {
+        bool remove = base.update(time, environment);
+        if (remove && !IsReplica && State is BehaviorStatus.FlyingAway or BehaviorStatus.SwimmingAway or BehaviorStatus.Running)
+        {
+            Services?.Departed?.Invoke(environment.Name, BirdID);
+        }
+        return remove;
+    }
+
     /// <summary>Tiles of the other birds in the location; relocations never land on them.</summary>
     protected HashSet<Vector2> OccupiedTiles(GameLocation location)
     {

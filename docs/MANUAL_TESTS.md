@@ -68,6 +68,15 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | G02 | Approach a gull standing on sand or the pier, then approach it again after it lands. | It flies to other ground or open water, and can do so a second time. |
 | G03 | Approach a gull on open water at 3 tiles. | It swims away first (radius 6), then flies if you keep closing in; it prefers landing on water. |
 
+## Departures and return (one client unless noted)
+
+| ID | Action | Expected result |
+|---|---|---|
+| F01 | Make a bird fly offscreen, leave the location and re-enter at once. | That bird is absent; others are unchanged. |
+| F02 | Repeat, then wait at least 2 in-game hours elsewhere and re-enter. | The bird is back on a different tile near its planned spot, at least 10 tiles from you. |
+| F03 | Scare a whole group offscreen; return after 2 in-game hours. | The group returns together, not on the old tiles. |
+| F04 | Two players: farmhand scares a bird offscreen and leaves; host enters at once, then after 2 in-game hours. | Absent for the host at once; present after the delay. |
+
 ## Multiplayer synchronization (two SMAPI clients)
 
 | ID | Action | Expected result |

@@ -82,7 +82,7 @@ internal sealed class TreeTrunkBird : BirdCritter
         if (State == BehaviorStatus.Relocating)
         {
             Fly(environment, flee.Speed!.Value);
-            return base.update(time, environment);
+            return UpdateAndReportDeparture(time, environment);
         }
         if (environment == null || sprite == null || _tree == null)
         {
@@ -119,7 +119,7 @@ internal sealed class TreeTrunkBird : BirdCritter
             position.X += flip ? flee.Speed!.Value : -flee.Speed!.Value;
             yOffset -= flee.Climb!.Value;
         }
-        return base.update(time, environment);
+        return UpdateAndReportDeparture(time, environment);
     }
 
     internal void StartPeck() => PlayClip(Action("peck").Clip!, Rng, DonePecking);

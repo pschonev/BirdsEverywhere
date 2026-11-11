@@ -33,3 +33,9 @@ public sealed record LocationBirdsRequest(int Version, string LocationName, long
 public sealed record LocationBirdsState(int Version, string LocationName, string VisitId, long Sequence, string BirdsJson, string RequestId = "") : IMessage;
 
 public sealed record LocationBirdsHandoff(int Version, string LocationName, long NextOwnerId, string VisitId, long Sequence, string BirdsJson) : IMessage;
+
+/// <summary>Bird owner to host: a planned bird left the location and must stay away for a while.</summary>
+public sealed record BirdDeparted(int Version, string LocationName, int Seed, int Minute) : IMessage;
+
+/// <summary>Host to all: every planned bird that has left its location today.</summary>
+public sealed record DeparturesSnapshot(int Version, string DeparturesJson) : IMessage;

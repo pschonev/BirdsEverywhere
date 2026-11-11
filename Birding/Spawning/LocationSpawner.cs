@@ -1,6 +1,7 @@
 using Birding.BirdTypes;
 using Birding.Domain;
 using Birding.Registries;
+using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewValley;
 
@@ -12,19 +13,27 @@ internal sealed class LocationSpawner
     private readonly SpawnPatternRegistry _patterns;
     private readonly BirdTypeRegistry _birdTypes;
     private readonly BirdServices _services;
+    private readonly DepartureTable _departures;
+    private bool _visitStart;
 
-    public LocationSpawner(SpawnPatternRegistry patterns, BirdTypeRegistry birdTypes, BirdServices services)
+    public LocationSpawner(SpawnPatternRegistry patterns, BirdTypeRegistry birdTypes, BirdServices services, DepartureTable departures)
     {
         _patterns = patterns;
         _birdTypes = birdTypes;
         _services = services;
+        _departures = departures;
     }
 
-    public void BeginVisit() => _spawned.Clear();
+    public void BeginVisit()
+    {
+        _spawned.Clear();
+        _visitStart = true;
+    }
 
     public void ResumeVisit(GameLocation location, DailySpawnPlan plan)
     {
         BeginVisit();
+        _visitStart = false;
         if (!plan.Locations.TryGetValue(location.Name, out IReadOnlyList<BirdPlacement>? placements))
         {
             return;
@@ -54,12 +63,24 @@ internal sealed class LocationSpawner
         }
 
         location.instantiateCrittersList();
-        foreach (BirdPlacement placement in placements)
+        GameLocationQuery query = new(location);
+        Dictionary<int, Vector2> groupAnchors = LiveGroupAnchors(location);
+        bool visitStart = _visitStart;
+        _visitStart = false;
+        foreach (BirdPlacement planned in placements)
         {
-            if (_spawned.Contains(placement) || !placement.IsActiveAt(Game1.timeOfDay))
+            if (_spawned.Contains(planned) || !planned.IsActiveAt(Game1.timeOfDay))
             {
                 continue;
             }
+
+            bool departed = _departures.IsDeparted(location.Name ?? "", planned.Seed);
+            if (departed && !(visitStart && _departures.CanReturn(location.Name ?? "", planned.Seed, Game1.timeOfDay)))
+            {
+                continue;
+            }
+
+            BirdPlacement placement = planned;
 
             if (!_patterns.TryCreate(new SpawnPatternId(placement.SpawnPattern), out Spawner? spawner))
             {
@@ -67,7 +88,15 @@ internal sealed class LocationSpawner
                 continue;
             }
 
-            if (!placement.Forced && !spawner.IsStillValid(location, placement))
+            if (departed && spawner is TileSpawner tileSpawner)
+            {
+                if (ReturnPlacement(query, tileSpawner, location, planned, groupAnchors) is not { } returned)
+                {
+                    continue;
+                }
+                placement = returned;
+            }
+            else if (!placement.Forced && !spawner.IsStillValid(location, placement))
             {
                 continue;
             }
@@ -85,8 +114,46 @@ internal sealed class LocationSpawner
             bird.Role = placement.Role;
             bird.Stage = placement.Stage;
             location.critters.Add(bird);
-            _spawned.Add(placement);
+            _spawned.Add(planned);
+            if (departed)
+            {
+                _departures.MarkReturned(location.Name ?? "", planned.Seed);
+            }
             _services.Monitor.Log($"Added {placement.BirdId} at {(int)placement.Tile.X} - {(int)placement.Tile.Y}.", LogLevel.Debug);
         }
+    }
+
+    private static Dictionary<int, Vector2> LiveGroupAnchors(GameLocation location)
+    {
+        Dictionary<int, Vector2> anchors = new();
+        foreach (BirdCritter bird in location.critters.OfType<BirdCritter>())
+        {
+            if (bird.GroupId is { } group)
+            {
+                anchors.TryAdd(group, new Vector2((int)(bird.position.X / 64f), (int)(bird.position.Y / 64f)));
+            }
+        }
+        return anchors;
+    }
+
+    private static BirdPlacement? ReturnPlacement(ILocationQuery query, TileSpawner spawner, GameLocation location, BirdPlacement planned,
+        Dictionary<int, Vector2> groupAnchors)
+    {
+        Random random = new(HashCode.Combine(planned.Seed, Game1.timeOfDay));
+        List<Vector2> excluded = location.critters.OfType<BirdCritter>()
+            .Select(bird => new Vector2((int)(bird.position.X / 64f), (int)(bird.position.Y / 64f)))
+            .Append(planned.Tile)
+            .ToList();
+        bool grouped = planned.GroupId is { } id && groupAnchors.ContainsKey(id);
+        Vector2 origin = grouped ? groupAnchors[planned.GroupId!.Value] : planned.Tile;
+        if (ReturnTiles.Find(query, spawner.TileCondition, origin, excluded, random, grouped ? ReturnTiles.GroupRadius : ReturnTiles.SearchRadius) is not { } tile)
+        {
+            return null;
+        }
+        if (planned.GroupId is { } group)
+        {
+            groupAnchors.TryAdd(group, tile);
+        }
+        return planned with { Tile = tile };
     }
 }

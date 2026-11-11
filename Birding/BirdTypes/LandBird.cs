@@ -70,13 +70,13 @@ internal sealed class LandBird : BirdCritter
         if (State == BehaviorStatus.Relocating)
         {
             Fly(flee.Speed!.Value);
-            return base.update(time, environment);
+            return UpdateAndReportDeparture(time, environment);
         }
 
         if (State == BehaviorStatus.Hiding)
         {
             Hide(time, environment);
-            return base.update(time, environment);
+            return UpdateAndReportDeparture(time, environment);
         }
 
         if (yJumpOffset < 0f && State != BehaviorStatus.FlyingAway)
@@ -122,7 +122,7 @@ internal sealed class LandBird : BirdCritter
                 ShowAlertPose();
                 break;
         }
-        return base.update(time, environment);
+        return UpdateAndReportDeparture(time, environment);
     }
 
     private void Apply(BirdAction action, Character? threat, GameLocation environment)
