@@ -99,7 +99,7 @@ internal sealed class TreeTrunkBird : BirdCritter
         }
 
         bool pollNow = CheckIntervalElapsed(time);
-        Character? threat = pollNow ? ScanThreats(environment, Threat).Flee : null;
+        Character? threat = (pollNow ? ScanThreats(environment, Threat).Flee : null) ?? TakeAlarm(time);
         bool treeFelled = pollNow && _tree.stump.Value;
         BirdContext context = new(State, threat != null || treeFelled, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng);
         if (BirdBehaviors.Decide(BirdBehaviors.FleeOnly, context) == BirdAction.Flee)
@@ -135,7 +135,7 @@ internal sealed class TreeTrunkBird : BirdCritter
         }
         HashSet<Vector2> occupied = environment.critters?.OfType<TreeTrunkBird>().Where(bird => bird != this)
             .SelectMany(bird => bird.RelocateTarget is { } target ? new[] { bird.AnchorTile, target } : new[] { bird.AnchorTile }).ToHashSet() ?? new();
-        return EscapePlanner.Tree(new Spawners.GameLocationQuery(environment), AnchorTile, threat.Tile, Threat, Relocations, occupied, Rng)?.Tile;
+        return Record(EscapePlanner.Tree(new Spawners.GameLocationQuery(environment), AnchorTile, threat.Tile, Threat, Relocations, occupied, Rng, Flock(environment, threat.Tile)))?.Tile;
     }
 
     private void StartRelocate(Vector2 tree, GameLocation environment)

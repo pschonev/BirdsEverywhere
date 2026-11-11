@@ -124,6 +124,12 @@ internal sealed class WaterLandBird : BirdCritter
             State = BehaviorStatus.Stopped;
         }
         BirdContext context = new(State, threat != null || groupThreat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng, alerted, TickCalm(time, alerted));
+        if (threat == null && groupThreat is null && !alerted && State is BehaviorStatus.Stopped or BehaviorStatus.Swimming && !context.Airborne
+            && Rejoin(time, environment, context.Calm) is { } mate)
+        {
+            StartRelocate(mate, Action("flee"), environment, counted: false);
+            return UpdateAndReportDeparture(time, environment);
+        }
         bool swimming = State == BehaviorStatus.Swimming;
         bool idle = (State == BehaviorStatus.Stopped || (swimming && IdleRoutine.HasOptions(IsDive))) && threat == null && groupThreat is null && !alerted;
         BirdAction idleAction = AdvanceIdle(IdleRoutine, idle && context.AnimationIdle && !context.Airborne, swimming ? IsDive : id => !IsDive(id));
@@ -184,6 +190,10 @@ internal sealed class WaterLandBird : BirdCritter
 
     private (Character? Flee, bool Alerted) PollFamilyThreats(GameTime time, GameLocation environment)
     {
+        if (TakeAlarm(time) is { } alarm)
+        {
+            return (alarm, false);
+        }
         if (Composition?.Reactions?.Alternatives is null)
         {
             _selectedThreat = null;
@@ -407,14 +417,14 @@ internal sealed class WaterLandBird : BirdCritter
     private static Vector2 TilePosition(Vector2 tile) => tile * 64f;
 
     private Vector2? RelocationTarget(GameLocation environment, Vector2 threatPosition) =>
-        EscapePlanner.Surface(new Birding.Spawners.GameLocationQuery(environment), OwnTile, threatPosition / 64f, _selectedThreat?.Threat ?? Threat,
-            Relocations, OccupiedTiles(environment), Rng)?.Tile;
+        Record(EscapePlanner.Surface(new Birding.Spawners.GameLocationQuery(environment), OwnTile, threatPosition / 64f, _selectedThreat?.Threat ?? Threat,
+            Relocations, OccupiedTiles(environment), Rng, Flock(environment, threatPosition / 64f)))?.Tile;
 
-    private void StartRelocate(Vector2 tile, ActionDefinition flee, GameLocation environment)
+    private void StartRelocate(Vector2 tile, ActionDefinition flee, GameLocation environment, bool counted = true)
     {
         _activeFlee = flee;
         PlayActionSound(flee);
-        BeginRelocation(tile, TilePosition(tile), environment);
+        BeginRelocation(tile, TilePosition(tile), environment, counted);
         State = BehaviorStatus.Relocating;
         StartFlyAnimation();
     }

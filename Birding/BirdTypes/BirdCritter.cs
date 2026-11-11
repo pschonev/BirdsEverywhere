@@ -7,6 +7,7 @@ using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Audio;
 using StardewValley.BellsAndWhistles;
+using Birding.Spawners;
 
 namespace Birding.BirdTypes;
 
@@ -394,12 +395,167 @@ internal abstract class BirdCritter : Critter
     internal ThreatReaction Threat => (Composition?.Reactions ?? Profile.Reactions
         ?? throw new InvalidOperationException($"{BirdTypeName} has no reactions.")).Threat;
 
+    /// <summary>The flock rules of the rule's reactions, or null when the bird has none.</summary>
+    internal Cohesion? Cohesion => (Composition?.Reactions ?? Profile.Reactions)?.Cohesion;
+
+    /// <summary>Where this bird last chose to escape to (an escape target or <see cref="EscapeOption.Offscreen"/>); informed mates try it first.</summary>
+    internal string? EscapeOutcome { get; private set; }
+
+    private int _alarmDelayMs;
+    private Character? _alarmThreat;
+    private BirdCritter? _alarmSource;
     private int _alertCalmMs;
     private double _lastThreatMs;
+    private double _rejoinWaitMs = -1;
+    private bool _rejoinDone;
+
+    private static bool IsEscaping(BehaviorStatus state) =>
+        state is BehaviorStatus.FlyingAway or BehaviorStatus.Relocating or BehaviorStatus.Running or BehaviorStatus.SwimmingAway or BehaviorStatus.Diving or BehaviorStatus.Hiding;
+
+    /// <summary>Records the escape choice so informed mates can follow the same outcome.</summary>
+    protected EscapeChoice? Record(EscapeChoice? choice)
+    {
+        EscapeOutcome = choice?.Option.Target ?? EscapeOption.Offscreen;
+        return choice;
+    }
+
+    /// <summary>The trigger's threat once this bird's alarm delay has run out, else null.</summary>
+    protected Character? TakeAlarm(GameTime time)
+    {
+        if (_alarmThreat is null)
+        {
+            return null;
+        }
+        _alarmDelayMs -= time.ElapsedGameTime.Milliseconds;
+        if (_alarmDelayMs > 0)
+        {
+            return null;
+        }
+        Character threat = _alarmThreat;
+        _alarmThreat = null;
+        return threat;
+    }
+
+    private List<BirdCritter> FlockMembers(GameLocation location)
+    {
+        List<BirdCritter> members = new();
+        if (GroupId is { } groupId && location.critters is { } critters)
+        {
+            foreach (Critter critter in critters)
+            {
+                if (critter is BirdCritter bird && !bird.IsReplica && bird.GroupId == groupId && bird.BirdName == BirdName)
+                {
+                    members.Add(bird);
+                }
+            }
+            members.Sort((a, b) => a.BirdID.CompareTo(b.BirdID));
+        }
+        return members;
+    }
+
+    private bool NearFarmer(GameLocation location, int tiles)
+    {
+        foreach (Farmer farmer in location.farmers)
+        {
+            if (Vector2.Distance(farmer.Position, position) / 64f <= tiles)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void RaiseAlarm(GameLocation location, Character threat, Cohesion cohesion, double now)
+    {
+        List<BirdCritter> members = FlockMembers(location);
+        int self = members.IndexOf(this);
+        if (self < 0)
+        {
+            return;
+        }
+        List<AlarmMember> view = new(members.Count);
+        foreach (BirdCritter bird in members)
+        {
+            bool available = bird == this || (bird.Cohesion != null && bird._alarmThreat == null && !IsEscaping(bird.State)
+                && bird.NearFarmer(location, bird.Threat.FleeRadius + cohesion.LinkRadius));
+            view.Add(new AlarmMember(bird.BirdID, bird.OwnTile, available));
+        }
+        foreach ((int index, int delayMs) in GroupAlarm.Plan(view, self, cohesion, (long)now))
+        {
+            members[index]._alarmThreat = threat;
+            members[index]._alarmSource = this;
+            members[index]._alarmDelayMs = delayMs;
+        }
+    }
+
+    /// <summary>The flock's view for an escape plan, or null without flock rules or <c>spread</c>; consumes the pending alarm source.</summary>
+    protected FlockHints? Flock(GameLocation location, Vector2 threatTile)
+    {
+        BirdCritter? source = _alarmSource;
+        _alarmSource = null;
+        if (Cohesion is not { Spread: > 0 } cohesion)
+        {
+            return null;
+        }
+        Vector2 sum = Vector2.Zero;
+        int count = 0;
+        List<Vector2> anchors = new();
+        foreach (BirdCritter bird in FlockMembers(location))
+        {
+            if (bird != this && Vector2.Distance(bird.OwnTile, OwnTile) > cohesion.LinkRadius * 2)
+            {
+                continue;
+            }
+            sum += bird.OwnTile;
+            count++;
+            if (bird != this && bird.State == BehaviorStatus.Relocating && bird.RelocateTarget is { } target)
+            {
+                anchors.Add(target);
+            }
+        }
+        return new FlockHints(cohesion, threatTile, count == 0 ? OwnTile : sum / count, source?.EscapeOutcome, anchors);
+    }
+
+    /// <summary>Once per calm period, after the flock's <c>rejoinDelayMs</c> of calm, a tile near the nearest mate when this bird has drifted beyond twice the link radius; null otherwise or when <paramref name="calm"/> is false.</summary>
+    protected Vector2? Rejoin(GameTime time, GameLocation location, bool calm)
+    {
+        if (!calm || _rejoinDone || Cohesion is not { Regroup: true, Rally: > 0 } cohesion)
+        {
+            _rejoinWaitMs = -1;
+            return null;
+        }
+        if (_rejoinWaitMs < 0)
+        {
+            _rejoinWaitMs = Rng.Next(cohesion.RejoinDelayMs.Min, cohesion.RejoinDelayMs.Max + 1);
+        }
+        _rejoinWaitMs -= time.ElapsedGameTime.Milliseconds;
+        if (_rejoinWaitMs > 0)
+        {
+            return null;
+        }
+        _rejoinWaitMs = -1;
+        _rejoinDone = true;
+        BirdCritter? nearest = null;
+        float nearestDistance = float.MaxValue;
+        foreach (BirdCritter bird in FlockMembers(location))
+        {
+            float distance = Vector2.Distance(bird.OwnTile, OwnTile);
+            if (bird != this && !IsEscaping(bird.State) && distance < nearestDistance)
+            {
+                nearest = bird;
+                nearestDistance = distance;
+            }
+        }
+        if (nearest is null || nearestDistance <= cohesion.LinkRadius * 2)
+        {
+            return null;
+        }
+        return EscapePlanner.Rejoin(new GameLocationQuery(location), OwnTile, nearest.OwnTile, Threat.FleeRadius, cohesion.Rally, OccupiedTiles(location), Rng);
+    }
 
     /// <summary>At most every 200 ms: the threat to flee from, or whether one is inside the alert ring.</summary>
     protected (Character? Flee, bool Alerted) PollThreats(GameTime time, GameLocation location) =>
-        CheckIntervalElapsed(time) ? ScanThreats(location, Threat) : (null, false);
+        TakeAlarm(time) is { } alarm ? (alarm, false) : CheckIntervalElapsed(time) ? ScanThreats(location, Threat) : (null, false);
 
     /// <summary>Farmers within the flee radius (running ones count closer) or any other character in it; matches <see cref="FindThreat"/> for default reactions.</summary>
     protected (Character? Flee, bool Alerted) ScanThreats(GameLocation location, ThreatReaction threat)
@@ -407,6 +563,15 @@ internal abstract class BirdCritter : Critter
         (Character? Flee, bool Alerted) result = FindThreats(location, threat);
         double now = Game1.currentGameTime.TotalGameTime.TotalMilliseconds;
         result = FleeAfterAlert(location, threat, result, now);
+        if (result.Flee != null && !IsReplica && !IsEscaping(State) && Cohesion is { Spread: > 0 } cohesion)
+        {
+            RaiseAlarm(location, result.Flee, cohesion, now);
+        }
+        if (result.Flee != null || result.Alerted)
+        {
+            _rejoinDone = false;
+            _rejoinWaitMs = -1;
+        }
         if (result.Flee != null || result.Alerted || Relocations == 0)
         {
             _lastThreatMs = now;

@@ -529,7 +529,7 @@ Implemented in [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds) step
 | Group placement | implemented (step 6): `spawnParams.group` (`cluster`, `scattered`, `line`), `speciesDistance` | `TileSelection.Grouped`; `perched`, `near`/`avoid`, `space`, `packing` deferred |
 | Reactions | `threat` implemented (step 4): `fleeRadius`, `runningMultiplier`, `alert`, `escape` + `maxRelocations` (trunk `otherTree`) | `assets/reactions/*.json`, rule field `reactions`, `Content/ReactionLoader`, `BirdCritter.ScanThreats`/`StartAlert`, `AlertBehavior`/`CalmBehavior`, `TreeTrunkBird` relocation; other triggers planned |
 | Bodies, single sealed `Bird` | partly (step 3c): tile `TerrainAnchor`, `BirdState` snapshots (`BirdTypes/BirdSnapshots`); merge deferred to the first new body | today: four sealed `BirdCritter` classes |
-| Groups, stages, spacing | spacing and formations implemented (step 6); families and stages planned (step 7); cohesion planned (step 9) | today: `groupCount` × `groupSize`, laid out by `spawnParams.group` |
+| Groups, stages, spacing | spacing and formations implemented (step 6); families and stages planned (step 7); cohesion implemented, not tested in game (step 9 I) | today: `groupCount` × `groupSize`, laid out by `spawnParams.group` |
 
 Until bodies move to JSON, each bird class is a hardcoded composition: `BirdTypeProfiles.ByBirdType` maps it to a layout, its required clips, the event names it understands, the routine actions it can perform, its default routine and its default sound cues; the class decides which clip to play and when.
 
@@ -846,7 +846,7 @@ Member fields (step 8, implemented):
 #### Group runtime
 
 - Each bird carries `groupId` and `role` (also in `BirdState`).
-- Group-level reactions: one member's flee or escape can pass on to others, see [Group cohesion](#group-cohesion-planned-step-9).
+- Group-level reactions: one member's flee or escape can pass on to others, see [Group cohesion](#group-cohesion-step-9).
 - The owner of the group leader owns the whole group.
 - `follow` is committed movement relative to the leader. Each follower takes a stable slot (rank among same-role members by bird id) on a golden-angle spiral around the leader (`FollowSlot`), so a brood spreads out instead of stacking; a slot that is not water falls back to the leader's position. Later reused for cattle egrets on farm animals (moving anchor).
 
@@ -874,7 +874,7 @@ Some actions look wrong when several birds do them at once. For example, a signa
 
 The routine `rare` entry gains an optional `if` using the context condition keys, plus a new `role` key (the bird's own role; `groupHasRole` checks the group). Actions limited to one sex are gated with `if: { role: male }`. Ungrouped rules have no role, so a role-gated action never fires for them.
 
-#### Group cohesion (planned, [step 9](REFACTOR.md#step-9-natural-escape-and-coordination-planned))
+#### Group cohesion ([step 9](REFACTOR.md#step-9-natural-escape-and-coordination-planned))
 
 A group should react as a group, but not by chasing a leader. Members drift apart while idling, and a player who runs through the middle would otherwise make followers fly through the player toward the leader. So cohesion only decides **whether** and **when** a member responds. **Where** it goes is always the member's own escape decision (see [Escape options](#escape-options-planned-step-9)), with its own position and the same eligibility rules.
 
@@ -899,7 +899,9 @@ A group should react as a group, but not by chasing a leader. Members drift apar
 | `delayMs` | `[min, max]` stagger before an informed bird reacts, scaled up with its distance from the trigger bird | `[80, 400]` |
 | `sameOutcome` | chance (0–1) that an informed bird tries the trigger bird's outcome kind first (`tree`, `ground`, `water`, `offscreen`); otherwise it rolls its own escape list | 1 |
 | `rally` | radius (tiles) within which birds of one sub-flock prefer to land near each other; 0 disables rallying | 3 |
+| `fan` | 0–1: how strongly an informed bird prefers a landing spot on its own side of the farmer (lateral bias from the bird's position relative to the threat), so a head-on approach opens a V instead of one landing patch; 0 = no bias | 0.5 |
 | `regroup` | if true, scattered members drift back together once calm (see below) | true |
+| `rejoinDelayMs` | `[min, max]` random wait, per bird, after the bird becomes calm and before `rejoin` may start | `[2000, 8000]` |
 
 Examples:
 - Sparrow or finch flock: `spread` 1, short delays, `sameOutcome` 1, so the whole flock goes at once.
@@ -910,7 +912,7 @@ Examples:
 1. Start with the trigger bird. Visit its neighbours (same group, within `linkRadius`) in bird-id order and roll `spread` for each; an informed bird informs its own neighbours the same way.
 2. Birds the wave does not reach keep idling. They still react to the threat themselves if it gets within their own alert or flee radius.
 3. Every informed bird gets a delay and its own RNG seed derived from its bird id and the trigger time, so tick order never shifts other picks.
-4. An informed bird that is already fleeing, hiding or departed is skipped. A bird that is farther from every farmer than `fleeRadius + linkRadius` is informed but rolls a normal escape, which may be "stay put and go alert" (it enters the existing `Alert` state).
+4. An informed bird that is already fleeing, hiding or departed is skipped. A bird that is farther from every farmer than `fleeRadius + linkRadius` is not available: it is skipped and reacts on its own threat distance. Availability also requires no pending alarm, not escaping, and a cohesion config.
 
 **Own decision, shared outcome.** The informed bird runs the normal escape loop. `sameOutcome` only reorders which option it tries first. It still has to pass every eligibility rule: free tile, `fleeRadius + 1` from every farmer, passable, inside the cone away from the threat, within `maxDistance`. An addition to eligibility for all escapes, not only grouped ones: the straight flight line from the bird to the spot stays at least 2 tiles away from every farmer, so no bird flies through or over the player. A bird on the far side of the player therefore flies the other way.
 
@@ -921,14 +923,24 @@ Examples:
 
 A player running through the middle of the flock therefore splits it into two sub-flocks on the two sides without any special case, and each side lands together. Rally is a preference, never a reason to use a spot that fails eligibility.
 
-**Regroup.** With `regroup`, a bird that is calm (no farmer within alert radius) and farther than `linkRadius * 2` from the nearest group mate gets a low-weight routine action `rejoin`. It walks, hops or flies (by bird type) to an eligible spot within `rally` tiles of the nearest group mate, at most once per calm period. Members that left offscreen return through [Departures and return](#departures-and-return-step-9) instead: if any group mate is still in the location, a departed bird returns near that mate; if none is, the group returns together around the planned centre.
+**Fan.** Before rally, `fan` weights eligible spots by the side they lie on relative to the line from the threat through the bird: spots on the bird's own side score higher. Birds directly in line with the threat have no side, so they pick freely and rally decides. The result is a V away from the farmer. Like rally, it only reorders spots that already passed every eligibility rule.
+
+**Two farmers.** Eligibility already checks every farmer, so a flock between two players loses its cone on both sides and falls through the escape list to offscreen flight. A flock with one free side flees to that side. Regroup and rally targets pass the same rules, so the flock never drifts back toward the second player.
+
+**Regroup** (implemented as a calm-gated check, not a routine action). With `regroup` and `rally` > 0, a bird that is calm (no threat or alert) and idle (stopped, pecking or swimming), farther than `linkRadius * 2` from the nearest non-escaping group mate, waits its own `rejoinDelayMs`, then makes one relocation flight (`flee` clip, not counted against `maxRelocations`) to an eligible spot within `rally` tiles of that mate (water if the mate is on open water). The target uses the escape eligibility rules, including distance from every farmer. It happens at most once per calm period; the wait and the once-flag reset when a farmer or alert is seen. Members that left offscreen return through [Departures and return](#departures-and-return-step-9) instead: if any group mate is still in the location, a departed bird returns near that mate; if none is, the group returns together around the planned centre.
+
+**In-flight retarget** (step 9 I2). A relocating bird (`Relocating`, any bird type) is not committed to its landing spot until it lands. About every 300 ms the owner checks two things:
+1. A farmer is now within `fleeRadius + 1` of the landing spot, or the remaining flight line passes within 2 tiles of any farmer.
+2. The spot became occupied or ineligible (a mate landed there, a tile changed).
+
+If either holds, the bird re-runs the escape planner from its current tile with the same eligibility rules, preferring a spot near an existing rally anchor, and keeps its flight animation. If nothing is eligible it escalates to offscreen flight. A retarget counts against the relocation budget, and a bird retargets at most twice per flight so it never zigzags. There is no separate mid-air rejoin action: joining a landed mate is just the rally preference during a retarget. Replicas need nothing new, since `RelocateTarget` already travels in `BirdState`; the check runs on the owner only. It is cheap (a few distance tests per bird per 300 ms), needs no LINQ, and sits in the shared escape code, not in each bird type's `Update`.
 
 **Ownership and multiplayer.**
 - The group owner (the owner of the group leader, as above) builds the alarm list and the seeds. Only the owner decides; replicas play the resulting committed movement and clips. No new message is needed for the wave.
-- The delayed start is a timer in `BirdState` (`AlarmDelayMs`), so a snapshot taken during the stagger resumes correctly. Alarm list, anchors and the regroup budget are runtime state: not saved, rebuilt empty on an owner change. A bird whose delay was pending then reacts on its own threat distance only.
+- Alarm delays, alarm list, anchors and the rejoin wait are runtime state: not saved, rebuilt empty on an owner change. A bird whose delay was pending then reacts on its own threat distance only.
 - The song and other [exclusive locks](#behavior-coordination-planned-step-9) are unaffected by alarms; fleeing releases them as before.
 
-**Out of scope.** Alert spreading (one bird freezes, neighbours freeze), flock-in-flight rendering (V formations, boids), and member-specific leaders other than the existing `follow` role. Alert spreading can use the same neighbour wave later.
+**Out of scope.** Mid-air boids-style flocking, alert spreading (one bird freezes, neighbours freeze), flock-in-flight rendering (V formations, boids), and member-specific leaders other than the existing `follow` role. Alert spreading can use the same neighbour wave later.
 
 #### Placement controls
 
@@ -1153,7 +1165,7 @@ Goals, not designs, unless marked implemented. Composition, groups and spacing a
 Designed in [Bird composition → Reactions](#4-reactions) and implemented in [Phase 10](REFACTOR.md#10-fully-modular-config-driven-birds) steps 4 and 5.
 
 - Threat response has two radii instead of instant flee: inside the outer radius the bird freezes (`Alert` state, head-up frame), inside the inner radius it flees, and it resumes idling a short while after the threat leaves the outer radius. A running farmer counts as closer, so sneaking pays off. `BirdContext` carries the threat distance instead of a bool; order becomes `Flee(inner) → Alert(outer) → Wake → IdleRoutine`.
-- Birds should stay in the location and react to the player believably: hide in a nearby tree, land farther away or move to other water or another trunk, and fly offscreen only when nothing nearby is safe. Signature songs are rare, one singer at a time, and sung by males. Designed in [Escape options](#escape-options-planned-step-9), [Behavior coordination](#behavior-coordination-planned-step-9) and [Group cohesion](#group-cohesion-planned-step-9): a group reacts as a group (tight flock, loose flock, independent), each bird still picks its own spot.
+- Birds should stay in the location and react to the player believably: hide in a nearby tree, land farther away or move to other water or another trunk, and fly offscreen only when nothing nearby is safe. Signature songs are rare, one singer at a time, and sung by males. Designed in [Escape options](#escape-options-planned-step-9), [Behavior coordination](#behavior-coordination-planned-step-9) and [Group cohesion](#group-cohesion-step-9): a group reacts as a group (tight flock, loose flock, independent), each bird still picks its own spot.
 - Rare forage events are data-selected behaviors: worm pull (e.g. blackbird), fish strike near water (e.g. egret, reusing the vanilla splash sprite), and diving while swimming (ducks, grebes: hide, then resurface on a nearby water tile).
 
 ## Out of scope for now

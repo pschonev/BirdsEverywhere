@@ -9,6 +9,11 @@
         "threat": {
             "oneOf": [
                 {
+                    "description": "Shared reactions id (assets/reactions) whose threat to use.",
+                    "type": "string",
+                    "minLength": 1
+                },
+                {
                     "$ref": "#/$defs/legacyThreat"
                 },
                 {
@@ -99,6 +104,18 @@
                             }
                         }
                     }
+                }
+            ]
+        },
+        "cohesion": {
+            "description": "Group cohesion preset id (assets/reactions) or inline object, optionally extending a preset.",
+            "oneOf": [
+                {
+                    "type": "string",
+                    "minLength": 1
+                },
+                {
+                    "$ref": "#/$defs/cohesion"
                 }
             ]
         }
@@ -210,6 +227,65 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 10
+        },
+        "cohesion": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "extends": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "spread": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Chance an informed bird informs each neighbour within linkRadius."
+                },
+                "linkRadius": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20
+                },
+                "delayMs": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 5000
+                    }
+                },
+                "sameOutcome": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "rally": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 20
+                },
+                "fan": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "regroup": {
+                    "type": "boolean"
+                },
+                "rejoinDelayMs": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 60000
+                    }
+                }
+            }
         }
     }
 }

@@ -94,6 +94,16 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | H03 | Stay 4–11 tiles away for over 3 s. | It runs to the bush and vanishes. |
 | H04 | Walk straight at it from the open side. | It bolts to the bush at 3 tiles, never through you. |
 
+## Group cohesion (one client)
+
+| ID | Action | Expected result |
+|---|---|---|
+| I01 | Walk at a flock of tits from one side. | Members react with small staggered delays and flee away from you, landing in a few clusters. |
+| I02 | Approach a gull flock on the beach. | Gulls fan out to both sides of your approach, none flies through you. |
+| I03 | Stand in the middle of a flock. | Birds on each side flee away from you on their own side. |
+| I04 | Walk away after a flock scattered; wait 10 s. | Distant birds fly back to land near a mate, once. |
+| I05 | Let a flock fly offscreen, leave and re-enter. | Returning birds appear near a remaining mate. |
+
 ## Multiplayer synchronization (two SMAPI clients)
 
 | ID | Action | Expected result |

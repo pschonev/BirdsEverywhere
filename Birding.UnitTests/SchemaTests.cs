@@ -204,6 +204,9 @@ public class SchemaTests
     [TestCase(@"{""threat"":[{""flee"":{""do"":""flyOff"",""escape"":[{""target"":""water"",""chance"":0.7}]}}]}", false)]
     [TestCase(@"{""threat"":[{""flee"":{""do"":""dive""}}]}", false)]
     [TestCase(@"{""threat"":[{""flee"":{""do"":""swimAway"",""target"":""groupRole:parent""}}]}", false)]
+    [TestCase(@"{""cohesion"":{""spread"":1,""linkRadius"":5,""delayMs"":[80,300],""sameOutcome"":1,""rally"":3,""fan"":0.5,""regroup"":true,""rejoinDelayMs"":[2000,8000]}}", true)]
+    [TestCase(@"{""cohesion"":{""spread"":2}}", false)]
+    [TestCase(@"{""cohesion"":{""huddle"":1}}", false)]
     [TestCase(@"{""playerEnters"":{}}", false)]
     public void Reaction_SchemaAndLoaderAgree(string json, bool valid) =>
         AssertAgreement("reaction", json, valid, () => ReactionLoader.Parse(Newtonsoft.Json.Linq.JToken.Parse(json), new Reactions(new ThreatReaction(1)), "x.json", "$"));

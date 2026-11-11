@@ -212,6 +212,43 @@ public static class ContentValidator
         return new BirdComposition(routine, sounds, actions, rule.SoundCooldownMs, reactions);
     }
 
+    /// <summary>Replaces a <c>threat</c> or <c>cohesion</c> preset id, or an <c>extends</c> object, by the shared object; null after reporting an unknown id.</summary>
+    private static JObject? ResolveSlots(JObject slots, SharedDefinitions definitions, string path, Action<IssueSeverity, string, string> report)
+    {
+        JObject resolved = (JObject)slots.DeepClone();
+        foreach (string slot in new[] { "threat", "cohesion" })
+        {
+            JToken? value = resolved[slot];
+            string? reference = value is { Type: JTokenType.String } ? value.Value<string>() : (value as JObject)?["extends"]?.Value<string>();
+            if (reference is null)
+            {
+                continue;
+            }
+            if (!definitions.ReactionSets.TryGetValue(reference, out JObject? shared) || shared[slot] is not { } preset)
+            {
+                string known = string.Join(", ", definitions.ReactionSets.Where(entry => entry.Value[slot] is not null).Select(entry => entry.Key));
+                report(IssueSeverity.Error, $"{path}.{slot}", $"Unknown {slot} '{reference}'. Known: {known}.");
+                return null;
+            }
+            if (value is not JObject overrides)
+            {
+                resolved[slot] = preset.DeepClone();
+            }
+            else if (preset is JObject presetBody)
+            {
+                JObject own = (JObject)overrides.DeepClone();
+                own.Remove("extends");
+                resolved[slot] = TemplateMerger.Merge(presetBody, own);
+            }
+            else
+            {
+                report(IssueSeverity.Error, $"{path}.{slot}", $"{slot} '{reference}' cannot be extended.");
+                return null;
+            }
+        }
+        return resolved;
+    }
+
     /// <summary>Shared reaction id or inline object, resolved over the bird type's default threat radius.</summary>
     private static Reactions? ResolveReactions(SpawnRuleJson rule, string path, string file, BirdTypeProfile profile,
         SharedDefinitions definitions, Dictionary<string, string> sounds, Action<IssueSeverity, string, string> report)
@@ -240,6 +277,15 @@ public static class ContentValidator
         if (token is null)
         {
             return defaults;
+        }
+
+        if (token is JObject slots)
+        {
+            if (ResolveSlots(slots, definitions, reactionPath, report) is not { } resolved)
+            {
+                return defaults;
+            }
+            token = resolved;
         }
 
         try
@@ -273,6 +319,11 @@ public static class ContentValidator
                 }
             }
             ReportEscapeTargets(reactions.Threat, rule.BirdType, profile, reactionPath + ".threat.escape", report);
+            if (reactions.Cohesion is { Rally: > 0 } cohesion && !reactions.Threat.Escape.IsEmpty
+                && cohesion.Rally > reactions.Threat.Escape.Max(option => option.MaxDistance))
+            {
+                report(IssueSeverity.Error, reactionPath + ".cohesion.rally", $"rally ({cohesion.Rally}) must not exceed the largest escape maxDistance.");
+            }
             if (reactions.Threat.Alert is { } alert)
             {
                 if (!profile.CanAlert)

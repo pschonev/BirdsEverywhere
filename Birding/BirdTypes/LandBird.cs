@@ -87,6 +87,12 @@ internal sealed class LandBird : BirdCritter
         (Character? threat, bool alerted) = PollThreats(time, environment);
         BirdContext context = new(State, threat != null, sprite.CurrentAnimation == null, yJumpOffset < 0f, Rng, alerted, TickCalm(time, alerted));
         bool idle = State == BehaviorStatus.Stopped && threat == null && !alerted;
+        if (threat == null && !alerted && State is BehaviorStatus.Stopped or BehaviorStatus.Pecking && !context.Airborne
+            && Rejoin(time, environment, context.Calm) is { } mate)
+        {
+            StartRelocate(mate, environment, counted: false);
+            return UpdateAndReportDeparture(time, environment);
+        }
         BirdAction idleAction = AdvanceIdle(IdleRoutine, idle && context.AnimationIdle && !context.Airborne);
         _behaviors ??= BirdBehaviors.Land(Action("sleep").EndChance ?? 0, Action("walk").EndChance);
         Apply(idle ? idleAction : BirdBehaviors.Decide(_behaviors, context), threat, environment);
@@ -204,7 +210,7 @@ internal sealed class LandBird : BirdCritter
     private static Vector2 TilePosition(Vector2 tile) => tile * 64f + new Vector2(32f, 32f);
 
     private EscapeChoice? RelocationTarget(GameLocation environment, Character threat) =>
-        EscapePlanner.Surface(new GameLocationQuery(environment), OwnTile, threat.Tile, Threat, Relocations, OccupiedTiles(environment), Rng);
+        Record(EscapePlanner.Surface(new GameLocationQuery(environment), OwnTile, threat.Tile, Threat, Relocations, OccupiedTiles(environment), Rng, Flock(environment, threat.Tile)));
 
     private void StartRelocate(Vector2 tile, GameLocation environment, bool counted)
     {

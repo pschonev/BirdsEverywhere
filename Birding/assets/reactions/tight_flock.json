@@ -1,0 +1,10 @@
+{
+    "cohesion": {
+        "spread": 1,
+        "linkRadius": 5,
+        "delayMs": [80, 300],
+        "sameOutcome": 1,
+        "rally": 3,
+        "fan": 0.5
+    }
+}

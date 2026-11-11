@@ -507,7 +507,7 @@ Design: [ARCHITECTURE.md → Condition clauses and time anchors](ARCHITECTURE.md
 
 ### Step 9: natural escape and coordination (planned)
 
-Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-planned-step-9), [Behavior coordination](ARCHITECTURE.md#behavior-coordination-planned-step-9) and [Group cohesion](ARCHITECTURE.md#group-cohesion-planned-step-9). The goal is for birds to stay in the location and react to the player believably instead of flying offscreen.
+Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-planned-step-9), [Behavior coordination](ARCHITECTURE.md#behavior-coordination-planned-step-9) and [Group cohesion](ARCHITECTURE.md#group-cohesion-step-9). The goal is for birds to stay in the location and react to the player believably instead of flying offscreen.
 
 **0. Escape pipeline extraction** (prerequisite of A–I; no behavior change)
 
@@ -577,13 +577,23 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 
 **I. Group cohesion** (after A, D and F; it reuses the escape loop and departures)
 
-- Design: [Group cohesion](ARCHITECTURE.md#group-cohesion-planned-step-9). No leader-following: cohesion decides whether and when a member responds, never where it lands.
+**Implemented (compile/test verified, not tested in game):** cohesion slot, presets, `GroupAlarm`, flight-line rule, `fan`, calm-gated rejoin and group-aware return (done in F). Rejoin is not a routine action: `update` starts a non-counted relocation when `Regroup` and `Rally` > 0. Alarm delays are runtime-only. Shipped: tits `tight_flock`, herring gull `loose_flock`; finch, sparrow, crow and mallard have no assets yet.
+
+- Design: [Group cohesion](ARCHITECTURE.md#group-cohesion-step-9). No leader-following: cohesion decides whether and when a member responds, never where it lands.
 - `assets/reactions/<id>.json` presets (`tight_flock`, `loose_flock`) with ref-or-inline plus `extends`, loaded by `ReactionLoader` into the named slot `reactions.cohesion`; a `cohesion` definition in `schemas/reaction.schema.json`; validator checks ranges and `rally` ≤ `maxDistance`.
 - Escape eligibility gains the flight-line rule (line from bird to spot at least 2 tiles from every farmer). It applies to all escapes, so goldens for ungrouped birds stay unchanged only if the existing picks already satisfy it; any change is made on purpose.
-- Owner-side `GroupAlarm`: neighbour wave in bird-id order with per-bird seeds, delays in `BirdState.AlarmDelayMs`, `sameOutcome` reorder of the escape options, greedy rally anchors per sub-flock.
-- Routine action `rejoin` for `regroup`, and group-aware return in departures (return near a remaining mate).
+- Owner-side `GroupAlarm`: neighbour wave in bird-id order with per-bird seeds, runtime-only delays, `sameOutcome` reorder of the escape options, greedy rally anchors per sub-flock.
+- `fan` (lateral side bias applied before rally) in the cohesion slot, schema and validator.
+- Routine action `rejoin` for `regroup`, with a per-bird `rejoinDelayMs` wait, the escape eligibility rules on its target (every farmer) and a restart when a farmer enters the alert radius; and group-aware return in departures (return near a remaining mate).
 - Shipped content: tit, finch and sparrow `tight_flock`; crow and gull `loose_flock`; mallard family `tight_flock` for the parents.
-- Tests: wave reach and determinism for fixed seeds and a fixed id order; `spread` 0 behaves as today with no RNG drift; `spread` 1 informs the whole connected group and not a distant one beyond `linkRadius`; delay scaling; `sameOutcome` 1 and 0; eligibility with a farmer in the middle of a group (no flight line through the farmer, birds on opposite sides go opposite ways, two anchors); rally anchor reuse and fallback to own pick; skipped fleeing, hiding and departed birds; `rejoin` only when calm, only once per calm period; snapshot round trip of `AlarmDelayMs`; preset `extends` and unknown-key errors; schema/loader agreement. Each rule is asserted in one layer only.
+- Tests: `fan` 0 changes no pick and `fan` 1 sends birds on opposite sides of a farmer to opposite sides; two farmers with one free side flee there, and with none fall through to offscreen; `rejoin` target rejected near a second farmer and delayed within `rejoinDelayMs`; wave reach and determinism for fixed seeds and a fixed id order; `spread` 0 behaves as today with no RNG drift; `spread` 1 informs the whole connected group and not a distant one beyond `linkRadius`; delay scaling; `sameOutcome` 1 and 0; eligibility with a farmer in the middle of a group (no flight line through the farmer, birds on opposite sides go opposite ways, two anchors); rally anchor reuse and fallback to own pick; skipped fleeing, hiding and departed birds; `rejoin` only when calm, only once per calm period; preset `extends` and unknown-key errors; schema/loader agreement. Each rule is asserted in one layer only.
+
+**I2. In-flight retarget** (after I; it reuses rally anchors and the flight-line rule)
+
+- Design: [Group cohesion → In-flight retarget](ARCHITECTURE.md#group-cohesion-step-9).
+- One shared check in the escape code, run on the owner about every 300 ms for `Relocating` birds of every type: landing spot unsafe (farmer within `fleeRadius + 1`, flight line within 2 tiles of a farmer) or no longer eligible. On a hit it re-plans from the current tile with the normal eligibility rules, preferring a rally anchor, and escalates to offscreen when nothing is eligible.
+- Counts against the relocation budget; at most two retargets per flight. No new `BirdState` field (`RelocateTarget` already syncs); the retarget timer is runtime only. Replicas unchanged.
+- Tests: no retarget while the spot stays safe; retarget when a farmer walks onto the spot or the line; second farmer from the other side leaves no spot and escalates to offscreen; the two-retarget cap and no zigzag over N ticks; budget accounting; prefers a rally anchor; trunk and water-land birds use the same path; replica unaffected. Each rule is asserted in one layer only.
 
 **E. Exclusive actions and sex roles**
 
@@ -611,7 +621,7 @@ The refactor is done when every box is checked. Phase sections hold the details;
 - [ ] Phase 10 step 2: in-game check (see step 2), including whether the `"flip"` frame tags are visible.
 - [ ] Phase 10 steps 3–7: exit criteria met.
 - [ ] Phase 10 step 8: implemented (compile and unit tests pass); in-game and two-player checks still to be recorded.
-- [ ] Phase 10 step 9: escape options, canopy hide, exclusive actions, departures and return, group cohesion, reachability and Beach bridge progression, bush cover and approach side. Steps 9.0, A–D, F–H implemented (compile and unit tests); I and E planned.
+- [ ] Phase 10 step 9: escape options, canopy hide, exclusive actions, departures and return, group cohesion, in-flight retarget, reachability and Beach bridge progression, bush cover and approach side. Steps 9.0, A–D, F–H implemented (compile and unit tests); I, I2 and E planned.
 - [ ] Phase 9 smoke test and full pass recorded before release.
 
 ---

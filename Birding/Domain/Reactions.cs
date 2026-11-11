@@ -2,8 +2,8 @@ using System.Collections.Immutable;
 
 namespace Birding.Domain;
 
-/// <summary>Resolved reactions of a rule. Only the <c>threat</c> trigger exists so far.</summary>
-public sealed record Reactions(ThreatReaction Threat, IReadOnlyList<ThreatAlternative>? Alternatives = null)
+/// <summary>Resolved reactions of a rule: the <c>threat</c> trigger and the optional group <c>cohesion</c>.</summary>
+public sealed record Reactions(ThreatReaction Threat, IReadOnlyList<ThreatAlternative>? Alternatives = null, Cohesion? Cohesion = null)
 {
     public ThreatAlternative Select(ReactionContext context) =>
         Alternatives?.FirstOrDefault(alternative => alternative.Condition.Matches(context))
@@ -52,3 +52,17 @@ public sealed record EscapeOption(string Target, double Weight, int MaxDistance,
 
 /// <summary>A threat between the flee and alert radius freezes the bird on <c>Clip</c>; it resumes after <c>CalmMs</c> without a threat in the alert radius, or flees after <c>FleeAfterMs</c> of continuous alert (never when null).</summary>
 public sealed record AlertReaction(int Radius, string Clip, string? Sound, int CalmMs, int? FleeAfterMs = null);
+
+
+/// <summary>How a group reacts together: <c>Spread</c> chance to inform each neighbour within <c>LinkRadius</c> tiles, informed birds react after a <c>DelayMs</c> stagger and try the trigger's outcome first with chance <c>SameOutcome</c>, prefer landing within <c>Rally</c> tiles of each other, bias their landing side by <c>Fan</c>, and after <c>RejoinDelayMs</c> of calm drift back together when <c>Regroup</c>.</summary>
+public sealed record Cohesion
+{
+    public double Spread { get; init; }
+    public int LinkRadius { get; init; } = 5;
+    public IntRange DelayMs { get; init; } = new(80, 400);
+    public double SameOutcome { get; init; } = 1;
+    public int Rally { get; init; } = 3;
+    public double Fan { get; init; } = 0.5;
+    public bool Regroup { get; init; } = true;
+    public IntRange RejoinDelayMs { get; init; } = new(2000, 8000);
+}

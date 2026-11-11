@@ -19,6 +19,7 @@
       3
     ],
     "reactions": {
+      "cohesion": "loose_flock",
       "threat": [
         {
           "if": {

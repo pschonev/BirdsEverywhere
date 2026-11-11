@@ -8,8 +8,9 @@ public static class ReactionLoader
 {
     private const int MaxRadius = 20;
 
-    private static readonly HashSet<string> _keys = new(StringComparer.Ordinal) { "threat" };
+    private static readonly HashSet<string> _keys = new(StringComparer.Ordinal) { "threat", "cohesion" };
     private static readonly HashSet<string> _threatKeys = new(StringComparer.Ordinal) { "fleeRadius", "runningMultiplier", "alert", "escape", "maxRelocations" };
+    private static readonly HashSet<string> _cohesionKeys = new(StringComparer.Ordinal) { "spread", "linkRadius", "delayMs", "sameOutcome", "rally", "fan", "regroup", "rejoinDelayMs" };
     private static readonly HashSet<string> _alertKeys = new(StringComparer.Ordinal) { "radius", "clip", "sound", "calmMs", "fleeAfterMs" };
     private static readonly HashSet<string> _escapeKeys = new(StringComparer.Ordinal) { "target", "weight", "maxDistance", "hideForMs" };
     private static readonly HashSet<string> _escapeTargets = new(StringComparer.Ordinal) { "ground", "water", "otherTree", EscapeOption.Tree, EscapeOption.Offscreen };
@@ -30,6 +31,8 @@ public static class ReactionLoader
     public static Reactions Parse(JToken token, Reactions defaults, string file, string path)
     {
         JObject body = Object(token, file, path, _keys);
+        Cohesion? cohesion = body["cohesion"] is { } cohesionToken ? ParseCohesion(cohesionToken, file, path + ".cohesion") : defaults.Cohesion;
+        defaults = defaults with { Cohesion = cohesion };
         if (body["threat"] is not { } threatToken)
         {
             return defaults;
@@ -82,7 +85,7 @@ public static class ReactionLoader
                     WithEscape(defaults.Threat with { FleeRadius = radius }, fleeBody, file, choicePath + ".flee"),
                     new ActionDefinition(primitive, null, Text(fleeBody["sound"], file, choicePath + ".flee.sound"), 1, null, null, null, null, null, false, null)));
             }
-            return new Reactions(defaults.Threat, choices);
+            return new Reactions(defaults.Threat, choices, cohesion);
         }
         JObject threat = Object(threatToken, file, threatPath, _threatKeys);
         int fleeRadius = threat["fleeRadius"] is { } flee ? Int(flee, 1, MaxRadius, file, threatPath + ".fleeRadius") : defaults.Threat.FleeRadius;
@@ -114,7 +117,54 @@ public static class ReactionLoader
             throw new FormatException($"{file}: {threatPath}.fleeRadius must be smaller than the alert radius ({alert.Radius}).");
         }
 
-        return new Reactions(WithEscape(new ThreatReaction(fleeRadius, alert, running, defaults.Threat.Escape, defaults.Threat.MaxRelocations), threat, file, threatPath));
+        return new Reactions(WithEscape(new ThreatReaction(fleeRadius, alert, running, defaults.Threat.Escape, defaults.Threat.MaxRelocations), threat, file, threatPath), null, cohesion);
+    }
+
+    private static Cohesion ParseCohesion(JToken token, string file, string path)
+    {
+        if (token is { Type: JTokenType.String })
+        {
+            throw new FormatException($"{file}: {path} names a preset, which only rules can resolve.");
+        }
+        JObject body = Object(token, file, path, _cohesionKeys);
+        Cohesion defaults = new();
+        return new Cohesion
+        {
+            Spread = Fraction(body["spread"], defaults.Spread, file, path + ".spread"),
+            LinkRadius = body["linkRadius"] is { } link ? Int(link, 1, MaxRadius, file, path + ".linkRadius") : defaults.LinkRadius,
+            DelayMs = Span(body["delayMs"], defaults.DelayMs, 0, 5000, file, path + ".delayMs"),
+            SameOutcome = Fraction(body["sameOutcome"], defaults.SameOutcome, file, path + ".sameOutcome"),
+            Rally = body["rally"] is { } rally ? Int(rally, 0, MaxRadius, file, path + ".rally") : defaults.Rally,
+            Fan = Fraction(body["fan"], defaults.Fan, file, path + ".fan"),
+            Regroup = body["regroup"] switch
+            {
+                null => defaults.Regroup,
+                { Type: JTokenType.Boolean } value => value.Value<bool>(),
+                _ => throw new FormatException($"{file}: {path}.regroup must be a boolean."),
+            },
+            RejoinDelayMs = Span(body["rejoinDelayMs"], defaults.RejoinDelayMs, 0, 60000, file, path + ".rejoinDelayMs"),
+        };
+    }
+
+    private static double Fraction(JToken? token, double fallback, string file, string path) => token switch
+    {
+        null => fallback,
+        { Type: JTokenType.Float or JTokenType.Integer } value when value.Value<double>() is >= 0 and <= 1 => value.Value<double>(),
+        _ => throw new FormatException($"{file}: {path} must be a number from 0 to 1."),
+    };
+
+    private static IntRange Span(JToken? token, IntRange fallback, int min, int max, string file, string path)
+    {
+        if (token is null)
+        {
+            return fallback;
+        }
+        if (token is not JArray { Count: 2 } pair)
+        {
+            throw new FormatException($"{file}: {path} must be [min, max].");
+        }
+        IntRange range = new(Int(pair[0], min, max, file, path), Int(pair[1], min, max, file, path));
+        return range.Min <= range.Max ? range : throw new FormatException($"{file}: {path} must be ordered.");
     }
 
     private static ThreatReaction WithEscape(ThreatReaction threat, JObject body, string file, string path)

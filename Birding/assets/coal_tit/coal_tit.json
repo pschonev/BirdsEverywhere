@@ -5,6 +5,9 @@
   "shorthand": "coatit2",
   "template": "garden_flock",
   "defaults": {
-    "reactions": "tree_hider"
+    "reactions": {
+      "threat": "tree_hider",
+      "cohesion": "tight_flock"
+    }
   }
 }
