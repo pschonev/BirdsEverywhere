@@ -531,6 +531,7 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 - `treeShaken` trigger, plus a felled-tree check on the hide anchor. Both flush the bird offscreen.
 - `BirdState` carries `Hiding`, the timer and the anchor. Replicas don't draw a hidden bird.
 - great tit (`garden_flock` or a shared `tree_hider` reaction): `tree` weight 3, `ground` weight 1.
+- **Leaves (compile/test verified, not tested in game):** the `tree` target searches only `CanopyTrees()` (mature, not a stump, `IsLeafy()`), so nothing hides in a bare tree in winter, and a hider whose tree loses its leaves or becomes a stump is flushed. Trunk birds only exclude stumps.
 - **Implemented (compile/test verified, not tested in game):** `tree` target with `hideForMs` (1000-120000, default 10000, `tree` only), `EscapeChoice`, `EscapePlanner.Landing`, `Hiding` and `HideTimer` in `LandBird`/`BirdState` (anchor = tree), shared `reactions/tree_hider.json` on the three tits. A hide costs one relocation; the return to ground is uncounted. A tree that is shaken, felled or a stump makes the bird flee offscreen (checked by polling the tree each tick, not by a `treeShaken` event). Manual cases C01-C05.
 
 **C. Directional trunk relocation**
@@ -595,19 +596,35 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 - Counts against the relocation budget; at most two retargets per flight. No new `BirdState` field (`RelocateTarget` already syncs); the retarget timer is runtime only. Replicas unchanged.
 - Tests: no retarget while the spot stays safe; retarget when a farmer walks onto the spot or the line; second farmer from the other side leaves no spot and escalates to offscreen; the two-retarget cap and no zigzag over N ticks; budget accounting; prefers a rally anchor; trunk and water-land birds use the same path; replica unaffected. Each rule is asserted in one layer only.
 
-**E. Exclusive actions and sex roles** (engine implemented; great tit roles and song deferred until song art, audio and a group-size plan exist)
+**E. Exclusive actions and sex roles** (implemented, compile and unit tests only; great tit roles and song not tested in game)
 
 - Action fields `exclusive` and `exclusiveCooldownMs`. A per-location lock table owned by the location owner: not saved, reset on ownership change, released on action end, flee, hide or despawn.
 - Routine `rare.if` with context condition keys, plus a new `role` key.
-- great tit: `male` (`required`, count ≥ 1) and `female` members with shared textures, and a male-only `song` rare entry once song art and audio exist.
+- great tit: `male` (`required`, one in spring to fall, one or two in winter) and `female` (0–2, 1–3 in winter) members sharing textures; group sizes are unchanged. Non-required roles may have a count minimum of 0 (schema and validator). A male-only `sing` rare entry in the shared `songbird_idle` routine (chance 0.03; spring, and summer 0600–0900) is the great tit's own `sing` action: it plays the 0.5 s syllable of `audio/great_tit_song.ogg` 3–4 times (`soundRepeat` `[3, 4]`, `soundIntervalMs` 500, both on the species, since they belong to this recording) while it holds the `stand` pose, under the `song` lock (5 s cooldown, so the next singer or the same bird can follow after a short pause). The `song` sound role carries (see [Sound carry](ARCHITECTURE.md#behavior-coordination-planned-step-9)): full volume on screen, fading to 20% at 30 tiles, never silent in the location. No song pose art exists; the action holds the `stand` pose. Not done: panning (the game's cue API has none).
 
 **Tests:** weighted option pick; `relocate` key rejected; the all-farmers distance rule with two farmers; passability rejection; offscreen fallback when nothing is eligible; directional cone; hide → return timeline and flush on shake or fell; snapshot and replica fields for `Hiding`; lock acquire, skip, release and cooldown with two birds, with no RNG drift in other picks; the `role` condition; required-male placement; open-water rejection next to land and pier tiles; blocked `swimAway` escalates to flight with no state oscillation over N ticks; relocation budget reset after calm; land → land and land → water picks for a water-land bird; departure skip in both populate paths, return only on a new visit after the delay, re-placed tile eligible and not the old one, group returns together, departure message validation and day reset; flood fill on a synthetic map with a blocked island (land excluded, water within `shoreDistance` of reachable land kept), cache invalidation when the bridge flag flips, the `bridgeFixed` condition, `Beach:East` resolution (empty while broken); bush size filter, 2–5 tile placement with a clear path, side preference and rejection with several arrival tiles; `fleeAfterMs` fires, never fires when absent and resets when the ring empties; bush alert → calm → idle and the `fleeRadius` dash. Schema/loader agreement covers `escape`, `exclusive`, `rare.if` and `fleeAfterMs`. Each rule is asserted in one layer only.
 
 **Exit:** the tests above pass; goldens are unchanged for rules without the new fields. In game (recorded in [MANUAL_TESTS.md](MANUAL_TESTS.md)): a great tit hides in a nearby tree and comes back down, a gull resettles on water, takes off before reaching the pier and later hops land → water, a fled bird is absent on immediate re-entry and returns to a new spot later, a woodpecker moves to a trunk ahead, two singers never overlap, a sparrow flock leaves together while a crow flock leaves in pieces and regroups, running through a flock splits it into two sides that never fly through the player, a fresh save has no beach birds east of the broken bridge while east-only species appear after the repair, bush birds sit only beside large bushes, idle until a farmer is within about 12 tiles, freeze, then calm down or run into the bush and never run through a farmer, and a two-player check of hiding, the lock handoff and a bush bird approached from both sides.
 
-**Prototype species once art exists** ([table](#backlog)): great tit `sing` clip and song audio.
+**Prototype species once art exists** ([table](#backlog)): great tit song pose (the clip currently reuses the stand cell).
 
 ---
+
+### Step 10: bird voices (planned)
+
+Design: [ARCHITECTURE.md → Bird voices](ARCHITECTURE.md#bird-voices-planned-step-10). Sounds are per bird and one-shot today. This step adds a voice cap, sound during an action, group chatter and category volumes. Order, each compile and unit-test verified:
+
+1. **Voice cap.** `soundVoices` (role → `max`, `minGapMs`) and a default; a per-peer pool in `BirdServices` that counts playing cues; applied in `PlaySound`. Verify `ICue.IsPlaying` for custom cues first.
+2. **Sound during an action.** `soundDuring` (`role`, `chance`, `everyMs`) on any primitive; ticks in the bird's update, owner on `Rng`, replica on `VisualRng`.
+3. **Group chatter.** `join` (`radius`, `chance`, `delayMs`, `scope`, `if`) on an action; owner sets the neighbours' `IdleCue`, one generation. Needs 1.
+4. **Category volumes.** `SongVolume`, `VoiceVolume`, `EffectVolume` in `ModConfig`, applied in `PlaySound`.
+5. **Ambience** ([design](ARCHITECTURE.md#bird-voices-planned-step-10)). 5a: generalize `SoundCarry` to a per-role `carry` flag. 5b: `assets/ambience/*.json` with schema, loader, validator and a per-peer ticker; needs the audio tool to accept non-Xeno-canto sources first, and location groups for Ginger Island and the farm types in `regions.json`.
+
+**Tests:** the cap drops the over-limit voice and respects `minGapMs` without changing other birds' RNG; `soundDuring` rolls on the right RNG and stops with the action; `join` picks only free neighbours in radius, honours `if`, never starts a second generation and respects the lock and the cap; category volumes multiply and 0 mutes; the schema/loader agree on all new fields. Each rule is asserted in one layer only.
+
+**Exit:** the tests above pass; goldens are unchanged for rules without the new fields. In game (recorded in [MANUAL_TESTS.md](MANUAL_TESTS.md)): a fleeing gull flock never stacks more than the cap and calls now and then in flight, a sparrow group chats in short bursts that spread and fade, two males answer each other without overlapping, and each category volume can be turned down alone.
+
+**Backlog for this area** (not scheduled): cue variants, pitch/volume jitter and per-bird song repertoire; quiet after alarm; dawn chorus and weather tuning (data only); duller far sounds; heard-only observations; species-specific sounds (woodpecker drumming and flight call, gull long call and mews, female mallard quack, duckling begging, tit contact calls). More recordings mean more licences: prefer CC0 or CC BY where possible (the BY-NC-SA song carries non-commercial and share-alike terms) and keep `tools/audio.toml` the single source of credits.
 
 ## Open items and definition of done
 
@@ -622,6 +639,7 @@ The refactor is done when every box is checked. Phase sections hold the details;
 - [ ] Phase 10 steps 3–7: exit criteria met.
 - [ ] Phase 10 step 8: implemented (compile and unit tests pass); in-game and two-player checks still to be recorded.
 - [ ] Phase 10 step 9: escape options, canopy hide, exclusive actions, departures and return, group cohesion, in-flight retarget, reachability and Beach bridge progression, bush cover and approach side. Steps 9.0, A–D, E–I2 implemented (compile and unit tests); great tit male/female roles and song deferred.
+- [ ] Phase 10 step 10: bird voices (voice cap, sound during actions, group chatter, category volumes, ambience); planned.
 - [ ] Phase 9 smoke test and full pass recorded before release.
 
 ---
@@ -651,7 +669,7 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 
 - Birds flying into trees (hidden canopy hide). → Phase 10 step 9.
 - Water birds that swim away. On land `swimAway` falls back to flight. Not needed for families that spawn only on water (e.g. mallards); land/water-aware escapes and shore safety → Phase 10 step 9 D.
-- Singing: seasonal `rare` `sing` entries with `when.any` and time anchors (step 8); needs song clips and `audio:` cues per species. One singer per location and male-only via `exclusive` and roles. → Phase 10 step 9.
+- Singing: seasonal `rare` `sing` entries with `when.any` and time anchors (step 8); needs song clips and `audio:` cues per species. One singer per location and male-only via `exclusive` and roles. → Phase 10 step 9 (implemented, not tested in game); calls, chatter and group sound → Phase 10 step 10.
 - Visible birds in tree canopies that fly off when the tree is shaken.
 - Shore birds.
 - Flyovers: migrating birds passing through, predators circling.

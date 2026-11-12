@@ -286,7 +286,7 @@ internal sealed class LandBird : BirdCritter
 
     private static bool TreeIntact(GameLocation environment, Vector2 tile) =>
         environment.terrainFeatures.TryGetValue(tile, out TerrainFeature? feature)
-        && feature is Tree { stump.Value: false, falling.Value: false, maxShake: 0f };
+        && feature is Tree { stump.Value: false, falling.Value: false, maxShake: 0f } tree && tree.IsLeafy();
 
     internal void StartFlyAnimation() => PlayClip(Action("flee").Clip!, VisualRng);
 

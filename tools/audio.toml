@@ -1,0 +1,11 @@
+# Sounds cut from Xeno-canto recordings. `uv run tools/audio.py build` renders them and rewrites CREDITS.md.
+# Required: xc (xeno-canto number; species, recordist and license are fetched from its page), segments.
+# segments: [[start, end], ...] seconds in the source, joined in order.
+# Optional (override DEFAULTS in audio.py, or set for all sounds under [defaults]):
+#   lowcut, highcut (Hz band-pass), gain (peak), fade, pad (seconds),
+#   noise = [start, end] (noise-only stretch for spectral subtraction), noise_strength.
+
+[great_tit_song]
+xc = 551734
+segments = [[1.50, 2.00]]
+lowcut = 2500

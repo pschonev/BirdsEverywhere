@@ -21,7 +21,10 @@ public static class Condition
     public delegate bool TerrainSpawnCondition(GameLocation location, Vector2 feature, Vector2 position);
 
     public static bool IsEligibleTree(TerrainFeature feature) =>
-        feature is Tree tree && tree.treeType.Value != Tree.leafyTree && tree.growthStage.Value >= 5;
+        feature is Tree tree && tree.treeType.Value != Tree.leafyTree && tree.growthStage.Value >= 5 && !tree.stump.Value;
+
+    /// <summary>A tree a bird can hide in: eligible and currently carrying leaves (evergreens in winter, deciduous ones not).</summary>
+    public static bool IsCanopyTree(TerrainFeature feature) => IsEligibleTree(feature) && feature is Tree tree && tree.IsLeafy();
 
     public static bool IsEligibleTreeAt(GameLocation location, Vector2 tile) =>
         location.terrainFeatures.TryGetValue(tile, out TerrainFeature? feature) && IsEligibleTree(feature);

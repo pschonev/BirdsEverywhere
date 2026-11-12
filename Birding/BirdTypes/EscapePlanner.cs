@@ -26,7 +26,7 @@ internal static class EscapePlanner
         {
             "ground" => Tiles(query, from, option.MaxDistance, tile => TileRules.CanLand(query, tile)),
             "water" => Tiles(query, from, option.MaxDistance, tile => TileRules.IsOpenWater(query, tile)),
-            EscapeOption.Tree => query.MatureTrees(),
+            EscapeOption.Tree => query.CanopyTrees(),
             _ => Array.Empty<Vector2>(),
         }, from, Threats(query, threat), occupied, random, flock);
 

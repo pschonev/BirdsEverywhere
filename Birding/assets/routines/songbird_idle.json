@@ -1,0 +1,28 @@
+{
+    "chance": 0.008,
+    "pick": {
+        "sleep": 1,
+        "peck": 1,
+        "hop": 1,
+        "turnAndHop": 1,
+        "walk": 2
+    },
+    "next": {
+        "peck": {
+            "peck": 1,
+            "stop": 1
+        }
+    },
+    "rare": {
+        "sing": {
+            "chance": 0.03,
+            "when": {
+                "any": [
+                    { "seasons": ["spring"] },
+                    { "seasons": ["summer"], "times": [["sunrise", "sunrise+180"]] }
+                ]
+            },
+            "if": { "role": "male" }
+        }
+    }
+}

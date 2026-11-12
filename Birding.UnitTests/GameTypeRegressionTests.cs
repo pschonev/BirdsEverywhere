@@ -479,4 +479,18 @@ public class GameTypeRegressionTests
         Assert.That(BirdTypeRegistry.CreateDefault().TryCreate(new BirdTypeId("NoSuchBird"), null!, null!, null!, out BirdCritter? bird), Is.False);
         Assert.That(bird, Is.Null);
     }
+
+    [Test]
+    public void IsEligibleTree_RejectsStumpsAndYoungTrees()
+    {
+        StardewValley.TerrainFeatures.Tree grown = new("1", 5);
+        StardewValley.TerrainFeatures.Tree stump = new("1", 5);
+        stump.stump.Value = true;
+        Assert.Multiple(() =>
+        {
+            Assert.That(Condition.IsEligibleTree(grown), Is.True);
+            Assert.That(Condition.IsEligibleTree(stump), Is.False);
+            Assert.That(Condition.IsEligibleTree(new StardewValley.TerrainFeatures.Tree("1", 3)), Is.False);
+        });
+    }
 }

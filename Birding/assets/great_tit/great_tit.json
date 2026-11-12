@@ -8,6 +8,39 @@
     "reactions": {
       "threat": "tree_hider",
       "cohesion": "tight_flock"
+    },
+    "routine": "songbird_idle",
+    "sounds": {
+      "song": "audio:great_tit_song"
+    },
+    "actions": {
+      "sing": { "do": "stay", "clip": "stand", "sound": "song", "soundRepeat": [3, 4], "soundIntervalMs": 500, "exclusive": "song", "exclusiveCooldownMs": 5000 }
+    },
+    "stages": {
+      "adult": {}
+    },
+    "spawnParams": {
+      "group": {
+        "formation": "cluster",
+        "radius": 3,
+        "members": {
+          "male": { "count": [1, 1], "stage": "adult", "required": true },
+          "female": { "count": [0, 2], "stage": "adult" }
+        }
+      }
+    }
+  },
+  "rules": {
+    "winter": {
+      "spawnParams": {
+        "group": {
+          "formation": "cluster",
+          "members": {
+            "male": { "count": [1, 2], "stage": "adult" },
+            "female": { "count": [1, 3], "stage": "adult" }
+          }
+        }
+      }
     }
   }
 }

@@ -616,7 +616,7 @@ An action binds a code primitive (`do`) to a clip, parameters and an optional so
 ```
 
 - Primitives are a closed C# vocabulary: `stay`, `walk`, `hop`, `flyOff`, `flyTo`, `runToBush`, `swim`, `swimAway`, `dive`, `hide`, `follow`.
-- Common fields: `clip`, `sound` (role played when the action starts), `soundChance`, and how the action ends: clip end (default for non-looping clips), `durationMs`, or `endChance` (per-tick chance, legacy `Wake`/`StopWalking`).
+- Common fields: `clip`, `sound` (role played when the action starts), `soundChance`, `soundRepeat` + `soundIntervalMs` (`stay` only: play the sound that many times, one per interval, holding the clip's first cell; the first play replaces the start sound), and how the action ends: clip end (default for non-looping clips), `durationMs`, or `endChance` (per-tick chance, legacy `Wake`/`StopWalking`).
 - Primitive-specific fields (`speed`, `impulse`, `turn`, `hiddenMs`, `target`, `speedFactor`, ...) are validated per `do`.
 - Targets are `kind` or `kind:arg` strings. Step 8 (implemented): a closed kind list (only `groupRole:<role>` and the `flyTo` searches today) with a clear error for unknown kinds, so later kinds such as `food:<id>` (bird feeding) need only a new search and no format change. Feeding itself is not designed here.
 - Action ids are strings. They replace the `BirdAction` enum, and `IdleCue.Action` becomes the action id.
@@ -697,9 +697,10 @@ A bird should leave the location only as a last resort. `escape` is a weighted l
 - `maxRelocations` caps all escapes within one threat episode. The counter resets once no farmer has been within the bird's alert or flee radius for a calm period (code constant, about 30 s), so a bird that escaped once can escape again later. After the cap, or when no option has an eligible spot, the bird runs its flee action (offscreen).
 - Implemented (compile/test verified, not tested in game): `escape` is the only format. The legacy `relocate` block and the `any` target are removed (the mod is unreleased) and shipped JSON is migrated; a `relocate` key is a load error naming the file. An explicit `{ "target": "offscreen", "weight": w }` option replaces the old `chance < 1`.
 
-**Canopy hide (`tree`).** The bird flies into the crown of a fully grown tree (`Tree` terrain feature, growth stage ≥ 5) and turns invisible: it gets status `Hiding`, rustles leaves on arrival, and its anchor is set to the tree tile. No canopy drawing is needed, unlike the visible canopy body in the backlog.
+**Canopy hide (`tree`).** The bird flies into the crown of a fully grown tree (`Tree` terrain feature, growth stage ≥ 5, not a stump, and currently `IsLeafy()`) and turns invisible: it gets status `Hiding`, rustles leaves on arrival, and its anchor is set to the tree tile. No canopy drawing is needed, unlike the visible canopy body in the backlog.
 - It comes back down to an eligible `ground` spot within a few tiles of the tree once no farmer has been within `fleeRadius` of the tree for `hideForMs` ms (default 10000, range 1000-120000).
-- Shaking or felling the tree flushes the bird: it flees offscreen. Implemented by polling the anchor tree each tick (stump, falling or shaking means gone) rather than a `treeShaken` event.
+- Shaking or felling the tree flushes the bird: it flees offscreen. Implemented by polling the anchor tree each tick (stump, falling, shaking or no longer leafy means gone) rather than a `treeShaken` event.
+- Leaves: `GameLocationQuery.CanopyTrees()` is `MatureTrees()` filtered by the game's `Tree.IsLeafy()`, which follows the tree species and the location's own season, so in winter a bird hides in a pine but not in a bare oak, and with no leafy tree nearby the weighted `escape` list falls back to `ground` or `offscreen`. Trunk birds still use every non-stump mature tree (`otherTree`, `TreeTrunkSpawner`), since clinging to a bare trunk is fine. Implemented, compile and unit tests only.
 - Multiplayer: `Hiding`, the hide timer and the anchor go into `BirdState`. Replicas draw nothing while the bird is hidden.
 - Observation: a hidden bird can't be observed. A bird that has already registered keeps its observation.
 
@@ -856,7 +857,7 @@ Some actions look wrong when several birds do them at once. For example, a signa
 
 ```json
 "actions": {
-  "song": { "do": "stay", "clip": "sing", "sound": "song", "exclusive": "song", "exclusiveCooldownMs": 30000 }
+  "song": { "do": "stay", "clip": "sing", "sound": "song", "exclusive": "song", "exclusiveCooldownMs": 5000 }
 },
 "routine": { "rare": { "song": { "chance": 0.02, "when": { "any": [{ "seasons": ["spring"] }] }, "if": { "role": "male" } } } }
 ```
@@ -866,7 +867,9 @@ Some actions look wrong when several birds do them at once. For example, a signa
 - The routine skips an action whose lock is held or still cooling down, and the roll is not repeated, so lock state never shifts the RNG of other picks. The bird takes the lock when the action starts. The lock is released when the action ends, the bird flees, hides or despawns, or the location unloads; after release it stays blocked for `exclusiveCooldownMs` (default 0).
 - Only routine and `rare` actions can be exclusive; reactions always run.
 
-Status: engine implemented (compile and unit tests only). `ExclusiveLocks` is a runtime table in `BirdServices`, keyed by location and lock name. The schedule-time pick skips blocked actions without an extra draw, and the owner re-checks and takes the lock when the cue fires; if another bird won it meanwhile the cue is dropped. The bird releases it when the clip ends, it leaves `Stopped`/`Swimming` (flee, hide), or it despawns. A lock is never held longer than 30 s, so a vanished holder cannot block a location. `rare.if` accepts only `role`, validated against the rule's group members. Not done: the great tit `male`/`female` roles and the song (no song art or audio yet, and the shared `garden_flock` template varies group size, which fixed member counts would conflict with).
+Status: engine implemented (compile and unit tests only). `ExclusiveLocks` is a runtime table in `BirdServices`, keyed by location and lock name. The schedule-time pick skips blocked actions without an extra draw, and the owner re-checks and takes the lock when the cue fires; if another bird won it meanwhile the cue is dropped. The bird releases it when the clip ends, it leaves `Stopped`/`Swimming` (flee, hide), or it despawns. A lock is never held longer than 30 s, so a vanished holder cannot block a location. `rare.if` accepts only `role`, validated against the rule's group members. The great tit uses it: `male` (required) and `female` members keep the template's group sizes (member totals equal `groupSize`; non-required roles may have a count minimum of 0), and the shared `songbird_idle` routine adds a male-only `sing` rare entry (spring, and summer sunrise to sunrise+180) that plays the `sing` clip under the `song` lock. Compile and unit tests only; not tested in game.
+
+**Sound carry.** The `song` sound role is not distance-cut like other bird sounds. `SoundCarry` plays it at full volume while the bird is inside the player's screen, fades linearly to 20% at 30 tiles from the screen edge and keeps that floor anywhere in the same location (other locations stay silent). Other roles keep `PlayLocal`'s own falloff (silent 12 tiles off screen). The song is one 0.5 s syllable asset repeated by the action itself (`soundRepeat`, `soundIntervalMs`), so repeat count and spacing belong to the species and its recording, not to the shared layout. There is no panning: the game's cue API (`ICue`) has no pan control. Group sound, calls during actions and a voice cap are planned in [Bird voices](#bird-voices-planned-step-10).
 
 **Sex as roles.** Sex is a group role, not a new trait. A species that needs it lists `male`/`female` members. Members can share textures, since role and texture are picked separately, so great tits need no new art. `required: true` with `count` min ≥ 1 guarantees each placed group has a male, and the group is dropped if no male can be placed.
 
@@ -943,6 +946,68 @@ If either holds, the bird re-runs the escape planner from its current tile with 
 - The song and other [exclusive locks](#behavior-coordination-planned-step-9) are unaffected by alarms; fleeing releases them as before.
 
 **Out of scope.** Mid-air boids-style flocking, alert spreading (one bird freezes, neighbours freeze), flock-in-flight rendering (V formations, boids), and member-specific leaders other than the existing `follow` role. Alert spreading can use the same neighbour wave later.
+
+#### Bird voices (planned, [step 10](REFACTOR.md#step-10-bird-voices-planned))
+
+Today every sound is per bird: it plays when an action starts (`soundChance`), on a clip frame event, or when a replica sees an alarm. Nothing looks at the group, so a fleeing flock stacks identical alarm cues, sparrows cannot chatter, and a gull cannot call mid-flight. Design basis, as in game audio middleware: a **voice limit** per sound, **staggered** group reactions, and (not chosen) an ambient bed for large crowds. Groups here have at most about five birds, so per-bird voices with a cap fit and no bed is needed.
+
+All of this is cosmetic and local, like step 3d sounds: each peer decides which sounds it plays and no sound state is synced. Only `join` changes owner state, and only through the existing idle cue.
+
+**Voice cap.** Per location and cue, at most `max` voices play at once, and a new one waits at least `minGapMs` after the last start. A request over the limit is dropped (no stealing). The pool lives on each peer in `BirdServices`, holds the `ICue` instances it started and counts those still playing (`ICue.IsPlaying`; to be verified with custom cues, otherwise the cue length from the asset is used). It applies to every `PlaySound`, so it also stops the flee alarm stacking. A rule may tune a role; the default applies to all.
+
+```json
+"soundVoices": { "alarm": { "max": 3, "minGapMs": 120 }, "chat": { "max": 2, "minGapMs": 300 } }
+```
+
+This is not `exclusive`. A lock is owner-authoritative and holds a *posture* (one singer stands and sings); the voice cap is local and only limits *audio*.
+
+**Sound during an action.** Any primitive may roll a sound while it runs:
+
+```json
+"flee": { "do": "flyOff", "clip": "fly", "speed": 6, "climb": 2, "sound": "alarm",
+          "soundDuring": { "role": "call", "chance": 0.15, "everyMs": 400 } }
+```
+
+Every `everyMs` of action time the bird rolls `chance` (owner on `Rng`, replica on `VisualRng`, like `soundChance`) and plays `role` through the voice cap. Idle contact calls need no new field: a sound-only `stay` action in the routine already does that.
+
+**Group chatter.** `join` on an action makes neighbours answer it:
+
+```json
+"chat": { "do": "stay", "clip": "stand", "sound": "chat", "soundRepeat": [2, 4], "soundIntervalMs": 300,
+          "join": { "radius": 4, "chance": 0.5, "delayMs": [200, 1200] } }
+```
+
+When the owner starts the action, each bird within `radius` tiles (`scope: "group"` by default, `"location"` for countersinging) rolls `chance`. A bird that rolls and is free (idle, `if` role matches, lock and voice cap not blocking) schedules the same action as its own idle cue after `delayMs`, so the existing cue sync shows it on every peer. Joined actions do not start further joins, so a burst has one generation and ends by itself. Countersinging is `join` on `sing` with `scope: "location"`, `if: { role: male }`, a longer delay, and the `song` lock so answers take turns. It reuses the cohesion neighbour wave and its delay scaling.
+
+**Category volume.** Besides `SoundVolume`, `config.json` gets `SongVolume`, `VoiceVolume` (calls, chatter, alarms) and `EffectVolume` (flap, peck, splash). Roles map to a category in code; each category multiplies `SoundVolume`.
+
+**Ambience.** Vanilla has none to build on: the beach gulls are hard-coded in `Beach.checkForMusic` (the `seagulls` cue at 0.3% per tick before 1900), and every other outdoor location only gets a generic `SpringBirds` cue (0.2% per tick, not in winter or rain, before 2000). Nothing is specific to forest, deep woods or the island jungle. We do not patch vanilla, so the beach keeps its gulls and gets nothing from us (no doubling).
+
+- *Bird-driven (cheap):* a sound-only `stay` action in a species' `rare` routine (contact call, chirp) is ambience from a real bird: it follows the bird, stops when the flock is scared away, and counts as a voice. The one new piece is generalizing `SoundCarry`, which today carries only the `song` role: a role flag `carry` (set per rule next to `sounds`) lets any call stay audible but faint when off screen. It also feeds the "heard, not seen" backlog item.
+- *Regional (data, independent of which birds spawned):* `assets/ambience/<id>.json`, with a schema, loader and validator like the other definition files:
+
+```json
+{
+  "locations": ["@forest_lake", "Woods"],
+  "when": { "any": [ { "seasons": ["spring", "summer"], "times": [["sunrise", "dusk"]] } ] },
+  "weather": ["clear"],
+  "cues": { "audio:forest_chorus_1": 3, "audio:forest_chorus_2": 2 },
+  "everyMs": [20000, 60000],
+  "volume": 0.5
+}
+```
+
+  A per-peer ticker for the current location only: when `everyMs` elapses and the conditions match (the same `ConditionParser` and time anchors), it plays one weighted cue through the voice cap at `AmbienceVolume` × `SoundVolume`, with no position. Not in rain by default, since vanilla has its own rain sound. Location groups come from `regions.json`; Ginger Island jungle and the farm types need groups added there first. First files: valley gardens and forest (spring to summer, daytime), deep woods (sparse, dim), Ginger Island jungle (all day, louder, with tropical calls); none for the beach.
+- *Prerequisite:* regional beds are not Xeno-canto species recordings. `tools/audio.py` is Xeno-canto-only, so it first needs a generic source (Freesound or own files) and generic credit fields; prefer CC0 or CC BY. Our beds also stack with vanilla's `SpringBirds`; accepted and to be judged by ear.
+
+**Later (backlog, not scheduled).**
+
+- *Variants and jitter:* a role maps to a list of cues, picked at random without repeating the last one, with small pitch and volume jitter, and for songs a bird's variant chosen from its stable seed (a male keeps "his" song, two males differ). Highest value for audio quality once more than one recording exists.
+- *Quiet after alarm:* a flee or alert silences named locks (`silences: { song: 20000 }`) so birds stop singing when spooked.
+- *Dawn chorus and weather:* data only: several `rare` entries with different chances and `when`.
+- *Far sounds:* `ICue` has no filter, so a pre-filtered duller variant past N tiles.
+- *Heard observations:* hearing a species off screen counts toward the collection as "heard, not seen".
+- *Species sounds that need audio or art:* woodpecker drumming and flight call (replacing the `Cowboy_gunshot` placeholder), gull long call (needs a head-back pose) and mews, female-only mallard quack, duckling begging, tit contact calls, wing clap on pigeon take-off.
 
 #### Placement controls
 

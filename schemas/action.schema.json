@@ -14,6 +14,10 @@
             "required": [
                 "do"
             ],
+            "dependentRequired": {
+                "soundRepeat": ["soundIntervalMs"],
+                "soundIntervalMs": ["soundRepeat"]
+            },
             "properties": {
                 "do": {
                     "enum": [
@@ -92,6 +96,15 @@
                     "description": "Milliseconds the lock stays blocked after the action ends (default 0).",
                     "type": "integer",
                     "minimum": 0
+                },
+                "soundRepeat": {
+                    "description": "Stay actions with a sound: how many times the sound plays ([min, max] with min at least 1). Needs soundIntervalMs.",
+                    "$ref": "common.schema.json#/$defs/intOrStepRange"
+                },
+                "soundIntervalMs": {
+                    "description": "Milliseconds between repeats; set it to the sound's length so repeats follow each other. Needs soundRepeat.",
+                    "type": "integer",
+                    "minimum": 1
                 }
             },
             "allOf": [
@@ -283,6 +296,12 @@
                 },
                 "exclusiveCooldownMs": {
                     "$ref": "#/$defs/action/properties/exclusiveCooldownMs"
+                },
+                "soundRepeat": {
+                    "$ref": "#/$defs/action/properties/soundRepeat"
+                },
+                "soundIntervalMs": {
+                    "$ref": "#/$defs/action/properties/soundIntervalMs"
                 },
                 "extends": {
                     "description": "New action ids only: '<set>.<id>' of a shared action (e.g. forage.dive) this one overrides.",

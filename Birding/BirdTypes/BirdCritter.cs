@@ -105,10 +105,15 @@ internal abstract class BirdCritter : Critter
         }
 
         string id = cue.StartsWith(AudioCues.Prefix, StringComparison.Ordinal) ? services.ModCuePrefix + cue[AudioCues.Prefix.Length..] : cue;
-        Game1.sounds.PlayLocal(id, location, position / 64f, null, SoundContext.Default, out ICue played);
-        if (services.SoundVolume < 1f)
+        bool carries = role == SoundCarry.Role;
+        if (!Game1.sounds.PlayLocal(id, location, carries ? null : position / 64f, null, SoundContext.Default, out ICue played))
         {
-            played.Volume *= services.SoundVolume;
+            return;
+        }
+        float volume = services.SoundVolume * (carries ? SoundCarry.Volume(Utility.distanceFromScreen(position) / 64f) : 1f);
+        if (volume < 1f)
+        {
+            played.Volume *= volume;
         }
     }
 
@@ -147,9 +152,11 @@ internal abstract class BirdCritter : Critter
         sprite.SpriteHeight = layout.FrameHeight;
     }
 
-    internal void PlayClip(string name, Random random, AnimatedSprite.endOfAnimationBehavior? onEnd = null)
+    internal void PlayClip(string name, Random random, AnimatedSprite.endOfAnimationBehavior? onEnd = null) =>
+        PlayClip(Layout.Clips[name], random, onEnd);
+
+    private void PlayClip(SpriteClip clip, Random random, AnimatedSprite.endOfAnimationBehavior? onEnd = null)
     {
-        SpriteClip clip = Layout.Clips[name];
         sprite.setCurrentAnimation(ClipPlayer.Frames(clip, baseFrame, flip, random, ClipEvent, IsReplica ? null : onEnd));
         sprite.loop = clip.Loop;
         _ownClipEvents = IsReplica;
@@ -159,9 +166,13 @@ internal abstract class BirdCritter : Critter
 
     protected void ShowPose(string name) => sprite.currentFrame = baseFrame + ClipPlayer.FirstCell(Layout.Clips[name]);
 
+    private const string SoundEventPrefix = "sound:";
+
     protected virtual AnimatedSprite.endOfAnimationBehavior ClipEvent(string name) => name == "splash"
         ? _ => Splash(position + new Vector2(flip ? 32f : -32f, 0f))
-        : throw new InvalidOperationException($"{BirdTypeName} has no clip event '{name}'.");
+        : name.StartsWith(SoundEventPrefix, StringComparison.Ordinal)
+            ? _ => PlaySound(name[SoundEventPrefix.Length..])
+            : throw new InvalidOperationException($"{BirdTypeName} has no clip event '{name}'.");
 
     /// <summary>The vanilla water splash at a world position, local only.</summary>
     protected void Splash(Vector2 at) =>
@@ -296,7 +307,10 @@ internal abstract class BirdCritter : Critter
         {
             return BirdAction.None;
         }
-        PlayActionSound(custom);
+        if (custom.SoundRepeat is null)
+        {
+            PlayActionSound(custom);
+        }
         StartCustomAction(custom);
         return BirdAction.None;
     }
@@ -336,7 +350,16 @@ internal abstract class BirdCritter : Critter
     }
 
     /// <summary>Runs a custom action by primitive; the base handles <c>stay</c> (play the clip, stay stopped).</summary>
-    protected virtual void StartCustomAction(ActionDefinition action) => PlayClip(action.Clip!, VisualRng);
+    protected virtual void StartCustomAction(ActionDefinition action)
+    {
+        if (action.SoundRepeat is not { } repeat)
+        {
+            PlayClip(action.Clip!, VisualRng);
+            return;
+        }
+        ClipFrame beat = new(ClipPlayer.FirstCell(Layout.Clips[action.Clip!]), new StepRange(action.SoundIntervalMs, action.SoundIntervalMs, 1), SoundEventPrefix + action.Sound, false);
+        PlayClip(new SpriteClip(Array.Empty<ClipFrame>(), new ClipRepeat(new[] { beat }, repeat), Array.Empty<ClipFrame>(), false), VisualRng);
+    }
 
     protected BirdAction AdvanceReplicaIdle()
     {

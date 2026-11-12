@@ -264,7 +264,7 @@ public class CompositionTests
         Assert.That(issues.Any(issue => issue.Severity == IssueSeverity.Error && issue.Path.Contains(".when", StringComparison.Ordinal)), Is.EqualTo(error));
     }
 
-    [TestCase("great_tit", "land_idle", "SpringBirds")]
+    [TestCase("blue_tit", "land_idle", "SpringBirds")]
     [TestCase("herring_gull", "waterland_idle", "seagulls")]
     public void ShippedSpecies_UseBirdTypeDefaults(string id, string routine, string alarm)
     {

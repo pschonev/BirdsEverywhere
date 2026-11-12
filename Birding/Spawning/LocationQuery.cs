@@ -15,6 +15,9 @@ public interface ILocationQuery
     IReadOnlyList<Vector2> FarmerTiles { get; }
     IEnumerable<Vector2> MatureTrees();
 
+    /// <summary>Trees a bird can hide in: <see cref="MatureTrees"/> that currently have leaves.</summary>
+    IEnumerable<Vector2> CanopyTrees() => MatureTrees();
+
     /// <summary>Tiles where a farmer can appear: next to each warp, plus the farmers' own tiles.</summary>
     IEnumerable<Vector2> ArrivalTiles() => FarmerTiles;
 
@@ -71,6 +74,9 @@ public sealed class GameLocationQuery : ILocationQuery
 
     public IEnumerable<Vector2> MatureTrees() =>
         _location.terrainFeatures.Pairs.Where(pair => Condition.IsEligibleTree(pair.Value)).Select(pair => pair.Key);
+
+    public IEnumerable<Vector2> CanopyTrees() =>
+        _location.terrainFeatures.Pairs.Where(pair => Condition.IsCanopyTree(pair.Value)).Select(pair => pair.Key);
 
     public bool IsReachable(Vector2 tile)
     {

@@ -1,3 +1,4 @@
+using Birding.BirdTypes;
 using Birding.Content;
 using Birding.Diagnostics;
 using Birding.Domain;
@@ -144,6 +145,29 @@ public class ContentTests
             Assert.That(rule.Locations, Is.EqualTo(locations.Split(',')));
             (int min, int max) = rule.Id == "winter" ? (winterMinGroupSize, winterMaxGroupSize) : (minGroupSize, maxGroupSize);
             Assert.That((rule.GroupCount.Min, rule.GroupCount.Max, rule.GroupSize.Min, rule.GroupSize.Max), Is.EqualTo((minGroupCount, maxGroupCount, min, max)));
+        }
+    }
+
+    [Test]
+    public void GreatTit_MalesSingInSpringAndSummerMornings()
+    {
+        foreach (SpawnRule rule in LoadBird("great_tit").Rules)
+        {
+            RareAction sing = rule.Composition!.Routine!.Rare!.Single();
+            ActionDefinition action = rule.Composition.Actions!["sing"];
+            Assert.Multiple(() =>
+            {
+                Assert.That(sing.Id, Is.EqualTo("sing"));
+                Assert.That(action.Exclusive, Is.EqualTo("song"));
+                Assert.That((action.SoundRepeat, action.SoundIntervalMs), Is.EqualTo((new StepRange(3, 4, 1), 500)));
+                Assert.That(rule.Composition.Sounds[SoundCarry.Role], Is.EqualTo("audio:great_tit_song"));
+                Assert.That(rule.Params.Group!.Members!["male"].Required, Is.True);
+                Assert.That(sing.Matches(new IdleWorld(Season.Spring, Weather.Sun, 5, 1400), "male"), Is.True);
+                Assert.That(sing.Matches(new IdleWorld(Season.Spring, Weather.Sun, 5, 1400), "female"), Is.False);
+                Assert.That(sing.Matches(new IdleWorld(Season.Summer, Weather.Sun, 5, 700), "male"), Is.True);
+                Assert.That(sing.Matches(new IdleWorld(Season.Summer, Weather.Sun, 5, 1100), "male"), Is.False);
+                Assert.That(sing.Matches(new IdleWorld(Season.Fall, Weather.Sun, 5, 700), "male"), Is.False);
+            });
         }
     }
 }

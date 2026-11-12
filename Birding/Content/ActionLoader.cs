@@ -9,7 +9,7 @@ public static class ActionLoader
 
     private static readonly HashSet<string> _keys = new(StringComparer.Ordinal)
     {
-        "do", "clip", "sound", "soundChance", "durationMs", "endChance", "speed", "climb", "impulse", "turn", "pauseMs", "hiddenMs", "radius", "target", "speedFactor", "exclusive", "exclusiveCooldownMs",
+        "do", "clip", "sound", "soundChance", "durationMs", "endChance", "speed", "climb", "impulse", "turn", "pauseMs", "hiddenMs", "radius", "target", "speedFactor", "exclusive", "exclusiveCooldownMs", "soundRepeat", "soundIntervalMs",
     };
 
     /// <summary>Loads <c>actions/*.json</c> sets (action id → definition) as raw objects so rules can override single fields; each set is parsed once to fail fast.</summary>
@@ -65,7 +65,22 @@ public static class ActionLoader
                 null => 0,
                 { Type: JTokenType.Integer } value when value.Value<int>() >= 0 => value.Value<int>(),
                 _ => throw new FormatException($"{file}: {path}.exclusiveCooldownMs must be a non-negative integer."),
+            },
+            body["soundRepeat"] is { } soundRepeat ? LayoutLoader.ParseRange(soundRepeat, file, $"{path}.soundRepeat") : null,
+            body["soundIntervalMs"] switch
+            {
+                null => 0,
+                { Type: JTokenType.Integer } value when value.Value<int>() > 0 => value.Value<int>(),
+                _ => throw new FormatException($"{file}: {path}.soundIntervalMs must be a positive integer."),
             });
+        if ((action.SoundRepeat is null) != (action.SoundIntervalMs == 0))
+        {
+            throw new FormatException($"{file}: {path} needs soundRepeat and soundIntervalMs together.");
+        }
+        if (action.SoundRepeat is { } repeat && (action.Do != "stay" || action.Sound is null || repeat.Min < 1))
+        {
+            throw new FormatException($"{file}: {path}.soundRepeat needs do 'stay', a sound role and a count of at least 1.");
+        }
 
         string? missing = action.Do switch
         {

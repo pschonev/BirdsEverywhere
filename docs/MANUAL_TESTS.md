@@ -52,6 +52,8 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | C03 | Walk away from the tree for about 10 s. | The tit drops to the ground near the tree and resumes normal behavior. |
 | C04 | Repeat C01, then shake the tree or fell it while the tit hides. | The tit bursts out and flies offscreen. |
 | C05 | With no mature tree nearby, approach a tit. | It lands on a distant ground spot or flies offscreen as before. |
+| C06 | In winter, approach a tit that has only bare deciduous trees nearby, then repeat near a pine. | Near bare trees only it lands on the ground or leaves; near a pine it can hide in it. |
+| C07 | Chop a tree next to a tit and approach it while the stump is the nearest tree. | The tit never hides in the stump. |
 
 ## Trunk hop (one client)
 
@@ -106,6 +108,13 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | I06 | Spook a bird, then run to its landing spot while it flies. | It re-targets mid-flight to another spot away from you. |
 | I07 | Spook a bird with one player on each side. | No spot is free, so it flies offscreen. |
 | I08 | Repeat I06 many times on one bird. | At most two mid-flight changes per flight, no zigzag; tits, gulls and woodpeckers behave the same. |
+
+## Great tit song (one client)
+
+| ID | Action | Expected result |
+| --- | --- | --- |
+| S01 | Spring day, stand in view of a great tit group for 10 minutes; repeat in summer 0600–0900 and at 1400. | A male occasionally stands still and sings 3–4 syllables at full volume; never two singers at once; no singing at 1400 in summer or in fall and winter; females never sing. |
+| S02 | While a tit sings, walk away until it is far off screen, then leave and re-enter the location. | The song gets quieter with distance but stays faintly audible in the same location; it is silent in other locations. |
 
 ## Multiplayer synchronization (two SMAPI clients)
 

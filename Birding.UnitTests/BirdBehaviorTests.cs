@@ -119,7 +119,9 @@ internal sealed class BirdBehaviorTests
         public Vector2 BlockedTile { get; init; } = new(-1, -1);
         public IReadOnlyList<Vector2> FarmerTiles { get; init; } = Array.Empty<Vector2>();
         public IEnumerable<Vector2> Trees { get; init; } = Array.Empty<Vector2>();
+        public IEnumerable<Vector2> LeafyTrees { get; init; } = Array.Empty<Vector2>();
         public IEnumerable<Vector2> MatureTrees() => Trees;
+        public IEnumerable<Vector2> CanopyTrees() => LeafyTrees;
     }
 
     private static Vector2? SurfaceTile(ILocationQuery query, Vector2 from, Vector2 threat, ThreatReaction reaction, int relocations,
@@ -191,9 +193,22 @@ internal sealed class BirdBehaviorTests
 
     [Test]
     public void Escape_TreeOption_ReturnsTreeTileAndHideTime() =>
-        Assert.That(EscapePlanner.Surface(new LandingLocation { Trees = _trees }, new(10, 10), new(9, 13),
+        Assert.That(EscapePlanner.Surface(new LandingLocation { Trees = _trees, LeafyTrees = _trees }, new(10, 10), new(9, 13),
                 Escape(new EscapeOption(EscapeOption.Tree, 1, 12, 4000)), relocations: 0, Array.Empty<Vector2>(), new FixedRandom(0, 0)),
             Is.EqualTo(new EscapeChoice(new EscapeOption(EscapeOption.Tree, 1, 12, 4000), new Vector2(14, 10))));
+
+    [Test]
+    public void Escape_BareTreesAreNoCanopyButStillHaveTrunks()
+    {
+        LandingLocation bare = new() { Trees = _trees };
+        Assert.Multiple(() =>
+        {
+            Assert.That(EscapePlanner.Surface(bare, new(10, 10), new(9, 13), Escape(new EscapeOption(EscapeOption.Tree, 1, 12, 4000)), relocations: 0,
+                Array.Empty<Vector2>(), new FixedRandom(0, 0)), Is.Null);
+            Assert.That(EscapePlanner.Tree(bare, new(10, 10), new(8, 10), Escape(new EscapeOption("otherTree", 1, 12)) with { MaxRelocations = 2 },
+                relocations: 0, Array.Empty<Vector2>(), new FixedRandom(0, 0)), Is.Not.Null);
+        });
+    }
 
     [Test]
     public void Escape_Landing_PicksFreeGroundNearTreeAwayFromFarmers()

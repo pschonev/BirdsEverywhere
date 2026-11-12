@@ -202,9 +202,10 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "count": {
+                                        "description": "[min, max]; a role that is not required may have min 0.",
                                         "$ref": "#/$defs/range",
                                         "items": {
-                                            "minimum": 1
+                                            "minimum": 0
                                         }
                                     },
                                     "stage": {

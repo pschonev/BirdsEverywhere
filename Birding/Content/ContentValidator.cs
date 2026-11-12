@@ -71,7 +71,7 @@ public static class ContentValidator
                     report(IssueSeverity.Error, memberPath, "Role and stage must not be empty.");
                     continue;
                 }
-                IntRange count = ValidateRange(member.Count, memberPath + ".count", 1, 20, report);
+                IntRange count = ValidateRange(member.Count, memberPath + ".count", 0, 20, report);
                 if (member.Required && member.Count is { Length: 2 } && member.Count[0] < 1)
                 {
                     report(IssueSeverity.Error, memberPath + ".count", "A required role needs a count minimum of at least 1.");
