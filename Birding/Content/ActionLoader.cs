@@ -9,7 +9,7 @@ public static class ActionLoader
 
     private static readonly HashSet<string> _keys = new(StringComparer.Ordinal)
     {
-        "do", "clip", "sound", "soundChance", "durationMs", "endChance", "speed", "climb", "impulse", "turn", "pauseMs", "hiddenMs", "radius", "target", "speedFactor", "exclusive", "exclusiveCooldownMs", "soundRepeat", "soundIntervalMs",
+        "do", "clip", "sound", "soundChance", "durationMs", "endChance", "speed", "climb", "impulse", "turn", "pauseMs", "hiddenMs", "radius", "target", "speedFactor", "exclusive", "exclusiveCooldownMs", "soundRepeat", "soundIntervalMs", "soundDuring",
     };
 
     /// <summary>Loads <c>actions/*.json</c> sets (action id → definition) as raw objects so rules can override single fields; each set is parsed once to fail fast.</summary>
@@ -72,7 +72,8 @@ public static class ActionLoader
                 null => 0,
                 { Type: JTokenType.Integer } value when value.Value<int>() > 0 => value.Value<int>(),
                 _ => throw new FormatException($"{file}: {path}.soundIntervalMs must be a positive integer."),
-            });
+            },
+            ParseSoundDuring(body["soundDuring"], file, path + ".soundDuring"));
         if ((action.SoundRepeat is null) != (action.SoundIntervalMs == 0))
         {
             throw new FormatException($"{file}: {path} needs soundRepeat and soundIntervalMs together.");
@@ -96,6 +97,30 @@ public static class ActionLoader
             _ => null,
         };
         return missing is null ? action : throw new FormatException($"{file}: {path} ('{action.Do}') needs {missing}.");
+    }
+
+    private const int MinSoundDuringMs = 100;
+
+    private static SoundDuring? ParseSoundDuring(JToken? token, string file, string path)
+    {
+        if (token is null)
+        {
+            return null;
+        }
+        if (token is not JObject body)
+        {
+            throw new FormatException($"{file}: {path} must be an object.");
+        }
+        foreach (JProperty property in body.Properties().Where(property => property.Name is not ("role" or "chance" or "everyMs")))
+        {
+            throw new FormatException($"{file}: {path}.{property.Name} is not a known field (role, chance, everyMs).");
+        }
+        string role = Text(body, "role", file, path) ?? throw new FormatException($"{file}: {path}.role is required.");
+        double chance = Chance(body, "chance", file, path) ?? throw new FormatException($"{file}: {path}.chance is required.");
+        int everyMs = body["everyMs"] is { Type: JTokenType.Integer } every && every.Value<int>() >= MinSoundDuringMs
+            ? every.Value<int>()
+            : throw new FormatException($"{file}: {path}.everyMs must be an integer of at least {MinSoundDuringMs}.");
+        return new SoundDuring(role, chance, everyMs);
     }
 
     private static string? Text(JObject body, string key, string file, string path) => body[key] switch

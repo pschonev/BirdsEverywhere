@@ -47,12 +47,14 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 
 | ID | Action | Expected result |
 |---|---|---|
-| C01 | Stand near a mature tree, spawn a great tit 5-8 tiles away and walk toward it. | The tit flies into the tree and vanishes with a leaf rustle (or lands on a farther ground spot); it does not leave the screen while a tree or landing spot is available. |
+| C01 | Stand near a mature tree, spawn a great tit 5-8 tiles away and walk toward it. | The tit flies up into the crown (about three tiles above the trunk base, not the trunk) and vanishes there with a leaf rustle (or lands on a farther ground spot); it does not leave the screen while a tree or landing spot is available. |
 | C02 | Stay near the tree after C01. | The tit stays hidden while you are within its flee radius of the tree. |
 | C03 | Walk away from the tree for about 10 s. | The tit drops to the ground near the tree and resumes normal behavior. |
 | C04 | Repeat C01, then shake the tree or fell it while the tit hides. | The tit bursts out and flies offscreen. |
 | C05 | With no mature tree nearby, approach a tit. | It lands on a distant ground spot or flies offscreen as before. |
 | C06 | In winter, approach a tit that has only bare deciduous trees nearby, then repeat near a pine. | Near bare trees only it lands on the ground or leaves; near a pine it can hide in it. |
+| C08 | Watch a hidden tit come back down and flee from a shaken tree. | Both flights start from the crown, not from the trunk. |
+| C09 | Scare a tit group. | No generic sparrow chorus plays; the tits are silent until a real tit alarm call exists. |
 | C07 | Chop a tree next to a tit and approach it while the stump is the nearest tree. | The tit never hides in the stump. |
 
 ## Trunk hop (one client)
@@ -115,6 +117,14 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | --- | --- | --- |
 | S01 | Spring day, stand in view of a great tit group for 10 minutes; repeat in summer 0600–0900 and at 1400. | A male occasionally stands still and sings 3–4 syllables at full volume; never two singers at once; no singing at 1400 in summer or in fall and winter; females never sing. |
 | S02 | While a tit sings, walk away until it is far off screen, then leave and re-enter the location. | The song gets quieter with distance but stays faintly audible in the same location; it is silent in other locations. |
+
+## Bird voices and spawn reachability (one client)
+
+| ID | Action | Expected result |
+| --- | --- | --- |
+| V01 | Scare a gull group near the camera. | The flee alarms no longer pile up into one loud chorus: at most two gull cues overlap, and starts are spaced by at least 0.4 s. |
+| V02 | Watch a gull fly away or to another spot. | It sometimes calls while flying, not only at take-off; there is no steady stream of calls. |
+| V03 | Spawn a bush bird or a woodpecker on a map with an unreachable part (Beach island before the bridge is fixed, if a tree or bush stands there). | No trunk or bush bird spawns where you cannot walk to it. |
 
 ## Multiplayer synchronization (two SMAPI clients)
 

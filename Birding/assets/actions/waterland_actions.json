@@ -29,6 +29,11 @@
         "speed": 4,
         "climb": 2,
         "sound": "alarm",
-        "soundChance": 0.25
+        "soundChance": 0.25,
+        "soundDuring": {
+            "role": "call",
+            "chance": 0.25,
+            "everyMs": 600
+        }
     }
 }

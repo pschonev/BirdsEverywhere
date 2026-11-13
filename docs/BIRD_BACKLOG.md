@@ -18,15 +18,18 @@ regions or seasonal rules.
 - `Availability` is the intended season/time. `Migration` means a seasonal passage
   sighting, not merely a species that is absent for part of the year.
 - `Bird type` describes the intended sighting: Ground, Water, Tree trunk,
-  Bush, or Air. Air sightings need flight/soaring behaviour; the existing
-  runtime types are `LandBird`, `WaterLandBird`, `TreeTrunkBird`, and `BushBird`.
+  Bush, Canopy, or Air. Air sightings need flight/soaring behaviour; Canopy
+  (birds that sit or hide in tree crowns) is planned, see
+  [ARCHITECTURE.md](ARCHITECTURE.md#canopy-and-aerial-birds-ideas-not-scheduled).
+  The existing runtime types are `LandBird`, `WaterLandBird`, `TreeTrunkBird`,
+  and `BushBird`.
 - `Rarity` ranges from ★ (common) to ★★★★★ (very rare); `TBD` means undecided.
   This is a planning rating to translate into config, not a spawn probability.
 - Sort each table by location group, bird type, availability, then rarity:
   alphabetically for text, fewest stars first, with `TBD`/missing values last.
 - Put unusual mechanics, art, unlock requirements, and abbreviated real-world
   ranges in `Notes`: `EU` = Europe, `AS` = Asia, `NA` = North America,
-  `CAM` = Central America, `SA` = South America, `AU` = Australia.
+  `CAM` = Central America, `SA` = South America, `AU` = Australia, `AF` = Africa.
 
 ## Location groups
 
@@ -37,13 +40,17 @@ individual locations.
 
 | Game region | Location group | Locations |
 | --- | --- | --- |
+| Valley | `@big_lake` | Farm_Wilderness |
 | Valley | `@city` | Town |
 | Valley | `@coast` | Beach |
+| Valley | `@farm_pond` | Farm_Standard |
+| Valley | `@forest_lake` | Woods, Farm_Forest |
 | Valley | `@mountains` | Mountain |
-| Valley | `@rivers` | Forest, Town, Farm_Riverland |
+| Valley | `@rivers` | Forest, Town, Farm_Riverland, Farm_Hilltop |
 | Valley | `@valley_gardens` | Forest, Farm, Backwoods |
 | Desert | — | No groups configured |
-| Ginger Island | — | No groups configured |
+| Ginger Island | `@island_jungle` | IslandEast, IslandWest, IslandNorth |
+| Ginger Island | `@island_shore` | IslandSouth, IslandSouthEast |
 
 ## Candidates
 
@@ -55,7 +62,9 @@ individual locations.
 | Candidate | King Eider (*Somateria spectabilis*) | `@coast` | Water | Winter | ★★★★★ | Arctic EU/AS/NA; Valley coast only |
 | Candidate | Golden Eagle (*Aquila chrysaetos*) | `@mountains` | Air | All year | TBD | EU/AS/NA; soaring/flyovers only; needs air behaviour |
 | Candidate | White-throated Dipper (*Cinclus cinclus*) | `@rivers` | Water | All year | TBD | EU/AS |
+| Candidate | Common Swift (*Apus apus*) | `@valley_gardens` | Air | Summer | ★★ | EU/AS/AF; shadow-only flyover plus calls, never drawn; needs a shadow body and a "heard or seen overhead" observation |
 | Candidate | Grey Partridge (*Perdix perdix*) | `@valley_gardens` | Bush | All year | ★★ | EU/NA |
+| Candidate | European Goldfinch (*Carduelis carduelis*) | `@valley_gardens` | Canopy | All year | ★★ | EU/AS/AF; flocks in one tree; needs several perch points per tree, `inTree` group layout and perhaps a tree-species restriction |
 | Candidate | Bohemian Waxwing (*Bombycilla garrulus*) | `@valley_gardens` | Tree trunk | All year | TBD | EU/AS/NA; flock; needs a special tree? Possible intoxicated behaviour? |
 | Candidate | Long-eared Owl (*Asio otus*) | `@valley_gardens` | Tree trunk | Night only | TBD | EU/AS/NA; Bus Stop needs a group before inclusion |
 
@@ -67,8 +76,8 @@ No candidates selected yet.
 
 | Status | Species | Location group | Bird type | Availability | Rarity | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Candidate | Mottled Owl (*Strix virgata*) | — (group needed) | Tree trunk | All year | TBD | CAM/SA; “crazy red-eyed owl” |
-| Candidate | Black Skimmer (*Rynchops niger*) | — (group needed) | Water | Winter | TBD | NA/CAM/SA |
+| Candidate | Mottled Owl (*Strix virgata*) | `@island_jungle` | Tree trunk | All year | TBD | CAM/SA; “crazy red-eyed owl” |
+| Candidate | Black Skimmer (*Rynchops niger*) | `@island_shore` | Water | Winter | TBD | NA/CAM/SA |
 
 ### Special locations
 
@@ -76,6 +85,7 @@ No candidates selected yet.
 | --- | --- | --- | --- | --- | --- | --- |
 | Candidate | Skua (species TBD) | — | Water | Open-sea sighting | TBD | Add an open-sea group if this becomes spawn content |
 | Candidate | Albatross (species TBD) | — | Water | Open-sea sighting | TBD | Add an open-sea group if this becomes spawn content |
+| Candidate | Great White Pelican (*Pelecanus onocrotalus*) | — (group needed) | Water | Summer | TBD | EU/AS/AF; open sea in the south of the Forest, needs a derived sub-area like `Beach:East` (confirm the sea's tiles on the map); swims and occasionally dips its bill (`peck`), no flight art; out of reach, so no flee reaction |
 
 ## Location concepts
 

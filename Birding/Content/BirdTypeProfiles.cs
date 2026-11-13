@@ -25,7 +25,7 @@ public static class BirdTypeProfiles
             new[] { "peck", "rest", "hop", "walk" },
             FollowUps(),
             "waterland_idle",
-            Map(("alarm", "seagulls")),
+            Map(("alarm", "seagulls"), ("call", "")),
             Threat(4),
             CanAlert: true,
             new[] { "water", "ground" },

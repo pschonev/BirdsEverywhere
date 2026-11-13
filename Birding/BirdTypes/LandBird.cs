@@ -53,6 +53,7 @@ internal sealed class LandBird : BirdCritter
     public override bool update(GameTime time, GameLocation environment)
     {
         CurrentLocation = environment;
+        TickActionSound(time);
         ActionDefinition flee = Action("flee");
         if (IsReplica)
         {
@@ -60,7 +61,7 @@ internal sealed class LandBird : BirdCritter
             Vector2 velocity = State switch
             {
                 BehaviorStatus.FlyingAway => new Vector2(flip ? flee.Speed!.Value : -flee.Speed!.Value, 0f),
-                BehaviorStatus.Relocating when RelocateTarget is { } tile => Step(TilePosition(tile), flee.Speed!.Value),
+                BehaviorStatus.Relocating when RelocateTarget is { } tile => Step(FlightPosition(tile), flee.Speed!.Value),
                 _ => default,
             };
             return UpdateReplica(time, velocity,
@@ -223,13 +224,23 @@ internal sealed class LandBird : BirdCritter
 
     private static Vector2 TilePosition(Vector2 tile) => tile * 64f + new Vector2(32f, 32f);
 
+    /// <summary>A mature tree's crown centre sits about three tiles above its trunk tile.</summary>
+    private const float CanopyHeightPx = 192f;
+
+    /// <summary>Where a flight to <paramref name="tile"/> ends: the crown for the tree the bird hides in, else the tile centre.</summary>
+    private Vector2 FlightPosition(Vector2 tile)
+    {
+        Vector2 target = TilePosition(tile);
+        return HideTree == tile ? new Vector2(target.X, MathF.Max(32f, target.Y - CanopyHeightPx)) : target;
+    }
+
     private EscapeChoice? RelocationTarget(GameLocation environment, Character threat) =>
         Record(EscapePlanner.Surface(new GameLocationQuery(environment), OwnTile, threat.Tile, Threat, Relocations, OccupiedTiles(environment), Rng, Flock(environment, threat.Tile)));
 
     private void StartRelocate(Vector2 tile, GameLocation environment, bool counted)
     {
         PlayActionSound(Action("flee"));
-        BeginRelocation(tile, TilePosition(tile), environment, counted);
+        BeginRelocation(tile, FlightPosition(tile), environment, counted);
         State = BehaviorStatus.Relocating;
         StartFlyAnimation();
     }
@@ -241,7 +252,7 @@ internal sealed class LandBird : BirdCritter
             State = BehaviorStatus.FlyingAway;
             return;
         }
-        if (!AdvanceRelocation(TilePosition(tile), speed))
+        if (!AdvanceRelocation(FlightPosition(tile), speed))
         {
             return;
         }

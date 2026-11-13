@@ -32,6 +32,32 @@ public class ReachabilityTests
         });
     }
 
+    private sealed class Reach : ILocationQuery
+    {
+        public ReachableTiles Tiles { get; init; } = null!;
+        public string Name => "Beach";
+        public Point MapSize => _size;
+        public bool IsGroundTile(Vector2 tile) => true;
+        public bool IsWaterTile(Vector2 tile) => false;
+        public bool IsSpawnableGroundTile(Vector2 tile) => true;
+        public string? FishArea(Vector2 tile) => null;
+        public bool IsPassable(Vector2 tile) => true;
+        public IReadOnlyList<Vector2> FarmerTiles => Array.Empty<Vector2>();
+        public IEnumerable<Vector2> MatureTrees() => Array.Empty<Vector2>();
+        public bool IsReachable(Vector2 tile) => Tiles.Contains(tile);
+    }
+
+    [Test]
+    public void IsReachableNear_AcceptsFeaturesNextToReachableTilesAndRejectsIslandOnes()
+    {
+        Reach query = new() { Tiles = Compute(bridge: false) };
+        Assert.Multiple(() =>
+        {
+            Assert.That(TileRules.IsReachableNear(query, new Vector2(10, 5)), Is.True, "tree on an unreachable tile beside reachable land");
+            Assert.That(TileRules.IsReachableNear(query, new Vector2(35, 5)), Is.False, "island tree");
+        });
+    }
+
     [Test]
     public void Compute_BridgeConnectsIsland()
     {

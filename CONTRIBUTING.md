@@ -114,7 +114,7 @@ flowchart LR
 
   `birds_dump <bird> [<rule>]` prints each rule's resolved routine, sounds, actions and reactions.
 
-- Mod audio: put a mono `.ogg` or `.wav` in `assets/audio/` and use it as `"song": "audio:<file name>"`. `soundCooldownMs` (role → ms) stops a role repeating too often on one bird. The `song` role carries across the location (full on screen, 20% floor far away) and a `stay` action can repeat it with `soundRepeat` (count range) and `soundIntervalMs`, e.g. `"sing": { "do": "stay", "clip": "stand", "sound": "song", "soundRepeat": [3, 4], "soundIntervalMs": 500 }`. Players can scale all bird sounds with `SoundVolume` (0–1) in `config.json`.
+- Mod audio: put a mono `.ogg` or `.wav` in `assets/audio/` and use it as `"song": "audio:<file name>"`. `soundCooldownMs` (role → ms) stops a role repeating too often on one bird. `soundVoices` (role → `{ "max", "minGapMs" }`) caps how many copies of a cue play at once in a location (default 3 and 120 ms), and an action's `soundDuring` (`{ "role", "chance", "everyMs" }`) rolls a sound repeatedly while it runs (flee, walk, swim). The `song` role carries across the location (full on screen, 20% floor far away) and a `stay` action can repeat it with `soundRepeat` (count range) and `soundIntervalMs`, e.g. `"sing": { "do": "stay", "clip": "stand", "sound": "song", "soundRepeat": [3, 4], "soundIntervalMs": 500 }`. Players can scale all bird sounds with `SoundVolume` (0–1) in `config.json`.
 - `reactions` is a shared id from `assets/reactions/` (schema `schemas/reaction.schema.json`) or an inline object; missing fields keep the bird type's flee radius. Land and water-land birds can alert (freeze, then calm down); tree-trunk birds can hop to another tree first:
 
   ```json

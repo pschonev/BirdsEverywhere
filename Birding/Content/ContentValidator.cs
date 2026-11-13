@@ -180,10 +180,32 @@ public static class ContentValidator
             }
         }
 
+        Dictionary<string, VoiceLimit> voices = new(StringComparer.Ordinal);
+        foreach ((string role, VoiceLimitJson limit) in rule.SoundVoices ?? new Dictionary<string, VoiceLimitJson>())
+        {
+            if (limit is null || limit.Max < 1 || limit.MinGapMs < 0)
+            {
+                report(IssueSeverity.Error, $"{path}.soundVoices.{role}", "max must be at least 1 and minGapMs 0 or more.");
+                continue;
+            }
+            voices[role] = new VoiceLimit(limit.Max, limit.MinGapMs);
+            if (!sounds.ContainsKey(role))
+            {
+                report(IssueSeverity.Warn, $"{path}.soundVoices.{role}", $"Sound role '{role}' has no cue.");
+            }
+        }
+
         Dictionary<string, ActionDefinition> actions = Actions(rule, path, file, profile, definitions, sounds, report);
         Reactions? reactions = ResolveReactions(rule, path, file, profile, definitions, sounds, report);
+        foreach ((string actionId, ActionDefinition action) in actions.Where(pair => pair.Value.SoundDuring is not null))
+        {
+            if (!sounds.ContainsKey(action.SoundDuring!.Role))
+            {
+                report(IssueSeverity.Warn, $"{path}.actions.{actionId}.soundDuring.role", $"Sound role '{action.SoundDuring.Role}' has no cue.");
+            }
+        }
         foreach (string role in (rule.Sounds?.Keys ?? Enumerable.Empty<string>()).Where(role => !profile.Sounds.ContainsKey(role)
-            && actions.Values.All(action => action.Sound != role) && reactions?.Threat.Alert?.Sound != role))
+            && actions.Values.All(action => action.Sound != role && action.SoundDuring?.Role != role) && reactions?.Threat.Alert?.Sound != role))
         {
             report(IssueSeverity.Warn, $"{path}.sounds.{role}", $"{rule.BirdType} never plays sound role '{role}'. Known: {string.Join(", ", profile.Sounds.Keys)}.");
         }
@@ -213,7 +235,7 @@ public static class ContentValidator
             }
         }
 
-        return new BirdComposition(routine, sounds, actions, rule.SoundCooldownMs, reactions);
+        return new BirdComposition(routine, sounds, actions, rule.SoundCooldownMs, reactions, SoundVoices: voices.Count == 0 ? null : voices);
     }
 
     /// <summary>Replaces a <c>threat</c> or <c>cohesion</c> preset id, or an <c>extends</c> object, by the shared object; null after reporting an unknown id.</summary>

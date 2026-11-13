@@ -27,10 +27,33 @@
             "rivers": [
                 "Forest",
                 "Town",
-                "Farm_Riverland"
+                "Farm_Riverland",
+                "Farm_Hilltop"
+            ],
+            "forest_lake": [
+                "Woods",
+                "Farm_Forest"
+            ],
+            "big_lake": [
+                "Farm_Wilderness"
+            ],
+            "farm_pond": [
+                "Farm_Standard"
             ]
         }
     },
     "desert": {},
-    "ginger_island": {}
+    "ginger_island": {
+        "groups": {
+            "island_shore": [
+                "IslandSouth",
+                "IslandSouthEast"
+            ],
+            "island_jungle": [
+                "IslandEast",
+                "IslandWest",
+                "IslandNorth"
+            ]
+        }
+    }
 }

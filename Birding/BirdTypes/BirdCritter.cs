@@ -105,11 +105,18 @@ internal abstract class BirdCritter : Critter
         }
 
         string id = cue.StartsWith(AudioCues.Prefix, StringComparison.Ordinal) ? services.ModCuePrefix + cue[AudioCues.Prefix.Length..] : cue;
+        string voiceKey = location.NameOrUniqueName + "/" + id;
+        VoiceLimit limit = Composition?.SoundVoices is { } voices && voices.TryGetValue(role, out VoiceLimit? custom) ? custom : VoiceLimit.Default;
+        if (services.Voices?.CanStart(voiceKey, limit, now) == false)
+        {
+            return;
+        }
         bool carries = role == SoundCarry.Role;
         if (!Game1.sounds.PlayLocal(id, location, carries ? null : position / 64f, null, SoundContext.Default, out ICue played))
         {
             return;
         }
+        services.Voices?.Started(voiceKey, now, () => played.IsPlaying);
         float volume = services.SoundVolume * (carries ? SoundCarry.Volume(Utility.distanceFromScreen(position) / 64f) : 1f);
         if (volume < 1f)
         {
@@ -118,6 +125,35 @@ internal abstract class BirdCritter : Critter
     }
 
     private readonly Dictionary<string, double> _lastSoundMs = new(StringComparer.Ordinal);
+
+    private Random? _soundRandom;
+
+    /// <summary>Local random for cosmetic sound rolls; it never touches the synced decision or clip streams.</summary>
+    private Random SoundRandom => _soundRandom ??= new Random(unchecked((int)(BirdID ^ (BirdID >> 32))));
+
+    private readonly SoundDuringTimer _soundDuring = new();
+
+    /// <summary>The action whose <c>soundDuring</c> applies to the current state: the flee action while fleeing, else walk or swim.</summary>
+    private ActionDefinition? ActiveSoundAction() => State switch
+    {
+        BehaviorStatus.FlyingAway or BehaviorStatus.Relocating or BehaviorStatus.SwimmingAway or BehaviorStatus.Running => ReplicaFleeAction,
+        BehaviorStatus.Walking => TryAction("walk"),
+        BehaviorStatus.Swimming => TryAction("swim"),
+        _ => null,
+    };
+
+    private ActionDefinition? TryAction(string id) =>
+        (Composition?.Actions ?? RequireServices().Actions[Profile.DefaultActions]).TryGetValue(id, out ActionDefinition? action) ? action : null;
+
+    /// <summary>Rolls the running action's <c>soundDuring</c> every interval on every peer; call once per update.</summary>
+    protected void TickActionSound(GameTime time)
+    {
+        SoundDuring? during = Services is null ? null : ActiveSoundAction()?.SoundDuring;
+        if (_soundDuring.Advance(during, time.ElapsedGameTime.Milliseconds, SoundRandom))
+        {
+            PlaySound(during!.Role);
+        }
+    }
 
     /// <summary>The location of the last update; sounds play there, so birds outside it stay silent.</summary>
     protected GameLocation? CurrentLocation { get; set; }

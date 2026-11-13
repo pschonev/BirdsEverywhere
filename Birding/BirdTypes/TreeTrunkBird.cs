@@ -67,6 +67,7 @@ internal sealed class TreeTrunkBird : BirdCritter
     public override bool update(GameTime time, GameLocation environment)
     {
         CurrentLocation = environment;
+        TickActionSound(time);
         ActionDefinition flee = Action("flee");
         if (IsReplica)
         {

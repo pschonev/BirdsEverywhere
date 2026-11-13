@@ -259,6 +259,27 @@
                 "minimum": 0
             }
         },
+        "soundVoices": {
+            "description": "Per sound role: at most max copies of the cue play at once in a location, and at least minGapMs between two starts. Missing roles use 3 voices and 120 ms. Local to each peer.",
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "required": [
+                    "max"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                    "max": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "minGapMs": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                }
+            }
+        },
         "reactions": {
             "description": "Shared reactions id (assets/reactions) or inline reactions object.",
             "oneOf": [

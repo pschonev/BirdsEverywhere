@@ -92,6 +92,7 @@ internal sealed class WaterLandBird : BirdCritter
     public override bool update(GameTime time, GameLocation environment)
     {
         CurrentLocation = environment;
+        TickActionSound(time);
         ActionDefinition flee = _activeFlee ?? Action("flee");
         if (IsReplica)
         {

@@ -264,7 +264,6 @@ public class CompositionTests
         Assert.That(issues.Any(issue => issue.Severity == IssueSeverity.Error && issue.Path.Contains(".when", StringComparison.Ordinal)), Is.EqualTo(error));
     }
 
-    [TestCase("blue_tit", "land_idle", "SpringBirds")]
     [TestCase("herring_gull", "waterland_idle", "seagulls")]
     public void ShippedSpecies_UseBirdTypeDefaults(string id, string routine, string alarm)
     {
@@ -274,6 +273,25 @@ public class CompositionTests
         {
             Assert.That(composition.Routine, Is.SameAs(TestBirds.Services.Routines[routine]));
             Assert.That(composition.Sounds["alarm"], Is.EqualTo(alarm));
+        });
+    }
+
+    [TestCase("great_tit")]
+    [TestCase("blue_tit")]
+    [TestCase("coal_tit")]
+    public void Tits_HaveNoGenericAlarmSound(string id) =>
+        Assert.That(ContentTests.LoadBird(id).Rules.Select(rule => rule.Composition!.Sounds["alarm"]), Has.All.Empty);
+
+    [Test]
+    public void HerringGull_CallsInFlightWithACappedCue()
+    {
+        BirdComposition composition = ContentTests.LoadBird("herring_gull").Rules.First().Composition!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(composition.Actions!["flee"].SoundDuring, Is.EqualTo(new SoundDuring("call", 0.25, 600)));
+            Assert.That(composition.Sounds["call"], Is.EqualTo("seagulls"));
+            Assert.That(composition.SoundVoices!["alarm"], Is.EqualTo(new VoiceLimit(2, 400)));
         });
     }
 

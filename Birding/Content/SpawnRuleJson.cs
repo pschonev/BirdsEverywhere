@@ -41,6 +41,9 @@ public sealed record SpawnRuleJson
     [JsonProperty("soundCooldownMs")]
     public Dictionary<string, int>? SoundCooldownMs { get; init; }
 
+    [JsonProperty("soundVoices")]
+    public Dictionary<string, VoiceLimitJson>? SoundVoices { get; init; }
+
     [JsonProperty("reactions")]
     public JToken? Reactions { get; init; }
 
@@ -112,4 +115,13 @@ public sealed record GroupMemberJson
 
     [JsonProperty("textures")]
     public Dictionary<string, int>? Textures { get; init; }
+}
+
+public sealed record VoiceLimitJson
+{
+    [JsonProperty("max", Required = Required.Always)]
+    public int Max { get; init; }
+
+    [JsonProperty("minGapMs")]
+    public int MinGapMs { get; init; }
 }

@@ -52,6 +52,19 @@
           }
         }
       ]
+    },
+    "sounds": {
+      "call": "seagulls"
+    },
+    "soundVoices": {
+      "alarm": {
+        "max": 2,
+        "minGapMs": 400
+      },
+      "call": {
+        "max": 2,
+        "minGapMs": 400
+      }
     }
   },
   "rules": {

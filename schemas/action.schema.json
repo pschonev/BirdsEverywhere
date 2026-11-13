@@ -105,6 +105,29 @@
                     "description": "Milliseconds between repeats; set it to the sound's length so repeats follow each other. Needs soundRepeat.",
                     "type": "integer",
                     "minimum": 1
+                },
+                "soundDuring": {
+                    "description": "While the action runs, roll chance every everyMs to play the sound role (flight calls, contact calls). Local and cosmetic.",
+                    "type": "object",
+                    "required": [
+                        "role",
+                        "chance",
+                        "everyMs"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "role": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "chance": {
+                            "$ref": "#/$defs/chance"
+                        },
+                        "everyMs": {
+                            "type": "integer",
+                            "minimum": 100
+                        }
+                    }
                 }
             },
             "allOf": [
@@ -302,6 +325,9 @@
                 },
                 "soundIntervalMs": {
                     "$ref": "#/$defs/action/properties/soundIntervalMs"
+                },
+                "soundDuring": {
+                    "$ref": "#/$defs/action/properties/soundDuring"
                 },
                 "extends": {
                     "description": "New action ids only: '<set>.<id>' of a shared action (e.g. forage.dive) this one overrides.",

@@ -614,8 +614,8 @@ Design: [ARCHITECTURE.md → Escape options](ARCHITECTURE.md#escape-options-plan
 
 Design: [ARCHITECTURE.md → Bird voices](ARCHITECTURE.md#bird-voices-planned-step-10). Sounds are per bird and one-shot today. This step adds a voice cap, sound during an action, group chatter and category volumes. Order, each compile and unit-test verified:
 
-1. **Voice cap.** `soundVoices` (role → `max`, `minGapMs`) and a default; a per-peer pool in `BirdServices` that counts playing cues; applied in `PlaySound`. Verify `ICue.IsPlaying` for custom cues first.
-2. **Sound during an action.** `soundDuring` (`role`, `chance`, `everyMs`) on any primitive; ticks in the bird's update, owner on `Rng`, replica on `VisualRng`.
+1. **Voice cap** (implemented, compile and unit tests only). `soundVoices` (role → `max`, `minGapMs`) and a default of 3 voices and 120 ms; a per-peer `VoicePool` in `BirdServices` keyed by location and cue; applied in `PlaySound`. `ICue.IsPlaying` for custom cues is unchecked in game.
+2. **Sound during an action** (implemented, compile and unit tests only). `soundDuring` (`role`, `chance`, `everyMs`) on flee, walk and swim actions; `SoundDuringTimer` ticks from each bird type's update on every peer with a local random. Gulls call in flight with a placeholder cue.
 3. **Group chatter.** `join` (`radius`, `chance`, `delayMs`, `scope`, `if`) on an action; owner sets the neighbours' `IdleCue`, one generation. Needs 1.
 4. **Category volumes.** `SongVolume`, `VoiceVolume`, `EffectVolume` in `ModConfig`, applied in `PlaySound`.
 5. **Ambience** ([design](ARCHITECTURE.md#bird-voices-planned-step-10)). 5a: generalize `SoundCarry` to a per-role `carry` flag. 5b: `assets/ambience/*.json` with schema, loader, validator and a per-peer ticker; needs the audio tool to accept non-Xeno-canto sources first, and location groups for Ginger Island and the farm types in `regions.json`.
@@ -670,6 +670,7 @@ Not scheduled into a phase. Spawning and placement goals are in [ARCHITECTURE.md
 - Birds flying into trees (hidden canopy hide). → Phase 10 step 9.
 - Water birds that swim away. On land `swimAway` falls back to flight. Not needed for families that spawn only on water (e.g. mallards); land/water-aware escapes and shore safety → Phase 10 step 9 D.
 - Singing: seasonal `rare` `sing` entries with `when.any` and time anchors (step 8); needs song clips and `audio:` cues per species. One singer per location and male-only via `exclusive` and roles. → Phase 10 step 9 (implemented, not tested in game); calls, chatter and group sound → Phase 10 step 10.
+- Nests and fledglings in canopies; shadow-only flyovers (swifts) heard and noticed but never drawn; heard-only canopy birds revealed by shaking or felling the tree; visible canopy sitters (needs perch points per tree type); groups in one tree (goldfinch); tree species per bird (`treeTypes`); dive on approach and resurface elsewhere. → [ARCHITECTURE.md](ARCHITECTURE.md#canopy-and-aerial-birds-ideas-not-scheduled).
 - Visible birds in tree canopies that fly off when the tree is shaken.
 - Shore birds.
 - Flyovers: migrating birds passing through, predators circling.
