@@ -7,8 +7,9 @@ namespace Birding.Content;
 public static class ReactionLoader
 {
     private const int MaxRadius = 20;
+    private const int MaxDiscoveryRadius = 40;
 
-    private static readonly HashSet<string> _keys = new(StringComparer.Ordinal) { "threat", "cohesion" };
+    private static readonly HashSet<string> _keys = new(StringComparer.Ordinal) { "threat", "cohesion", "discoveryRadius" };
     private static readonly HashSet<string> _threatKeys = new(StringComparer.Ordinal) { "fleeRadius", "runningMultiplier", "alert", "escape", "maxRelocations" };
     private static readonly HashSet<string> _cohesionKeys = new(StringComparer.Ordinal) { "spread", "linkRadius", "delayMs", "sameOutcome", "rally", "fan", "regroup", "rejoinDelayMs" };
     private static readonly HashSet<string> _alertKeys = new(StringComparer.Ordinal) { "radius", "clip", "sound", "calmMs", "fleeAfterMs" };
@@ -32,7 +33,8 @@ public static class ReactionLoader
     {
         JObject body = Object(token, file, path, _keys);
         Cohesion? cohesion = body["cohesion"] is { } cohesionToken ? ParseCohesion(cohesionToken, file, path + ".cohesion") : defaults.Cohesion;
-        defaults = defaults with { Cohesion = cohesion };
+        int discovery = body["discoveryRadius"] is { } discoveryToken ? Int(discoveryToken, 1, MaxDiscoveryRadius, file, path + ".discoveryRadius") : defaults.DiscoveryRadius;
+        defaults = defaults with { Cohesion = cohesion, DiscoveryRadius = discovery };
         if (body["threat"] is not { } threatToken)
         {
             return defaults;
@@ -55,9 +57,9 @@ public static class ReactionLoader
                 JObject fleeBody = Object(choice["flee"] ?? throw new FormatException($"{file}: {choicePath}.flee is required."), file, choicePath + ".flee", _fleeKeys);
                 string primitive = Text(fleeBody["do"], file, choicePath + ".flee.do")
                     ?? throw new FormatException($"{file}: {choicePath}.flee.do is required.");
-                if (primitive is not ("swimAway" or "flyOff"))
+                if (primitive is not ("swimAway" or "walkAway" or "flyOff"))
                 {
-                    throw new FormatException($"{file}: {choicePath}.flee.do must be swimAway or flyOff.");
+                    throw new FormatException($"{file}: {choicePath}.flee.do must be swimAway, walkAway or flyOff.");
                 }
                 if (fleeBody["target"] is not null || fleeBody["speedFactor"] is not null)
                 {
@@ -85,7 +87,7 @@ public static class ReactionLoader
                     WithEscape(defaults.Threat with { FleeRadius = radius }, fleeBody, file, choicePath + ".flee"),
                     new ActionDefinition(primitive, null, Text(fleeBody["sound"], file, choicePath + ".flee.sound"), 1, null, null, null, null, null, false, null)));
             }
-            return new Reactions(defaults.Threat, choices, cohesion);
+            return new Reactions(defaults.Threat, choices, cohesion, discovery);
         }
         JObject threat = Object(threatToken, file, threatPath, _threatKeys);
         int fleeRadius = threat["fleeRadius"] is { } flee ? Int(flee, 1, MaxRadius, file, threatPath + ".fleeRadius") : defaults.Threat.FleeRadius;
@@ -117,7 +119,7 @@ public static class ReactionLoader
             throw new FormatException($"{file}: {threatPath}.fleeRadius must be smaller than the alert radius ({alert.Radius}).");
         }
 
-        return new Reactions(WithEscape(new ThreatReaction(fleeRadius, alert, running, defaults.Threat.Escape, defaults.Threat.MaxRelocations), threat, file, threatPath), null, cohesion);
+        return new Reactions(WithEscape(new ThreatReaction(fleeRadius, alert, running, defaults.Threat.Escape, defaults.Threat.MaxRelocations), threat, file, threatPath), null, cohesion, discovery);
     }
 
     private static Cohesion ParseCohesion(JToken token, string file, string path)

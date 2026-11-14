@@ -83,6 +83,31 @@ internal sealed class FlockTests
     }
 
     [Test]
+    public void Planner_AMateAlwaysWinsOverTheFan()
+    {
+        Field field = new();
+        Vector2 anchor = new(10, 6);
+        FlockHints hints = new(new Cohesion { Spread = 1, Fan = 1, Rally = 2 }, new Vector2(5, 10), new Vector2(10, 10), null, new[] { anchor });
+        Vector2 from = new(10, 14);
+        for (int seed = 0; seed < 20; seed++)
+        {
+            Vector2 tile = EscapePlanner.Surface(field, from, new(5, 10), _ground, 0, Array.Empty<Vector2>(), new Random(seed), hints)!.Value.Tile;
+            Assert.That(Vector2.Distance(tile, anchor), Is.LessThanOrEqualTo(2), $"seed {seed}: landed on the far side from the mate");
+        }
+    }
+
+    [Test]
+    public void Planner_WithNoSpotNearAMateTakesTheClosestOneInsteadOfAnyRandomSpot()
+    {
+        Field field = new();
+        Vector2 anchor = new(30, 30);
+        FlockHints hints = new(new Cohesion { Spread = 1, Fan = 0, Rally = 2 }, new Vector2(5, 10), new Vector2(10, 10), null, new[] { anchor });
+        List<float> distances = Enumerable.Range(0, 30)
+            .Select(seed => Vector2.Distance(EscapePlanner.Surface(field, new(10, 10), new(5, 10), _ground, 0, Array.Empty<Vector2>(), new Random(seed), hints)!.Value.Tile, anchor)).ToList();
+        Assert.That(distances.Max() - distances.Min(), Is.LessThanOrEqualTo(0.01f), "every bird picks the same closest spot distance");
+    }
+
+    [Test]
     public void Planner_FanKeepsTheBirdsSide()
     {
         Field field = new();

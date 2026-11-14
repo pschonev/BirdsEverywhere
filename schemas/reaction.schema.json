@@ -6,6 +6,12 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
+        "discoveryRadius": {
+            "description": "Tiles within which a visible bird counts as detected by a farmer (default 8). Large conspicuous birds, such as gulls, can use more. The bird must also be on screen.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 40
+        },
         "threat": {
             "oneOf": [
                 {
@@ -87,6 +93,7 @@
                                     "do": {
                                         "enum": [
                                             "swimAway",
+                                            "walkAway",
                                             "flyOff"
                                         ]
                                     },

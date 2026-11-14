@@ -67,24 +67,28 @@ internal sealed class LocationSpawner
         Dictionary<int, Vector2> groupAnchors = LiveGroupAnchors(location);
         bool visitStart = _visitStart;
         _visitStart = false;
+        HashSet<long> liveBirds = location.critters.OfType<BirdCritter>().Select(bird => bird.BirdID).ToHashSet();
         foreach (BirdPlacement planned in placements)
         {
-            if (_spawned.Contains(planned) || !planned.IsActiveAt(Game1.timeOfDay))
-            {
-                continue;
-            }
-
             bool departed = _departures.IsDeparted(location.Name ?? "", planned.Seed);
-            if (departed && !(visitStart && _departures.CanReturn(location.Name ?? "", planned.Seed, Game1.timeOfDay)))
+            PopulateAction action = PopulateDecision.For(planned.IsActiveAt(Game1.timeOfDay), _spawned.Contains(planned), departed,
+                departed && _departures.CanReturn(location.Name ?? "", planned.Seed, Game1.timeOfDay), visitStart, liveBirds.Contains(planned.Seed));
+            if (action == PopulateAction.Skip)
             {
                 continue;
             }
+            bool arriving = action == PopulateAction.Arrive;
 
             BirdPlacement placement = planned;
 
             if (!_patterns.TryCreate(new SpawnPatternId(placement.SpawnPattern), out Spawner? spawner))
             {
                 _services.Monitor.LogOnce($"Bird '{placement.BirdId}' has unknown spawn pattern '{placement.SpawnPattern}'; skipping.", LogLevel.Warn);
+                continue;
+            }
+
+            if (arriving && spawner is not TileSpawner)
+            {
                 continue;
             }
 
@@ -101,6 +105,11 @@ internal sealed class LocationSpawner
                 continue;
             }
 
+            if (!placement.Forced && ThreatSight.Near(placement.Tile, query.NpcTiles, ThreatSight.NpcSpawnClearanceTiles))
+            {
+                continue;
+            }
+
             if (!_birdTypes.TryCreate(new BirdTypeId(placement.BirdType), placement, location, _services, out BirdCritter? bird))
             {
                 _services.Monitor.LogOnce($"Bird '{placement.BirdId}' has unknown bird type '{placement.BirdType}' for its placement; skipping.", LogLevel.Warn);
@@ -113,6 +122,10 @@ internal sealed class LocationSpawner
             bird.GroupId = placement.GroupId;
             bird.Role = placement.Role;
             bird.Stage = placement.Stage;
+            if (arriving && !bird.BeginArrival(ReturnTiles.ArrivalStart(query.MapSize, placement.Tile, query.FarmerTiles, point => Utility.isOnScreen(point, 128)), placement.Tile, location))
+            {
+                continue;
+            }
             location.critters.Add(bird);
             _spawned.Add(planned);
             if (departed)

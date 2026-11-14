@@ -120,7 +120,13 @@ internal sealed class BirdBehaviorTests
         public IReadOnlyList<Vector2> FarmerTiles { get; init; } = Array.Empty<Vector2>();
         public IEnumerable<Vector2> Trees { get; init; } = Array.Empty<Vector2>();
         public IEnumerable<Vector2> LeafyTrees { get; init; } = Array.Empty<Vector2>();
+        public IReadOnlyCollection<Vector2> Hidden { get; init; } = Array.Empty<Vector2>();
+        public IReadOnlyList<Vector2> Villagers { get; init; } = Array.Empty<Vector2>();
+        public IReadOnlyList<Vector2> NpcTiles => Villagers;
+        public bool IsHiddenByScenery(Vector2 tile) => Hidden.Contains(tile);
+        public IReadOnlyCollection<Vector2> CoveredTrunks { get; init; } = Array.Empty<Vector2>();
         public IEnumerable<Vector2> MatureTrees() => Trees;
+        public IEnumerable<Vector2> TrunkTrees() => Trees.Where(tree => !CoveredTrunks.Contains(tree));
         public IEnumerable<Vector2> CanopyTrees() => LeafyTrees;
     }
 
@@ -198,6 +204,19 @@ internal sealed class BirdBehaviorTests
             Is.EqualTo(new EscapeChoice(new EscapeOption(EscapeOption.Tree, 1, 12, 4000), new Vector2(14, 10))));
 
     [Test]
+    public void Escape_OtherTreeSkipsTrunksHiddenBehindAnotherCrown()
+    {
+        ThreatReaction hop = Escape(new EscapeOption("otherTree", 1, 12)) with { MaxRelocations = 2 };
+        Vector2 threat = new(8, 10);
+        Assert.Multiple(() =>
+        {
+            Assert.That(EscapePlanner.Tree(new LandingLocation { Trees = _trees }, new(10, 10), threat, hop, 0, Array.Empty<Vector2>(), new FixedRandom(0, 0)), Is.Not.Null);
+            Assert.That(EscapePlanner.Tree(new LandingLocation { Trees = new[] { new Vector2(14, 10) }, CoveredTrunks = new[] { new Vector2(14, 10) } },
+                new(10, 10), threat, hop, 0, Array.Empty<Vector2>(), new FixedRandom(0, 0)), Is.Null, "the only trunk is covered, so the bird leaves instead");
+        });
+    }
+
+    [Test]
     public void Escape_BareTreesAreNoCanopyButStillHaveTrunks()
     {
         LandingLocation bare = new() { Trees = _trees };
@@ -208,6 +227,156 @@ internal sealed class BirdBehaviorTests
             Assert.That(EscapePlanner.Tree(bare, new(10, 10), new(8, 10), Escape(new EscapeOption("otherTree", 1, 12)) with { MaxRelocations = 2 },
                 relocations: 0, Array.Empty<Vector2>(), new FixedRandom(0, 0)), Is.Not.Null);
         });
+    }
+
+    [Test]
+    public void Escape_GroundNeverLandsBehindSceneryButWaterStillWorks()
+    {
+        ThreatReaction ground = Escape(new EscapeOption("ground", 1, 8));
+        LandingLocation hidden = new() { Hidden = new[] { new Vector2(10, 5) } };
+        Assert.Multiple(() =>
+        {
+            Assert.That(SurfaceTile(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5), ground, 0, Array.Empty<Vector2>(), new FixedRandom(0)), Is.EqualTo(new Vector2(10, 5)));
+            Assert.That(SurfaceTile(hidden, new Vector2(5, 5), new Vector2(2, 5), ground, 0, Array.Empty<Vector2>(), new FixedRandom(0)), Is.Null, "the only ground tile is behind a bush");
+            Assert.That(SurfaceTile(hidden, new Vector2(5, 5), new Vector2(2, 5), Escape(new EscapeOption("water", 1, 8)), 0, Array.Empty<Vector2>(), new FixedRandom(0)), Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public void Escape_KeepsAwayFromVillagersToo()
+    {
+        ThreatReaction ground = Escape(new EscapeOption("ground", 1, 8));
+        Assert.Multiple(() =>
+        {
+            Assert.That(SurfaceTile(new LandingLocation(), new Vector2(5, 5), new Vector2(2, 5), ground, 0, Array.Empty<Vector2>(), new FixedRandom(0)), Is.EqualTo(new Vector2(10, 5)));
+            Assert.That(SurfaceTile(new LandingLocation { Villagers = new[] { new Vector2(11, 5) } }, new Vector2(5, 5), new Vector2(2, 5), ground, 0,
+                Array.Empty<Vector2>(), new FixedRandom(0)), Is.Null, "the only landing tile is next to a villager");
+        });
+    }
+
+    private static readonly Vector2 _flushed = new(14, 10);
+
+    [Test]
+    public void Flush_PrefersAnotherCanopyThenGroundThenLeaves()
+    {
+        ThreatReaction reaction = Escape(new EscapeOption(EscapeOption.Tree, 3, 8, 4000), new EscapeOption("ground", 1, 12)) with { MaxRelocations = 2 };
+        Vector2 threat = new(14, 13);
+        Vector2 other = new(8, 10);
+        EscapeChoice? Flush(LandingLocation query, int relocations = 0) =>
+            EscapePlanner.Flush(query, new(14, 8), threat, reaction, relocations, _flushed, Array.Empty<Vector2>(), new FixedRandom(0.5, 0));
+        Vector2 hiddenGround = new(10, 5);
+        Assert.Multiple(() =>
+        {
+            Assert.That(Flush(new LandingLocation { Trees = new[] { _flushed, other }, LeafyTrees = new[] { _flushed, other } })?.Tile, Is.EqualTo(other), "another canopy first");
+            EscapeChoice? ground = Flush(new LandingLocation { Trees = new[] { _flushed }, LeafyTrees = new[] { _flushed } });
+            Assert.That((ground?.Option.Target, ground?.Tile), Is.EqualTo(("ground", hiddenGround)), "never the flushed tree, so open ground");
+            Assert.That(Flush(new LandingLocation { Trees = new[] { _flushed, other }, LeafyTrees = new[] { _flushed } })?.Option.Target, Is.EqualTo("ground"), "a bare tree is no canopy");
+            Assert.That(Flush(new LandingLocation { LeafyTrees = new[] { _flushed }, Hidden = new[] { hiddenGround } }), Is.Null, "nothing left but a hidden tile: leave");
+            Assert.That(Flush(new LandingLocation { Trees = new[] { _flushed, other }, LeafyTrees = new[] { _flushed, other } }, relocations: 2), Is.Null, "relocation budget used up");
+        });
+    }
+
+    [Test]
+    public void Flush_LeavesOnlyWhenToldTo()
+    {
+        ThreatReaction reaction = Escape(new EscapeOption(EscapeOption.Tree, 1, 8, 4000)) with { MaxRelocations = 2 };
+        LandingLocation query = new() { Trees = new[] { _flushed, new Vector2(8, 10) }, LeafyTrees = new[] { _flushed, new Vector2(8, 10) } };
+        Assert.Multiple(() =>
+        {
+            Assert.That(EscapePlanner.Flush(query, new(14, 8), new(14, 13), reaction, 0, _flushed, Array.Empty<Vector2>(), new FixedRandom(0, 0), leave: true), Is.Null);
+            Assert.That(EscapePlanner.Flush(query, new(14, 8), new(14, 13), reaction, 0, _flushed, Array.Empty<Vector2>(), new FixedRandom(0, 0), leave: false), Is.Not.Null);
+        });
+    }
+
+    private static EscapePlanner.EscapeDecision Decide(ThreatReaction reaction, Vector2 from, int relocations = 0, double roll = 0.99, FlockHints? flock = null) =>
+        EscapePlanner.Decide(new LandingLocation(), from, new Vector2(2, 5), reaction, relocations, Array.Empty<Vector2>(), new FixedRandom(roll, 0), flock);
+
+    [Test]
+    public void Decide_LeavingTheMapIsALastResort()
+    {
+        ThreatReaction near = Escape(new EscapeOption("ground", 1, 2)) with { MaxRelocations = 4 };
+        ThreatReaction withOffscreen = Escape(new EscapeOption("ground", 1, 8), new EscapeOption(EscapeOption.Offscreen, 1, 8)) with { MaxRelocations = 4 };
+        Vector2 atTheEdge = new(1, 5);
+        Assert.Multiple(() =>
+        {
+            EscapePlanner.EscapeDecision wider = Decide(Escape(new EscapeOption("ground", 1, 2)) with { MaxRelocations = 4 }, new Vector2(5, 5));
+            Assert.That((wider.Choice?.Tile, wider.Via), Is.EqualTo((new Vector2(10, 5), "wider search")), "nothing in its own range, so it looks wider before leaving");
+            Assert.That(Decide(near, new Vector2(5, 5), relocations: 4).Via, Is.EqualTo("relocation budget used"), "harassed too often");
+            Assert.That(Decide(near, atTheEdge, roll: 0.1).Via, Is.EqualTo("near the map edge"), "close to the map border it sometimes just leaves");
+            Assert.That(Decide(near, atTheEdge, roll: 0.9).Via, Is.Not.EqualTo("near the map edge"), "usually it still relocates");
+            Assert.That(Decide(near, new Vector2(5, 5), roll: 0.0).Via, Is.Not.EqualTo("near the map edge"), "far from the border there is no edge rule");
+            Assert.That(Decide(withOffscreen, new Vector2(5, 5), roll: 0.99).Via, Is.AnyOf("own spot", "chose the off-screen option"), "a weighted off-screen option stays possible");
+        });
+    }
+
+    [Test]
+    public void Decide_ADeliberateOffscreenRollIsNotOverriddenByTheWiderSearch()
+    {
+        ThreatReaction onlyOffscreen = Escape(new EscapeOption(EscapeOption.Offscreen, 1, 8), new EscapeOption("ground", 0.0001, 8)) with { MaxRelocations = 4 };
+        EscapePlanner.EscapeDecision decision = Decide(onlyOffscreen, new Vector2(5, 5), roll: 0.0);
+        Assert.That((decision.Choice, decision.Via), Is.EqualTo(((EscapeChoice?)null, "chose the off-screen option")));
+    }
+
+    private static FlockHints Mates(params Vector2[] anchors) =>
+        new(new Cohesion { Spread = 1, Rally = 3 }, new Vector2(2, 5), new Vector2(8, 5), null, anchors);
+
+    [Test]
+    public void Follow_JoinsMatesBeyondTheBirdsOwnRange()
+    {
+        ThreatReaction reaction = Escape(new EscapeOption("ground", 1, 6));
+        LandingLocation query = new();
+        Vector2 from = new(5, 5);
+        Vector2 threat = new(2, 5);
+        Assert.Multiple(() =>
+        {
+            Assert.That(EscapePlanner.Surface(query, from, threat, reaction, 0, Array.Empty<Vector2>(), new FixedRandom(0)), Is.Not.Null, "within the bird's own range");
+            ThreatReaction shortRange = Escape(new EscapeOption("ground", 1, 2));
+            Assert.That(EscapePlanner.Surface(query, from, threat, shortRange, 0, Array.Empty<Vector2>(), new FixedRandom(0)), Is.Null, "own range too short");
+            Assert.That(EscapePlanner.Follow(query, from, threat, shortRange, 0, Array.Empty<Vector2>(), new FixedRandom(0), Mates(new Vector2(11, 5)))?.Tile, Is.EqualTo(new Vector2(10, 5)));
+        });
+    }
+
+    [Test]
+    public void Follow_NeedsMatesRespectsTheBudgetAndNeverLeavesOrLandsOnAMate()
+    {
+        ThreatReaction reaction = Escape(new EscapeOption("ground", 1, 2), new EscapeOption(EscapeOption.Offscreen, 5, 12)) with { MaxRelocations = 2 };
+        LandingLocation query = new();
+        Vector2 from = new(5, 5);
+        Vector2 threat = new(2, 5);
+        Assert.Multiple(() =>
+        {
+            Assert.That(EscapePlanner.Follow(query, from, threat, reaction, 0, Array.Empty<Vector2>(), new FixedRandom(0), Mates()), Is.Null, "no mates, no anchor");
+            Assert.That(EscapePlanner.Follow(query, from, threat, reaction, 2, Array.Empty<Vector2>(), new FixedRandom(0), Mates(new Vector2(11, 5))), Is.Null, "relocation budget used");
+            Assert.That(EscapePlanner.Follow(query, from, threat, reaction, 0, Array.Empty<Vector2>(), new FixedRandom(0), Mates(new Vector2(10, 5))), Is.Null, "never the mate's own tile");
+            Assert.That(EscapePlanner.Follow(query, from, threat, reaction, 0, Array.Empty<Vector2>(), new FixedRandom(0.99), Mates(new Vector2(11, 5)))?.Option.Target, Is.EqualTo("ground"), "never off screen");
+        });
+    }
+
+    [Test]
+    public void Follow_NeverMakesMoreBirdsLeaveAndKeepsEverySafetyRule()
+    {
+        ThreatReaction reaction = Escape(new EscapeOption("ground", 1, 6), new EscapeOption(EscapeOption.Offscreen, 1, 12)) with { MaxRelocations = 2 };
+        int leavingBefore = 0;
+        int leavingAfter = 0;
+        for (int seed = 0; seed < 300; seed++)
+        {
+            Random random = new(seed);
+            LandingLocation query = new() { FarmerTiles = new[] { new Vector2(random.Next(0, 14), random.Next(0, 11)) } };
+            Vector2 from = new(random.Next(0, 14), random.Next(0, 11));
+            Vector2 threat = query.FarmerTiles[0];
+            FlockHints mates = Mates(new Vector2(random.Next(8, 12), random.Next(4, 8)));
+            EscapeChoice? own = EscapePlanner.Surface(query, from, threat, reaction, 0, Array.Empty<Vector2>(), new Random(seed), mates);
+            EscapeChoice? combined = own ?? EscapePlanner.Follow(query, from, threat, reaction, 0, Array.Empty<Vector2>(), new Random(seed), mates);
+            leavingBefore += own is null ? 1 : 0;
+            leavingAfter += combined is null ? 1 : 0;
+            Assert.That(own is not null && combined != own, Is.False, $"seed {seed}: an own spot is never replaced");
+            if (combined is { } followed && own is null)
+            {
+                Assert.That(Vector2.Distance(followed.Tile, threat), Is.GreaterThan(reaction.FleeRadius + 1), $"seed {seed}");
+            }
+        }
+        Assert.That(leavingAfter, Is.LessThanOrEqualTo(leavingBefore));
+        Assert.That(leavingAfter, Is.LessThan(leavingBefore), "and some leavers now stay with the flock");
     }
 
     [Test]

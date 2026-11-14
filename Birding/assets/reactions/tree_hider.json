@@ -13,6 +13,6 @@
                 "maxDistance": 12
             }
         ],
-        "maxRelocations": 2
+        "maxRelocations": 4
     }
 }

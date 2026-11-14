@@ -14,7 +14,6 @@ namespace Birding.BirdTypes;
 internal abstract class BirdCritter : Critter
 {
     private const int ThreatCheckIntervalMs = 200;
-    private const int DiscoveryRadiusTiles = 8;
     private const float RelocateArcHeight = 48f;
     private const int RetargetIntervalMs = 300;
     private const int MaxRetargets = 2;
@@ -499,6 +498,9 @@ internal abstract class BirdCritter : Critter
     internal ThreatReaction Threat => (Composition?.Reactions ?? Profile.Reactions
         ?? throw new InvalidOperationException($"{BirdTypeName} has no reactions.")).Threat;
 
+    /// <summary>Tiles within which a visible bird counts as detected: the rule's reactions, or the bird type's default.</summary>
+    private int DiscoveryRadius => (Composition?.Reactions ?? Profile.Reactions)?.DiscoveryRadius ?? Reactions.DefaultDiscoveryRadius;
+
     /// <summary>The flock rules of the rule's reactions, or null when the bird has none.</summary>
     internal Cohesion? Cohesion => (Composition?.Reactions ?? Profile.Reactions)?.Cohesion;
 
@@ -592,6 +594,40 @@ internal abstract class BirdCritter : Critter
         }
     }
 
+    /// <summary>Whether the flush that startled this hider makes it leave; decided once by the bird whose tree was shaken, so a flock leaves together or relocates together.</summary>
+    internal bool FlushLeave { get; set; }
+
+    /// <summary>Why a bird that found no spot leaves: its relocation budget is used, it has no escape options, or no spot qualified.</summary>
+    protected string EscapeLeaveReason(ThreatReaction reaction) =>
+        Relocations >= reaction.MaxRelocations ? "relocation budget used" : reaction.Escape.IsEmpty ? "no escape options" : "no eligible spot";
+
+    /// <summary>Trace-level record of one escape decision, to find out later why a bird left or split from its flock.</summary>
+    protected void LogEscape(string decision, string reason) =>
+        Services?.Monitor.Log($"{BirdName} #{BirdID} group {(GroupId is { } group ? group.ToString(System.Globalization.CultureInfo.InvariantCulture) : "-")} role {Role ?? "-"}: {decision} ({reason}); relocations {Relocations}/{Threat.MaxRelocations}", LogLevel.Trace);
+
+    /// <summary>Hiders only: the shaken, felled or bare tree startles hiders in nearby trees through the flock's alarm wave, after their own staggered delay; they share the trigger's <paramref name="leave"/> outcome.</summary>
+    protected void RaiseFlushAlarm(GameLocation location, Character shaker, Cohesion cohesion, double now, bool leave)
+    {
+        List<BirdCritter> members = FlockMembers(location);
+        int self = members.IndexOf(this);
+        if (self < 0)
+        {
+            return;
+        }
+        List<AlarmMember> view = members
+            .Select(bird => new AlarmMember(bird.BirdID, bird.OwnTile, bird == this || (bird.Cohesion != null && bird._alarmThreat == null && bird.State == BehaviorStatus.Hiding)))
+            .ToList();
+        foreach ((int index, int delayMs) in GroupAlarm.Plan(view, self, cohesion, (long)now))
+        {
+            members[index]._alarmThreat = shaker;
+            members[index]._alarmDelayMs = delayMs;
+            members[index].FlushLeave = leave;
+        }
+    }
+
+    /// <summary>The tree this bird hides in, or null; mates prefer escape spots near it.</summary>
+    internal virtual Vector2? HiddenIn => null;
+
     /// <summary>The flock's view for an escape plan, or null without flock rules or <c>spread</c>; consumes the pending alarm source.</summary>
     protected FlockHints? Flock(GameLocation location, Vector2 threatTile)
     {
@@ -615,6 +651,10 @@ internal abstract class BirdCritter : Critter
             if (bird != this && bird.State == BehaviorStatus.Relocating && bird.RelocateTarget is { } target)
             {
                 anchors.Add(target);
+            }
+            else if (bird != this && bird.State == BehaviorStatus.Hiding && bird.HiddenIn is { } hiddenIn)
+            {
+                anchors.Add(hiddenIn);
             }
         }
         return new FlockHints(cohesion, threatTile, count == 0 ? OwnTile : sum / count, source?.EscapeOutcome, anchors);
@@ -701,7 +741,7 @@ internal abstract class BirdCritter : Critter
             _alertedSinceMs = now;
         }
         else if (now - _alertedSinceMs >= fleeAfter
-            && Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, alert.Radius, location) is { } watcher)
+            && FarmerOrNearbyNpc(location, alert.Radius) is { } watcher)
         {
             _alertedSinceMs = -1;
             return (watcher, false);
@@ -716,7 +756,7 @@ internal abstract class BirdCritter : Critter
         foreach (Farmer farmer in location.farmers)
         {
             float tiles = Vector2.Distance(farmer.Position, position) / 64f;
-            if (tiles <= DiscoveryRadiusTiles && Utility.isOnScreen(position, 64))
+            if (tiles <= DiscoveryRadius && Utility.isOnScreen(position, 64))
             {
                 AddBirdObservation(BirdName, location.Name);
             }
@@ -731,11 +771,11 @@ internal abstract class BirdCritter : Critter
             alerted |= tiles <= alertRadius;
         }
 
-        if (Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, threat.FleeRadius, location) is { } other)
+        if (FarmerOrNearbyNpc(location, threat.FleeRadius) is { } other)
         {
             return (other, false);
         }
-        return (null, alerted || (alertRadius > 0 && Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, alertRadius, location) != null));
+        return (null, alerted || (alertRadius > 0 && FarmerOrNearbyNpc(location, alertRadius) != null));
     }
 
     /// <summary>True once no threat has been in the alert ring for the alert's calm time.</summary>
@@ -802,10 +842,16 @@ internal abstract class BirdCritter : Critter
 
     protected Vector2 OwnTile => new((int)(position.X / 64f), (int)(position.Y / 64f));
 
-    /// <summary>Starts the relocation flight to <paramref name="target"/> (world position) after the caller has played sounds and set state.</summary>
-    protected void BeginRelocation(Vector2 tile, Vector2 target, GameLocation environment, bool counted = true)
+    /// <summary>Starts a calm flight from <paramref name="from"/> (pixels, outside the screen) to a free tile for a bird returning while a farmer is present; false for bird types that only return on a new visit.</summary>
+    internal virtual bool BeginArrival(Vector2 from, Vector2 tile, GameLocation environment) => false;
+
+    /// <summary>Starts the relocation flight to <paramref name="target"/> (world position) after the caller has played sounds and set state; <paramref name="observe"/> registers the sighting.</summary>
+    protected void BeginRelocation(Vector2 tile, Vector2 target, GameLocation environment, bool counted = true, bool observe = true)
     {
-        AddBirdObservation(BirdName, environment.Name);
+        if (observe)
+        {
+            AddBirdObservation(BirdName, environment.Name);
+        }
         if (counted)
         {
             Relocations++;
@@ -880,7 +926,29 @@ internal abstract class BirdCritter : Critter
             }
         }
 
-        return Utility.isThereAFarmerOrCharacterWithinDistance(position / 64f, radiusTiles, location);
+        return FarmerOrNearbyNpc(location, radiusTiles);
+    }
+
+    /// <summary>A farmer, or a villager or pet that a farmer can see, within <paramref name="tiles"/> of the bird. Characters out of every farmer's sight never count, so they cannot clear birds nobody can see.</summary>
+    private Character? FarmerOrNearbyNpc(GameLocation location, float tiles)
+    {
+        float radiusSquared = tiles * tiles * 64f * 64f;
+        foreach (Farmer farmer in location.farmers)
+        {
+            if (Vector2.DistanceSquared(farmer.Position, position) <= radiusSquared)
+            {
+                return farmer;
+            }
+        }
+        List<Vector2> farmerTiles = location.farmers.Select(farmer => farmer.Tile).ToList();
+        foreach (NPC npc in location.characters)
+        {
+            if (!npc.IsInvisible && Vector2.DistanceSquared(npc.Position, position) <= radiusSquared && ThreatSight.InSight(npc.Tile, farmerTiles))
+            {
+                return npc;
+            }
+        }
+        return null;
     }
 
     protected bool CheckIntervalElapsed(GameTime time)

@@ -31,27 +31,37 @@
           }
         },
         {
+          "if": {
+            "nearWater": false
+          },
+          "flee": {
+            "radius": 6,
+            "do": "walkAway"
+          }
+        },
+        {
           "flee": {
             "radius": 3,
             "do": "flyOff",
-            "maxRelocations": 2,
+            "maxRelocations": 3,
             "escape": [
               {
                 "target": "water",
-                "weight": 0.4
+                "weight": 0.5
               },
               {
                 "target": "ground",
-                "weight": 0.3
+                "weight": 0.4
               },
               {
                 "target": "offscreen",
-                "weight": 0.3
+                "weight": 0.1
               }
             ]
           }
         }
-      ]
+      ],
+      "discoveryRadius": 20
     },
     "sounds": {
       "call": "seagulls"

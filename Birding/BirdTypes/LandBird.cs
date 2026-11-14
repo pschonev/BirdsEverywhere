@@ -18,6 +18,8 @@ internal sealed class LandBird : BirdCritter
     public int HideTimer { get; set; }
     public Vector2? HideTree { get; set; }
 
+    internal override Vector2? HiddenIn => HideTree;
+
     public LandBird() { }
 
     internal override BirdState CaptureExtras(BirdState state) => state with { FlightOffset = FlightOffset, WalkTimer = WalkTimer, HideTimer = HideTimer, AnchorTile = HideTree };
@@ -74,7 +76,7 @@ internal sealed class LandBird : BirdCritter
             {
                 RelocateTarget = null;
                 HideTree = null;
-                Escape(farmer, environment);
+                Escape(farmer, environment, counted: false);
             }
             if (State == BehaviorStatus.Relocating)
             {
@@ -208,13 +210,14 @@ internal sealed class LandBird : BirdCritter
         StartFlyAnimation();
     }
 
-    private void Escape(Character threat, GameLocation environment)
+    /// <summary>Reacts to a threat by relocating, or flying off when nothing qualifies. A retarget (the flight spot became unsafe) is not a new scare, so it does not use up the relocation budget.</summary>
+    private void Escape(Character threat, GameLocation environment, bool counted = true)
     {
         if (RelocationTarget(environment, threat) is { } choice)
         {
             HideTree = choice.Option.Target == EscapeOption.Tree ? choice.Tile : null;
             HideTimer = choice.Option.HideForMs;
-            StartRelocate(choice.Tile, environment, counted: true);
+            StartRelocate(choice.Tile, environment, counted);
         }
         else
         {
@@ -234,8 +237,23 @@ internal sealed class LandBird : BirdCritter
         return HideTree == tile ? new Vector2(target.X, MathF.Max(32f, target.Y - CanopyHeightPx)) : target;
     }
 
-    private EscapeChoice? RelocationTarget(GameLocation environment, Character threat) =>
-        Record(EscapePlanner.Surface(new GameLocationQuery(environment), OwnTile, threat.Tile, Threat, Relocations, OccupiedTiles(environment), Rng, Flock(environment, threat.Tile)));
+    private EscapeChoice? RelocationTarget(GameLocation environment, Character threat)
+    {
+        EscapePlanner.EscapeDecision decision = EscapePlanner.Decide(new GameLocationQuery(environment), OwnTile, threat.Tile, Threat, Relocations,
+            OccupiedTiles(environment), Rng, Flock(environment, threat.Tile));
+        LogEscape(decision.Choice is { } picked ? $"relocate to {picked.Option.Target} {picked.Tile}" : "leave", decision.Via);
+        return Record(decision.Choice);
+    }
+
+    internal override bool BeginArrival(Vector2 from, Vector2 tile, GameLocation environment)
+    {
+        CurrentLocation = environment;
+        position = from;
+        BeginRelocation(tile, TilePosition(tile), environment, counted: false, observe: false);
+        State = BehaviorStatus.Relocating;
+        StartFlyAnimation();
+        return true;
+    }
 
     private void StartRelocate(Vector2 tile, GameLocation environment, bool counted)
     {
@@ -269,13 +287,17 @@ internal sealed class LandBird : BirdCritter
         ShowPose("stand");
     }
 
+    /// <summary>A hider with no free ground to come down to waits this long before looking again, instead of leaving.</summary>
+    private const int HideRetryMs = 4000;
+
     private void Hide(GameTime time, GameLocation environment)
     {
         Vector2 tree = HideTree!.Value;
-        if (!TreeIntact(environment, tree))
+        bool startled = TakeAlarm(time) is not null;
+        if (startled || !TreeIntact(environment, tree))
         {
             HideTree = null;
-            StartFlee(Rng.NextDouble() < 0.5, environment);
+            Flush(tree, environment, raiseAlarm: !startled);
             return;
         }
         HideTimer -= time.ElapsedGameTime.Milliseconds;
@@ -284,15 +306,38 @@ internal sealed class LandBird : BirdCritter
         {
             return;
         }
-        HideTree = null;
         if (EscapePlanner.Landing(new GameLocationQuery(environment), tree, Threat.FleeRadius, Rng, OccupiedTiles(environment)) is { } ground)
         {
+            HideTree = null;
             StartRelocate(ground, environment, counted: false);
         }
         else
         {
-            StartFlee(Rng.NextDouble() < 0.5, environment);
+            HideTimer = HideRetryMs;
         }
+    }
+
+    /// <summary>The hider's tree was shaken, felled or lost its leaves: move to another canopy, else the ground, else leave.</summary>
+    private void Flush(Vector2 tree, GameLocation environment, bool raiseAlarm)
+    {
+        Farmer? nearest = environment.farmers.OrderBy(farmer => Vector2.DistanceSquared(farmer.Tile, tree)).FirstOrDefault();
+        bool leave = raiseAlarm ? Rng.NextDouble() < EscapePlanner.FlushLeaveChance : FlushLeave;
+        FlushLeave = false;
+        if (raiseAlarm && nearest is not null && !IsReplica && Cohesion is { Spread: > 0 } cohesion)
+        {
+            RaiseFlushAlarm(environment, nearest, cohesion, Game1.currentGameTime.TotalGameTime.TotalMilliseconds, leave);
+        }
+        Vector2 shaker = nearest?.Tile ?? tree;
+        if (EscapePlanner.Flush(new GameLocationQuery(environment), OwnTile, shaker, Threat, Relocations, tree, OccupiedTiles(environment), Rng, leave) is { } choice)
+        {
+            LogEscape($"flush to {choice.Option.Target} {choice.Tile}", raiseAlarm ? "tree flushed" : "startled by a flushed mate");
+            HideTree = choice.Option.Target == EscapeOption.Tree ? choice.Tile : null;
+            HideTimer = choice.Option.HideForMs;
+            StartRelocate(choice.Tile, environment, counted: true);
+            return;
+        }
+        LogEscape("flush leave", leave ? (raiseAlarm ? "leave chance" : "flock leaves with the trigger") : EscapeLeaveReason(Threat));
+        StartFlee(Rng.NextDouble() < 0.5, environment);
     }
 
     private static bool TreeIntact(GameLocation environment, Vector2 tile) =>

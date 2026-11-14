@@ -13,7 +13,19 @@ public interface ILocationQuery
     string? FishArea(Vector2 tile);
     bool IsPassable(Vector2 tile);
     IReadOnlyList<Vector2> FarmerTiles { get; }
+
+    /// <summary>Tiles of villagers and pets that count as threats: visible characters within sight of a farmer (<see cref="ThreatSight"/>).</summary>
+    IReadOnlyList<Vector2> NpcTiles => Array.Empty<Vector2>();
+
+    /// <summary>Everything a bird keeps away from when it picks where to go: every farmer plus <see cref="NpcTiles"/>.</summary>
+    IReadOnlyList<Vector2> ThreatTiles => FarmerTiles.Concat(NpcTiles).ToList();
     IEnumerable<Vector2> MatureTrees();
+
+    /// <summary>True for a tile a player cannot see a bird on: it lies behind a bush or under a tree crown, so a landing there looks like hiding.</summary>
+    bool IsHiddenByScenery(Vector2 tile) => false;
+
+    /// <summary>Trunks a trunk bird can be seen on: <see cref="MatureTrees"/> that no other tree, bush or front-layer tile covers.</summary>
+    IEnumerable<Vector2> TrunkTrees() => MatureTrees();
 
     /// <summary>Trees a bird can hide in: <see cref="MatureTrees"/> that currently have leaves.</summary>
     IEnumerable<Vector2> CanopyTrees() => MatureTrees();
@@ -72,8 +84,22 @@ public sealed class GameLocationQuery : ILocationQuery
 
     public IReadOnlyList<Vector2> FarmerTiles => _location.farmers.Select(farmer => farmer.Tile).ToList();
 
+    public IReadOnlyList<Vector2> NpcTiles
+    {
+        get
+        {
+            List<Vector2> farmers = FarmerTiles.ToList();
+            return _location.characters.Where(character => !character.IsInvisible).Select(character => character.Tile)
+                .Where(tile => ThreatSight.InSight(tile, farmers)).ToList();
+        }
+    }
+
     public IEnumerable<Vector2> MatureTrees() =>
         _location.terrainFeatures.Pairs.Where(pair => Condition.IsEligibleTree(pair.Value)).Select(pair => pair.Key);
+
+    public bool IsHiddenByScenery(Vector2 tile) => _location.isBehindBush(tile) || _location.isBehindTree(tile);
+
+    public IEnumerable<Vector2> TrunkTrees() => MatureTrees().Where(tile => Condition.IsTrunkVisible(_location, tile));
 
     public IEnumerable<Vector2> CanopyTrees() =>
         _location.terrainFeatures.Pairs.Where(pair => Condition.IsCanopyTree(pair.Value)).Select(pair => pair.Key);

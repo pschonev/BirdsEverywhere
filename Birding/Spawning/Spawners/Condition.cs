@@ -23,11 +23,23 @@ public static class Condition
     public static bool IsEligibleTree(TerrainFeature feature) =>
         feature is Tree tree && tree.treeType.Value != Tree.leafyTree && tree.growthStage.Value >= 5 && !tree.stump.Value;
 
-    /// <summary>A tree a bird can hide in: eligible and currently carrying leaves (evergreens in winter, deciduous ones not).</summary>
-    public static bool IsCanopyTree(TerrainFeature feature) => IsEligibleTree(feature) && feature is Tree tree && tree.IsLeafy();
+    /// <summary>A tree a bird can hide in: fully grown, not a stump and currently carrying leaves (evergreens in winter, deciduous ones not). Unlike trunk trees this includes maples.</summary>
+    public static bool IsCanopyTree(TerrainFeature feature) =>
+        feature is Tree tree && tree.growthStage.Value >= 5 && !tree.stump.Value && tree.IsLeafy();
 
     public static bool IsEligibleTreeAt(GameLocation location, Vector2 tile) =>
-        location.terrainFeatures.TryGetValue(tile, out TerrainFeature? feature) && IsEligibleTree(feature);
+        location.terrainFeatures.TryGetValue(tile, out TerrainFeature? feature) && IsEligibleTree(feature) && IsTrunkVisible(location, tile);
+
+    /// <summary>A trunk a trunk bird can be seen on: no other grown tree's crown, no large bush and no front-layer map tile covers it.</summary>
+    public static bool IsTrunkVisible(GameLocation location, Vector2 tile)
+    {
+        int x = (int)tile.X;
+        int y = (int)tile.Y;
+        return !TrunkVisibility.IsCovered(tile, location.terrainFeatures.Pairs.Where(pair => pair.Value is Tree { stump.Value: false } tree && tree.growthStage.Value >= 5).Select(pair => pair.Key))
+            && !location.isBehindBush(tile)
+            && location.getTileIndexAt(x, y, "AlwaysFront") == -1
+            && location.getTileIndexAt(x, y, "Front") == -1;
+    }
 
     public static bool IsLargeBush(Bush bush) => bush.size.Value == Bush.largeBush;
 

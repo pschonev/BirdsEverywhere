@@ -326,9 +326,9 @@ public static class ContentValidator
                 foreach (ThreatAlternative alternative in alternatives)
                 {
                     ReportEscapeTargets(alternative.Threat, rule.BirdType, profile, reactionPath + ".threat.flee.escape", report);
-                    if (alternative.Flee?.Do == "swimAway" && !alternative.Threat.Escape.IsEmpty)
+                    if (alternative.Flee?.Do is "swimAway" or "walkAway" && !alternative.Threat.Escape.IsEmpty)
                     {
-                        report(IssueSeverity.Error, reactionPath + ".threat.flee.escape", "Swimming reactions cannot escape by flight.");
+                        report(IssueSeverity.Error, reactionPath + ".threat.flee.escape", "Swimming and walking reactions cannot escape by flight.");
                     }
                     if (alternative.Flee?.Sound is { } sound && !sounds.ContainsKey(sound))
                     {

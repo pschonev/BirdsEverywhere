@@ -7,8 +7,9 @@ public static class TileRules
 {
     public const int OpenWaterShoreDistance = 2;
 
-    /// <summary>Ground a farmer could also walk on; piers, docks and bridges are ground.</summary>
-    public static bool CanLand(ILocationQuery location, Vector2 tile) => location.IsGroundTile(tile) && location.IsPassable(tile) && location.IsReachable(tile);
+    /// <summary>Ground a farmer could also walk on and see a bird on: not behind a bush or under a tree crown. Piers, docks and bridges are ground.</summary>
+    public static bool CanLand(ILocationQuery location, Vector2 tile) =>
+        location.IsGroundTile(tile) && location.IsPassable(tile) && location.IsReachable(tile) && !location.IsHiddenByScenery(tile);
 
     /// <summary>A feature tile (tree, bush) a farmer can stand next to: the tile itself or one of its eight neighbours is reachable on foot.</summary>
     public static bool IsReachableNear(ILocationQuery location, Vector2 tile)

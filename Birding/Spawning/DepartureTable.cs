@@ -9,7 +9,7 @@ public sealed record Departure(string Location, int Seed, int Minute);
 /// <summary>Planned birds that left a location today; a bird may return only after <see cref="DelayMinutes"/>.</summary>
 public sealed class DepartureTable
 {
-    public const int DelayMinutes = 120;
+    public const int DelayMinutes = 40;
 
     private readonly Dictionary<(string Location, int Seed), int> _departedAt = new();
 
@@ -68,6 +68,40 @@ public static class ReturnTiles
         return null;
     }
 
+    private const float ArrivalStepPx = 64f;
+    private const int ArrivalMaxSteps = 100;
+
+    /// <summary>The pixel position an arriving bird starts from: along the line from the nearest farmer through <paramref name="tile"/> and beyond, until it is off screen or at the map edge.</summary>
+    public static Vector2 ArrivalStart(Point mapSize, Vector2 tile, IReadOnlyList<Vector2> farmers, Func<Vector2, bool> isVisible)
+    {
+        Vector2 target = (tile * 64f) + new Vector2(32f, 32f);
+        Vector2 away = new(1f, 0f);
+        if (farmers.Count > 0)
+        {
+            Vector2 nearest = farmers.OrderBy(farmer => Vector2.DistanceSquared(farmer, tile)).First();
+            if (tile != nearest)
+            {
+                away = Vector2.Normalize(tile - nearest);
+            }
+        }
+        Vector2 limit = new((mapSize.X * 64f) - 1f, (mapSize.Y * 64f) - 1f);
+        Vector2 position = target;
+        for (int step = 0; step < ArrivalMaxSteps; step++)
+        {
+            Vector2 next = position + (away * ArrivalStepPx);
+            if (next.X < 0f || next.Y < 0f || next.X > limit.X || next.Y > limit.Y)
+            {
+                break;
+            }
+            position = next;
+            if (!isVisible(position))
+            {
+                break;
+            }
+        }
+        return position;
+    }
+
     public static bool Eligible(ILocationQuery location, TileSpawnCondition condition, Vector2 tile, IReadOnlyCollection<Vector2> excluded) =>
-        condition(location, tile) && !excluded.Contains(tile) && !TileSelection.IsNear(tile, location.FarmerTiles.ToList(), FarmerDistance);
+        condition(location, tile) && !excluded.Contains(tile) && !TileSelection.IsNear(tile, location.FarmerTiles.ToList(), FarmerDistance) && !ThreatSight.Near(tile, location.NpcTiles, ThreatSight.NpcSpawnClearanceTiles);
 }

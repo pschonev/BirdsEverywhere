@@ -11,6 +11,9 @@
     "groupCount": [
       1,
       1
-    ]
+    ],
+    "sounds": {
+      "peck": ""
+    }
   }
 }

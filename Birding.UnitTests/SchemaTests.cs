@@ -228,6 +228,12 @@ public class SchemaTests
     [TestCase(@"{""cohesion"":{""spread"":1,""linkRadius"":5,""delayMs"":[80,300],""sameOutcome"":1,""rally"":3,""fan"":0.5,""regroup"":true,""rejoinDelayMs"":[2000,8000]}}", true)]
     [TestCase(@"{""cohesion"":{""spread"":2}}", false)]
     [TestCase(@"{""cohesion"":{""huddle"":1}}", false)]
+    [TestCase(@"{""threat"":[{""if"":{""nearWater"":false},""flee"":{""radius"":6,""do"":""walkAway""}},{""flee"":{""radius"":3,""do"":""flyOff""}}]}", true)]
+    [TestCase(@"{""threat"":[{""flee"":{""radius"":6,""do"":""crawlAway""}}]}", false)]
+    [TestCase(@"{""discoveryRadius"":20}", true)]
+    [TestCase(@"{""discoveryRadius"":0}", false)]
+    [TestCase(@"{""discoveryRadius"":41}", false)]
+    [TestCase(@"{""discoveryRadius"":""far""}", false)]
     [TestCase(@"{""playerEnters"":{}}", false)]
     public void Reaction_SchemaAndLoaderAgree(string json, bool valid) =>
         AssertAgreement("reaction", json, valid, () => ReactionLoader.Parse(Newtonsoft.Json.Linq.JToken.Parse(json), new Reactions(new ThreatReaction(1)), "x.json", "$"));

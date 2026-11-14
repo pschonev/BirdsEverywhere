@@ -65,14 +65,14 @@ public abstract class TileSpawner : Spawner
                 BirdPlacement bird = Place(data, rule, member.Tile, null, random, family.Members![member.Role].Textures);
                 placed.Add(bird with { GroupId = member.Group, Role = member.Role, Stage = member.Stage, Composition = rule.Stages?[member.Stage] });
             }
-            monitor.Log($"Planned {placed.Count} {data.Id.Value} at {location.Name}.", LogLevel.Debug);
+            monitor.Log($"Planned {placed.Count} {data.Id.Value} at {location.Name}.", placed.Count > 0 ? LogLevel.Debug : LogLevel.Trace);
             return placed;
         }
         List<BirdPlacement> spawnList = TileSelection.Tiles(location, Restrict(rule, fishArea), rule.GroupCount, rule.GroupSize, random, avoid: avoid,
                 layout: rule.Params.Group, speciesDistance: rule.Params.SpeciesDistance ?? TileSelection.MinSpeciesDistance)
             .Select(tile => Place(data, rule, tile, null, random))
             .ToList();
-        monitor.Log($"Planned {spawnList.Count} {data.Id.Value} at {location.Name}.", LogLevel.Debug);
+        monitor.Log($"Planned {spawnList.Count} {data.Id.Value} at {location.Name}.", spawnList.Count > 0 ? LogLevel.Debug : LogLevel.Trace);
         return spawnList;
     }
 

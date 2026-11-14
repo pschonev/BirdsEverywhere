@@ -2,9 +2,13 @@ using System.Collections.Immutable;
 
 namespace Birding.Domain;
 
-/// <summary>Resolved reactions of a rule: the <c>threat</c> trigger and the optional group <c>cohesion</c>.</summary>
-public sealed record Reactions(ThreatReaction Threat, IReadOnlyList<ThreatAlternative>? Alternatives = null, Cohesion? Cohesion = null)
+/// <summary>Resolved reactions of a rule: the <c>threat</c> trigger, the optional group <c>cohesion</c> and the <c>DiscoveryRadius</c> in tiles at which a visible bird counts as detected.</summary>
+public sealed record Reactions(ThreatReaction Threat, IReadOnlyList<ThreatAlternative>? Alternatives = null, Cohesion? Cohesion = null,
+    int DiscoveryRadius = Reactions.DefaultDiscoveryRadius)
 {
+    /// <summary>Tiles within which a visible bird is registered as detected.</summary>
+    public const int DefaultDiscoveryRadius = 8;
+
     public ThreatAlternative Select(ReactionContext context) =>
         Alternatives?.FirstOrDefault(alternative => alternative.Condition.Matches(context))
         ?? new ThreatAlternative(new ReactionCondition(), Threat, null);

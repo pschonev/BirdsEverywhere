@@ -17,7 +17,7 @@ public class TreeTrunkSpawner : TerrainFeatureSpawner
     {
         GameLocationQuery query = new(location);
         IEnumerable<Vector2> trees = location.terrainFeatures.Pairs.Where(pair => IsEligibleTree(pair.Value)).Select(pair => pair.Key)
-            .Where(tile => TileRules.IsReachableNear(query, tile)).ToList();
+            .Where(tile => TileRules.IsReachableNear(query, tile) && IsTrunkVisible(location, tile)).ToList();
         return Placements(TileSelection.Features(trees, rule.GroupCount, random, (tile, _) => tile, avoid, rule.Params.SpeciesDistance ?? TileSelection.MinSpeciesDistance),
             location, data, rule, random, monitor);
     }
@@ -63,7 +63,7 @@ public abstract class TerrainFeatureSpawner : Spawner
         List<BirdPlacement> spawnList = placed
             .Select(p => Place(data, rule, p.Position, p.Feature, random))
             .ToList();
-        monitor.Log($"Planned {spawnList.Count} {data.Id.Value} at {location.Name}.", LogLevel.Debug);
+        monitor.Log($"Planned {spawnList.Count} {data.Id.Value} at {location.Name}.", spawnList.Count > 0 ? LogLevel.Debug : LogLevel.Trace);
         return spawnList;
     }
 }

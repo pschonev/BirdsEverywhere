@@ -55,6 +55,14 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | C06 | In winter, approach a tit that has only bare deciduous trees nearby, then repeat near a pine. | Near bare trees only it lands on the ground or leaves; near a pine it can hide in it. |
 | C08 | Watch a hidden tit come back down and flee from a shaken tree. | Both flights start from the crown, not from the trunk. |
 | C09 | Scare a tit group. | No generic sparrow chorus plays; the tits are silent until a real tit alarm call exists. |
+| C10 | Shake the tree a tit hides in, with another leafy tree within about 12 tiles. | The tit flies into the other crown and hides there; it only leaves the map when no other canopy or visible ground spot exists. Cutting the tree behaves the same. |
+| C11 | Scare birds so they land on the ground, near large bushes and under tree crowns. | No bird ever lands behind a bush or under a crown where you cannot see it. |
+| C12 | Scare a tit group so several hide in neighbouring trees, then shake one of those trees. | Hiders within about 5 tiles of it are startled a moment later and move to another canopy or the ground; a hider in a tree farther away stays. About one bird in ten flies off instead. |
+| C13 | Scare a tit group into trees several times. | The group tends to use the same tree or an adjacent one instead of spreading across the whole area. |
+| C14 | Scare a tit pair several times, also by walking toward their first landing spot. | They land near each other or leave together; a bird never flies off while its mate relocates unless it truly had no spot. The SMAPI log (Trace) shows each decision and reason. |
+| C15 | Scare a group of three tits several times from different sides, with two or more leafy trees (include a maple) within 8 tiles. | The birds land or hide in the same tree or in adjacent ones, not on opposite sides of you; a maple is used like any other leafy tree. |
+| C16 | Walk straight up to a tit in open ground several times in a row, then keep chasing it for about 30 seconds. | The first approaches only make it relocate (to a tree or ground spot); it leaves the map only after about four relocations in a row, or when it was close to the map border. |
+| C17 | Shake or fell trees a tit hides in, once, then again and again. | A single shake relocates it to another crown or the ground (about 1 in 20 fly off); after about four relocations in 30 s it leaves. |
 | C07 | Chop a tree next to a tit and approach it while the stump is the nearest tree. | The tit never hides in the stump. |
 
 ## Trunk hop (one client)
@@ -63,6 +71,7 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 |---|---|---|
 | W01 | Spawn a black woodpecker on a trunk with other mature trees around and approach from one side. | It flies to another trunk on the far side from you, not past you. |
 | W02 | Repeat with no tree on the far side. | It flees offscreen; it never hops toward you. |
+| W03 | Walk around a forest where tree crowns overlap and look at every woodpecker. | No woodpecker is on a trunk that is hidden behind another tree's crown or a bush, and none is drawn over a crown. If one is, tell me which trees; the crown reach used is 5 tiles south and 1 tile to each side. |
 
 ## Gull shore safety (one client)
 
@@ -71,15 +80,20 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | G01 | At the Beach, approach a swimming gull from the open-water side toward the pier. | It takes off before touching the shore; no left/right jitter beside the pier. |
 | G02 | Approach a gull standing on sand or the pier, then approach it again after it lands. | It flies to other ground or open water, and can do so a second time. |
 | G03 | Approach a gull on open water at 3 tiles. | It swims away first (radius 6), then flies if you keep closing in; it prefers landing on water. |
+| G04 | Approach a gull standing on sand at 5 tiles, then stop. | It walks away from you with the walk animation, then stands still about a second after you stop. |
+| G05 | Keep approaching the walking gull to 3 tiles. | It takes off. It also takes off if its walking path reaches water or the end of the pier. |
+| G06 | Scare a swimming gull so it swims away, then watch it afterwards near the pier and at the edge of open water for 30 seconds. | It drifts slowly and turns around only now and then; it never flips left and right several times a second. |
 
 ## Departures and return (one client unless noted)
 
 | ID | Action | Expected result |
 |---|---|---|
 | F01 | Make a bird fly offscreen, leave the location and re-enter at once. | That bird is absent; others are unchanged. |
-| F02 | Repeat, then wait at least 2 in-game hours elsewhere and re-enter. | The bird is back on a different tile near its planned spot, at least 10 tiles from you. |
-| F03 | Scare a whole group offscreen; return after 2 in-game hours. | The group returns together, not on the old tiles. |
-| F04 | Two players: farmhand scares a bird offscreen and leaves; host enters at once, then after 2 in-game hours. | Absent for the host at once; present after the delay. |
+| F02 | Repeat, then wait at least 40 in-game minutes (about 30 s) elsewhere and re-enter. | The bird is back on a different tile near its planned spot, at least 10 tiles from you. |
+| F03 | Scare a whole group offscreen; return after 40 in-game minutes. | The group returns together, not on the old tiles. |
+| F04 | Two players: farmhand scares a bird offscreen and leaves; host enters at once, then after 40 in-game minutes. | Absent for the host at once; present after the delay. |
+| F05 | Scare a ground bird offscreen and stay in the location for 40 in-game minutes. | It flies in from beyond the screen edge (not from the side you stand on) and settles at least 10 tiles from you, with no alarm call. |
+| F06 | Scare a bush bird or woodpecker offscreen and stay. | It does not return while you stay; it is back on your next visit. |
 
 ## Reachability and Beach bridge (one client)
 
@@ -125,6 +139,8 @@ Run these in a disposable save with SMAPI and the current mod on each client. Se
 | V01 | Scare a gull group near the camera. | The flee alarms no longer pile up into one loud chorus: at most two gull cues overlap, and starts are spaced by at least 0.4 s. |
 | V02 | Watch a gull fly away or to another spot. | It sometimes calls while flying, not only at take-off; there is no steady stream of calls. |
 | V03 | Spawn a bush bird or a woodpecker on a map with an unreachable part (Beach island before the bridge is fixed, if a tree or bush stands there). | No trunk or bush bird spawns where you cannot walk to it. |
+| V04 | Stand on the Beach shore and look at gulls swimming far out on the water, anywhere on screen. | Each visible gull registers as detected (collection entry) without walking toward it; a tit across the screen in the Forest still needs to be within 8 tiles. |
+| V05 | Stand still in the Forest or Town while a villager or the dog walks near birds that are on screen, then again with a villager far off screen. | Birds near a villager you can see may startle or hide; a villager you cannot see never clears birds, and no bird lands or appears next to one. |
 
 ## Multiplayer synchronization (two SMAPI clients)
 

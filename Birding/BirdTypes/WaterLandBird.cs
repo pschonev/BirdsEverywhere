@@ -157,6 +157,9 @@ internal sealed class WaterLandBird : BirdCritter
             case BehaviorStatus.Following:
                 Follow(time, environment);
                 break;
+            case BehaviorStatus.SwimmingAway when flee.Do == "walkAway":
+                WalkAway(flee, threat, environment);
+                break;
             case BehaviorStatus.SwimmingAway:
                 Vector2 next = position + _swimDirection * flee.Speed!.Value;
                 if (IsOpenWater(environment, next))
@@ -370,6 +373,22 @@ internal sealed class WaterLandBird : BirdCritter
         }
     }
 
+    private const float WalkAwaySpeedFactor = 1.5f;
+    private const double WalkAwayCalmMs = 1200;
+
+    private double _walkAwayThreatMs;
+
+    private static double NowMilliseconds => Game1.currentGameTime?.TotalGameTime.TotalMilliseconds ?? 0;
+
+    /// <summary>True for a tile a walking bird may step on: ground a farmer can see and walk on, not next to a villager or pet.</summary>
+    private static bool CanWalkTo(GameLocation environment, Vector2 position)
+    {
+        Birding.Spawners.GameLocationQuery query = new(environment);
+        Vector2 tile = new((int)(position.X / 64f), (int)(position.Y / 64f));
+        return Birding.Spawners.TileRules.CanLand(query, tile)
+            && !Birding.Spawners.ThreatSight.Near(tile, query.NpcTiles, Birding.Spawners.ThreatSight.NpcWalkClearanceTiles);
+    }
+
     private void StartFlee(Vector2 threatPosition, GameLocation environment, bool swimBlocked = false)
     {
         ActionDefinition flee = Action("flee");
@@ -378,6 +397,11 @@ internal sealed class WaterLandBird : BirdCritter
             if (selected.Do == "swimAway" && IsOnWater(environment))
             {
                 flee = flee with { Do = "swimAway", Clip = Action("swim").Clip, Speed = Action("swim").Speed, Sound = selected.Sound ?? flee.Sound };
+            }
+            else if (selected.Do == "walkAway" && !IsOnWater(environment))
+            {
+                ActionDefinition walk = Action("walk");
+                flee = flee with { Do = "walkAway", Clip = walk.Clip, Speed = walk.Speed * WalkAwaySpeedFactor, Sound = selected.Sound ?? flee.Sound };
             }
             else
             {
@@ -389,13 +413,14 @@ internal sealed class WaterLandBird : BirdCritter
         {
             flee = Services!.Actions["waterland_actions"]["flee"];
         }
-        if (flee.Do == "swimAway" && (swimBlocked || !IsOpenWater(environment, position + SwimDirectionAway(threatPosition) * 64f)))
+        if ((flee.Do == "swimAway" && (swimBlocked || !IsOpenWater(environment, position + SwimDirectionAway(threatPosition) * 64f)))
+            || (flee.Do == "walkAway" && (swimBlocked || !CanWalkTo(environment, position + SwimDirectionAway(threatPosition) * 64f))))
         {
             _selectedThreat = _flightAlternative ?? _selectedThreat;
             ActionDefinition flight = Services!.Actions["waterland_actions"]["flee"];
             flee = flight with { Sound = _selectedThreat?.Flee?.Sound ?? flight.Sound };
         }
-        if (flee.Do != "swimAway" && RelocationTarget(environment, threatPosition) is { } tile)
+        if (flee.Do is not ("swimAway" or "walkAway") && RelocationTarget(environment, threatPosition) is { } tile)
         {
             StartRelocate(tile, flee, environment);
             return;
@@ -403,11 +428,12 @@ internal sealed class WaterLandBird : BirdCritter
         _activeFlee = flee;
         PlayActionSound(flee);
         AddBirdObservation(BirdName, environment.Name);
-        if (flee.Do == "swimAway")
+        if (flee.Do is "swimAway" or "walkAway")
         {
             _swimDirection = SwimDirectionAway(threatPosition);
             State = BehaviorStatus.SwimmingAway;
             flip = _swimDirection.X > 0;
+            _walkAwayThreatMs = NowMilliseconds;
             PlayClip(flee.Clip!, VisualRng);
             return;
         }
@@ -424,21 +450,37 @@ internal sealed class WaterLandBird : BirdCritter
 
     private static Vector2 TilePosition(Vector2 tile) => tile * 64f;
 
-    private Vector2? RelocationTarget(GameLocation environment, Vector2 threatPosition) =>
-        Record(EscapePlanner.Surface(new Birding.Spawners.GameLocationQuery(environment), OwnTile, threatPosition / 64f, _selectedThreat?.Threat ?? Threat,
-            Relocations, OccupiedTiles(environment), Rng, Flock(environment, threatPosition / 64f)))?.Tile;
+    private Vector2? RelocationTarget(GameLocation environment, Vector2 threatPosition)
+    {
+        ThreatReaction reaction = _selectedThreat?.Threat ?? Threat;
+        EscapePlanner.EscapeDecision decision = EscapePlanner.Decide(new Birding.Spawners.GameLocationQuery(environment), OwnTile, threatPosition / 64f, reaction,
+            Relocations, OccupiedTiles(environment), Rng, Flock(environment, threatPosition / 64f));
+        LogEscape(decision.Choice is { } picked ? $"relocate to {picked.Option.Target} {picked.Tile}" : "leave", decision.Via);
+        return Record(decision.Choice)?.Tile;
+    }
 
     private void Retarget(Vector2 threatPosition, GameLocation environment)
     {
         if (RelocationTarget(environment, threatPosition) is { } tile)
         {
-            StartRelocate(tile, _activeFlee ?? Action("flee"), environment);
+            StartRelocate(tile, _activeFlee ?? Action("flee"), environment, counted: false);
             return;
         }
         RelocateTarget = null;
         State = BehaviorStatus.FlyingAway;
         flip = threatPosition.X <= position.X;
         StartFlyAnimation();
+    }
+
+    internal override bool BeginArrival(Vector2 from, Vector2 tile, GameLocation environment)
+    {
+        CurrentLocation = environment;
+        _activeFlee = Action("flee");
+        position = from;
+        BeginRelocation(tile, TilePosition(tile), environment, counted: false, observe: false);
+        State = BehaviorStatus.Relocating;
+        StartFlyAnimation();
+        return true;
     }
 
     private void StartRelocate(Vector2 tile, ActionDefinition flee, GameLocation environment, bool counted = true)
@@ -489,6 +531,29 @@ internal sealed class WaterLandBird : BirdCritter
         _walkTimer = walk.DurationMs?.Roll(VisualRng);
     }
 
+    /// <summary>Walks away from the threat on foot (the same state as swimming away); steps onto visible ground only, flies when blocked, and stands still once no threat has been near for a moment.</summary>
+    private void WalkAway(ActionDefinition flee, Character? threat, GameLocation environment)
+    {
+        double now = NowMilliseconds;
+        if (threat is not null)
+        {
+            _walkAwayThreatMs = now;
+        }
+        else if (now - _walkAwayThreatMs > WalkAwayCalmMs)
+        {
+            Apply(BirdAction.Stop, null, environment);
+            return;
+        }
+        Vector2 next = position + _swimDirection * flee.Speed!.Value;
+        Vector2 here = OwnTile;
+        if (new Vector2((int)(next.X / 64f), (int)(next.Y / 64f)) != here && !CanWalkTo(environment, next))
+        {
+            StartFlee(position - _swimDirection * 64f, environment, swimBlocked: true);
+            return;
+        }
+        position = next;
+    }
+
     private void Walk(GameTime time, GameLocation environment)
     {
         float speed = Action("walk").Speed!.Value;
@@ -527,14 +592,8 @@ internal sealed class WaterLandBird : BirdCritter
         {
             return;
         }
-        float step = flip ? 0.25f : -0.25f;
-        Vector2 next = position + new Vector2(step, 0f);
-        if (Math.Abs(next.X - startingPosition.X) > 64f || !IsWater(environment, next) || (IsOpenWater(environment, position) && !IsOpenWater(environment, next)))
-        {
-            flip = !flip;
-            return;
-        }
-        position = next;
+        (position, flip, startingPosition) = WaterDrift.Step(position, flip, startingPosition,
+            (from, next) => IsWater(environment, next) && !(IsOpenWater(environment, from) && !IsOpenWater(environment, next)));
     }
 
     private void Follow(GameTime time, GameLocation environment)

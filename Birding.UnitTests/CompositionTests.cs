@@ -276,11 +276,25 @@ public class CompositionTests
         });
     }
 
+    [Test]
+    public void BlackWoodpecker_DoesNotTapWithTheVanillaGunshot() =>
+        Assert.That(ContentTests.LoadBird("black_woodpecker").Rules.Select(rule => rule.Composition!.Sounds["peck"]), Has.All.Empty);
+
     [TestCase("great_tit")]
     [TestCase("blue_tit")]
     [TestCase("coal_tit")]
     public void Tits_HaveNoGenericAlarmSound(string id) =>
         Assert.That(ContentTests.LoadBird(id).Rules.Select(rule => rule.Composition!.Sounds["alarm"]), Has.All.Empty);
+
+    [Test]
+    public void HerringGull_IsDetectedFromFartherThanOtherBirds()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(ContentTests.LoadBird("herring_gull").Rules.First().Composition!.Reactions!.DiscoveryRadius, Is.EqualTo(20));
+            Assert.That(ContentTests.LoadBird("great_tit").Rules.First().Composition!.Reactions!.DiscoveryRadius, Is.EqualTo(Reactions.DefaultDiscoveryRadius));
+        });
+    }
 
     [Test]
     public void HerringGull_CallsInFlightWithACappedCue()
@@ -310,10 +324,13 @@ public class CompositionTests
             Assert.That(flight.Threat.FleeRadius, Is.EqualTo(3));
             Assert.That(flight.Threat.Escape, Is.EqualTo(new[]
             {
-                new EscapeOption("water", 0.4, 12), new EscapeOption("ground", 0.3, 12), new EscapeOption(EscapeOption.Offscreen, 0.3, 12),
+                new EscapeOption("water", 0.5, 12), new EscapeOption("ground", 0.4, 12), new EscapeOption(EscapeOption.Offscreen, 0.1, 12),
             }));
-            Assert.That(flight.Threat.MaxRelocations, Is.EqualTo(2));
-            Assert.That(reactions.Select(water with { NearWater = false }), Is.EqualTo(flight));
+            Assert.That(flight.Threat.MaxRelocations, Is.EqualTo(3));
+            ThreatAlternative walk = reactions.Select(water with { NearWater = false });
+            Assert.That(walk.Flee?.Do, Is.EqualTo("walkAway"), "on land a gull first walks away");
+            Assert.That(walk.Threat.FleeRadius, Is.EqualTo(6));
+            Assert.That(walk.Threat.Escape, Is.Empty);
             Assert.That(ContentTests.LoadBird("herring_gull").Rules.First().Composition!.Actions["swim"].Speed, Is.EqualTo(0.26f));
         });
     }
@@ -388,7 +405,7 @@ public class CompositionTests
         {
             Assert.That(issues.Where(issue => issue.Severity == IssueSeverity.Error), Is.Empty);
             ThreatReaction threat = bird!.Rules.Single().Composition!.Reactions!.Threat;
-            Assert.That(threat with { Escape = default }, Is.EqualTo(new ThreatReaction(6, null, 1, MaxRelocations: 2)));
+            Assert.That(threat with { Escape = default }, Is.EqualTo(new ThreatReaction(6, null, 1, MaxRelocations: 4)));
             Assert.That(threat.Escape, Is.EqualTo(new[] { new EscapeOption("otherTree", 1, 12) }));
         });
     }
